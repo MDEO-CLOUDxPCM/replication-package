@@ -1,0 +1,21 @@
+{
+ "name": "warm_mix_kotlin",
+ "phases": [
+  {
+   "name": "warm",
+   "duration": 600.0,
+   "rates": {
+    "token": 10.0,
+    "products": 10.0,
+    "product": 10.0,
+    "users": 10.0,
+    "address": 10.0,
+    "createShoppingcartItem": 10.0,
+    "shipmentMethods": 3.433,
+    "paymentInformations": 3.433,
+    "createOrder": 3.433,
+    "placeOrder": 3.433
+   }
+  }
+ ]
+}

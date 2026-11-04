@@ -1,0 +1,3 @@
+# the calibration scripts' third-party imports (the original venv's versions were not kept)
+aiohttp
+redis

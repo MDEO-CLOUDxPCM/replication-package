@@ -1,0 +1,119 @@
+{
+ "op:shop.order": {
+  "rows": [
+   {
+    "key": "root:order",
+    "kind": "root",
+    "request": "order",
+    "allowed": [
+     "sync"
+    ],
+    "today": "sync",
+    "model": [
+     "the gateway calls the root resolver (sync only)"
+    ],
+    "ev": [],
+    "code": [],
+    "fp": "c-root"
+   },
+   {
+    "key": "home",
+    "kind": "home",
+    "cls": "Order",
+    "allowed": [
+     "Order"
+    ],
+    "today": "Order",
+    "model": [
+     "the home: the class it writes"
+    ],
+    "ev": [
+     {
+      "repo": "code",
+      "path": "src/Order.kt",
+      "line": 4,
+      "label": "entry"
+     }
+    ],
+    "code": [
+     "today's entry point in shop"
+    ],
+    "fp": "c-home"
+   },
+   {
+    "key": "event:shop/order/placed>stock.reserve",
+    "kind": "event",
+    "topic": "shop/order/placed",
+    "op": "stock.reserve",
+    "p": 1,
+    "allowed": [
+     "sync",
+     "async"
+    ],
+    "today": "async",
+    "model": [
+     "p 1 per execution"
+    ],
+    "ev": [
+     {
+      "repo": "code",
+      "path": "src/Order.kt",
+      "line": 6,
+      "label": "publish"
+     }
+    ],
+    "code": [
+     "published always"
+    ],
+    "fp": "c-event"
+   },
+   {
+    "key": "code:read:Legacy",
+    "kind": "code",
+    "allowed": [],
+    "model": [
+     "no access of Legacy in the model"
+    ],
+    "ev": [
+     {
+      "repo": "code",
+      "path": "vendor/Legacy.kt",
+      "line": 2
+     }
+    ],
+    "code": [
+     "read Legacy"
+    ],
+    "fp": "c-code"
+   }
+  ]
+ },
+ "op:stock.reserve": {
+  "rows": [
+   {
+    "key": "reaction:shop/order/placed<shop.order",
+    "kind": "reaction",
+    "op": "shop.order",
+    "topic": "shop/order/placed",
+    "allowed": [
+     "sync",
+     "async"
+    ],
+    "today": "async",
+    "model": [
+     "reacts to shop/order/placed raised by shop.order"
+    ],
+    "ev": [
+     {
+      "repo": "code",
+      "path": "src/Stock.kt",
+      "line": 2,
+      "label": "subscription"
+     }
+    ],
+    "code": [],
+    "fp": "c-reaction"
+   }
+  ]
+ }
+}

@@ -1,0 +1,53 @@
+{
+ "name": "rerun_off2",
+ "config": "off",
+ "block": 2,
+ "rateLevel": "mid",
+ "types": [
+  "product"
+ ],
+ "prep": [
+  "calibration/.venv/bin/python calibration/scripts/maintain.py --stack kotlin",
+  "calibration/.venv/bin/python requests/run.py cleanup"
+ ],
+ "durationS": 215,
+ "phases": [
+  {
+   "name": "idle",
+   "duration": 60,
+   "rates": {}
+  },
+  {
+   "name": "product:pre",
+   "duration": 15,
+   "rates": {}
+  },
+  {
+   "name": "product:warm",
+   "duration": 20,
+   "rates": {
+    "product": 40.06
+   }
+  },
+  {
+   "name": "product:steady",
+   "duration": 75,
+   "rates": {
+    "product": 40.06
+   }
+  },
+  {
+   "name": "product:drain",
+   "duration": 15,
+   "rates": {}
+  },
+  {
+   "name": "idle_end",
+   "duration": 30,
+   "rates": {}
+  }
+ ],
+ "burstTypes": [
+  "product"
+ ]
+}

@@ -1,0 +1,313 @@
+{
+ "name": "on_w1",
+ "config": "on",
+ "block": 3,
+ "rateLevel": "mid",
+ "types": [
+  "products",
+  "products.anon",
+  "product",
+  "product.anon",
+  "users",
+  "address",
+  "paymentInformations",
+  "shipmentMethods",
+  "notifications",
+  "wishlistView",
+  "login"
+ ],
+ "prep": [
+  "calibration/.venv/bin/python calibration/scripts/maintain.py --stack kotlin",
+  "calibration/.venv/bin/python requests/run.py cleanup"
+ ],
+ "durationS": 1465,
+ "phases": [
+  {
+   "name": "idle",
+   "duration": 60,
+   "rates": {}
+  },
+  {
+   "name": "products:pre",
+   "duration": 15,
+   "rates": {}
+  },
+  {
+   "name": "products:warm",
+   "duration": 20,
+   "rates": {
+    "products": 40.079
+   }
+  },
+  {
+   "name": "products:steady",
+   "duration": 75,
+   "rates": {
+    "products": 40.079
+   }
+  },
+  {
+   "name": "products:drain",
+   "duration": 15,
+   "rates": {}
+  },
+  {
+   "name": "products.anon:pre",
+   "duration": 15,
+   "rates": {}
+  },
+  {
+   "name": "products.anon:warm",
+   "duration": 20,
+   "rates": {
+    "products.anon": 46.035
+   }
+  },
+  {
+   "name": "products.anon:steady",
+   "duration": 75,
+   "rates": {
+    "products.anon": 46.035
+   }
+  },
+  {
+   "name": "products.anon:drain",
+   "duration": 15,
+   "rates": {}
+  },
+  {
+   "name": "product:pre",
+   "duration": 15,
+   "rates": {}
+  },
+  {
+   "name": "product:warm",
+   "duration": 20,
+   "rates": {
+    "product": 40.06
+   }
+  },
+  {
+   "name": "product:steady",
+   "duration": 75,
+   "rates": {
+    "product": 40.06
+   }
+  },
+  {
+   "name": "product:drain",
+   "duration": 15,
+   "rates": {}
+  },
+  {
+   "name": "product.anon:pre",
+   "duration": 15,
+   "rates": {}
+  },
+  {
+   "name": "product.anon:warm",
+   "duration": 20,
+   "rates": {
+    "product.anon": 40.797
+   }
+  },
+  {
+   "name": "product.anon:steady",
+   "duration": 75,
+   "rates": {
+    "product.anon": 40.797
+   }
+  },
+  {
+   "name": "product.anon:drain",
+   "duration": 15,
+   "rates": {}
+  },
+  {
+   "name": "users:pre",
+   "duration": 15,
+   "rates": {}
+  },
+  {
+   "name": "users:warm",
+   "duration": 20,
+   "rates": {
+    "users": 43.935
+   }
+  },
+  {
+   "name": "users:steady",
+   "duration": 75,
+   "rates": {
+    "users": 43.935
+   }
+  },
+  {
+   "name": "users:drain",
+   "duration": 15,
+   "rates": {}
+  },
+  {
+   "name": "address:pre",
+   "duration": 15,
+   "rates": {}
+  },
+  {
+   "name": "address:warm",
+   "duration": 20,
+   "rates": {
+    "address": 26.002
+   }
+  },
+  {
+   "name": "address:steady",
+   "duration": 75,
+   "rates": {
+    "address": 26.002
+   }
+  },
+  {
+   "name": "address:drain",
+   "duration": 15,
+   "rates": {}
+  },
+  {
+   "name": "paymentInformations:pre",
+   "duration": 15,
+   "rates": {}
+  },
+  {
+   "name": "paymentInformations:warm",
+   "duration": 20,
+   "rates": {
+    "paymentInformations": 16.686
+   }
+  },
+  {
+   "name": "paymentInformations:steady",
+   "duration": 75,
+   "rates": {
+    "paymentInformations": 16.686
+   }
+  },
+  {
+   "name": "paymentInformations:drain",
+   "duration": 15,
+   "rates": {}
+  },
+  {
+   "name": "shipmentMethods:pre",
+   "duration": 15,
+   "rates": {}
+  },
+  {
+   "name": "shipmentMethods:warm",
+   "duration": 20,
+   "rates": {
+    "shipmentMethods": 21.701
+   }
+  },
+  {
+   "name": "shipmentMethods:steady",
+   "duration": 75,
+   "rates": {
+    "shipmentMethods": 21.701
+   }
+  },
+  {
+   "name": "shipmentMethods:drain",
+   "duration": 15,
+   "rates": {}
+  },
+  {
+   "name": "notifications:pre",
+   "duration": 15,
+   "rates": {}
+  },
+  {
+   "name": "notifications:warm",
+   "duration": 20,
+   "rates": {
+    "notifications": 6.473
+   }
+  },
+  {
+   "name": "notifications:steady",
+   "duration": 75,
+   "rates": {
+    "notifications": 6.473
+   }
+  },
+  {
+   "name": "notifications:drain",
+   "duration": 15,
+   "rates": {}
+  },
+  {
+   "name": "wishlistView:pre",
+   "duration": 15,
+   "rates": {}
+  },
+  {
+   "name": "wishlistView:warm",
+   "duration": 20,
+   "rates": {
+    "wishlistView": 6.819
+   }
+  },
+  {
+   "name": "wishlistView:steady",
+   "duration": 75,
+   "rates": {
+    "wishlistView": 6.819
+   }
+  },
+  {
+   "name": "wishlistView:drain",
+   "duration": 15,
+   "rates": {}
+  },
+  {
+   "name": "login:pre",
+   "duration": 15,
+   "rates": {}
+  },
+  {
+   "name": "login:warm",
+   "duration": 20,
+   "rates": {
+    "login": 34.701
+   }
+  },
+  {
+   "name": "login:steady",
+   "duration": 75,
+   "rates": {
+    "login": 34.701
+   }
+  },
+  {
+   "name": "login:drain",
+   "duration": 15,
+   "rates": {}
+  },
+  {
+   "name": "idle_end",
+   "duration": 30,
+   "rates": {}
+  }
+ ],
+ "burstTypes": [
+  "products",
+  "products.anon",
+  "product",
+  "product.anon",
+  "users",
+  "address",
+  "paymentInformations",
+  "shipmentMethods",
+  "notifications",
+  "wishlistView",
+  "login"
+ ]
+}

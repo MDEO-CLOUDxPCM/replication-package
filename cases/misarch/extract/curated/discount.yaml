@@ -1,0 +1,666 @@
+# discount (Kotlin original). Curated; schema: build.py docstring. Anchors are relative to
+# services/discount/src/main/kotlin/org/misarch/discount/.
+service: discount
+transactional: >-
+  service/*Service.kt @Transactional: every mutation's service method runs in one transaction, events are published
+  inside it. The order validation (reservation-succeeded) runs in its own transaction
+  (service/DiscountUsageService.kt#@Transactional) with the result event inside; the product copy handler is
+  @Transactional. Two triggers write/read other
+  tables in the same statement: CouponRedemptionEntity insert -> increments CouponEntity.usages atomically and
+  checks maxUsages (update_coupon_usages, one UPDATE ... RETURNING); DiscountUsageEntity insert/update of usages ->
+  reads DiscountEntity.maxUsagesPerUser (check_discount_usages). Queries run without a transaction.
+
+tables:
+  UserEntity:
+    kind: copy
+    copyOf: {User: [id]}
+    fedBy: [user/user/created]
+    note: foreign-key target of CouponRedemptionEntity.userId and DiscountUsageEntity.userId; read by Coupon.users and DiscountUsage.user
+  ProductEntity:
+    kind: copy
+    copyOf: {Product: [id]}
+    fedBy: [catalog/product/created]
+    note: existence check of createDiscount/updateDiscount; foreign-key target of DiscountToProductEntity
+  ProductVariantEntity:
+    kind: copy
+    copyOf: {ProductVariant: [id, productId]}
+    fedBy: [catalog/product-variant/created]
+    note: productId is used to match product-level discounts of a variant (applicable discounts)
+  CategoryEntity:
+    kind: copy
+    copyOf: {Category: [id]}
+    fedBy: [catalog/category/created]
+  ProductToCategoryEntity:
+    kind: copy
+    copyOf: {Product: [categories]}
+    fedBy: [catalog/product/created]
+    note: >-
+      copy of catalog's product-category association, written with the product copy; catalog/product/updated (category
+      changes) has no subscriber, so later category changes are not mirrored
+  DiscountEntity: {kind: class, class: Discount}
+  CouponEntity:
+    kind: class
+    class: Coupon
+    note: usages is maintained by the CouponRedemptionEntity insert trigger
+    refs:
+      - {attr: discountId, to: Discount, kind: composition, mult: "1"}
+  CouponRedemptionEntity:
+    kind: class
+    class: CouponRedemption
+    note: PRIMARY KEY (couponId, userId); insert trigger update_coupon_usages increments CouponEntity.usages (max check)
+    refs:
+      - {attr: couponId, to: Coupon, kind: composition, mult: "1"}
+      - {attr: userId, to: User, kind: association, mult: "1"}
+  DiscountToProductEntity: {kind: join, joins: [Discount, Product], field: discountAppliesToProducts, inverse: discounts}
+  DiscountToCategoryEntity: {kind: join, joins: [Discount, Category], field: discountAppliesToCategories, inverse: discounts}
+  DiscountToProductVariantEntity: {kind: join, joins: [Discount, ProductVariant], field: discountAppliesToProductVariants, inverse: discounts}
+  DiscountUsageEntity:
+    kind: class
+    class: DiscountUsage
+    note: one counter per (discount, user); trigger check_discount_usages enforces DiscountEntity.maxUsagesPerUser
+    refs:
+      - {attr: discountId, to: Discount, kind: composition, mult: "1"}
+      - {attr: userId, to: User, kind: association, mult: "1"}
+
+operations:
+  # ------------------------------------------------------------------ root queries
+  - id: discount.coupon
+    kind: query
+    trigger: {graphql: Query.coupon}
+    entry: graphql/Query.kt#fun coupon(
+    feature: F12
+    accesses:
+      - {class: Coupon, mode: read, op: select, shape: batch, rows: 1, via: CouponRepository.findAllById, table: CouponEntity, today: local,
+         at: graphql/Query.kt#CouponDataLoader::class, note: "DataLoader; employees only"}
+
+  - id: discount.discount
+    kind: query
+    trigger: {graphql: Query.discount}
+    entry: graphql/Query.kt#fun discount(
+    feature: F12
+    accesses:
+      - {class: Discount, mode: read, op: select, shape: batch, rows: 1, via: DiscountRepository.findAllById, table: DiscountEntity, today: local,
+         at: graphql/Query.kt#DiscountDataLoader::class, note: "DataLoader; employees only"}
+
+  - id: discount.findApplicableDiscounts
+    kind: query
+    trigger: {graphql: Query.findApplicableDiscounts}
+    entry: graphql/Query.kt#suspend fun findApplicableDiscounts(
+    feature: F14
+    note: >-
+      @inaccessible: only called by order's createOrder (S22). Per product variant of the input ONE statement over
+      DiscountEntity LEFT JOIN DiscountUsageEntity with IN/EXISTS subqueries over the three join tables, the
+      product-variant and product-category copies, CouponEntity and CouponRedemptionEntity (8 tables in one statement)
+    accesses:
+      - {class: ProductVariant, mode: read, op: select, shape: batch, rows: "distinct product variants of the input", strong: true,
+         via: ProductVariantRepository.findAllById, table: ProductVariantEntity, today: copy,
+         at: service/DiscountService.kt#productVariantRepository.findAllById(productVariantIds), note: "every variant must exist"}
+      - {class: Discount, mode: read, op: select, shape: perItem, per: "product variants of the input", via: DiscountService.findApplicableDiscountsForProductVariant,
+         table: DiscountEntity, today: local, at: "service/DiscountService.kt#val discounts = findApplicableDiscountsForProductVariant(productVariantInput, input)",
+         note: "valid now, minOrderAmount <= orderAmount"}
+      - {class: DiscountUsage, mode: read, op: select, shape: perItem, per: "product variants of the input", via: DiscountService.findApplicableDiscountsForProductVariant,
+         table: DiscountUsageEntity, today: local, at: "service/DiscountService.kt#val discounts = findApplicableDiscountsForProductVariant(productVariantInput, input)",
+         note: "same statement: LEFT JOIN on the user's usage (does not change the result)"}
+      - {class: Discount, assoc: ProductVariant, mode: read, op: select, shape: perItem, per: "product variants of the input",
+         via: DiscountService.generateDiscountAppliesToProductVariantCondition, table: DiscountToProductVariantEntity, today: local,
+         at: "service/DiscountService.kt#val discounts = findApplicableDiscountsForProductVariant(productVariantInput, input)", note: "same statement (subquery)"}
+      - {class: Discount, assoc: Product, mode: read, op: select, shape: perItem, per: "product variants of the input",
+         via: DiscountService.generateDiscountAppliesToProductCondition, table: DiscountToProductEntity, today: local,
+         at: "service/DiscountService.kt#val discounts = findApplicableDiscountsForProductVariant(productVariantInput, input)", note: "same statement (subquery)"}
+      - {class: ProductVariant, mode: read, op: select, shape: perItem, per: "product variants of the input",
+         via: DiscountService.generateDiscountAppliesToProductCondition, table: ProductVariantEntity, today: copy,
+         at: "service/DiscountService.kt#val discounts = findApplicableDiscountsForProductVariant(productVariantInput, input)",
+         note: "same statement: productId of the variant (product and category subqueries)"}
+      - {class: Discount, assoc: Category, mode: read, op: select, shape: perItem, per: "product variants of the input",
+         via: DiscountService.generateDiscountAppliesToCategoryCondition, table: DiscountToCategoryEntity, today: local,
+         at: "service/DiscountService.kt#val discounts = findApplicableDiscountsForProductVariant(productVariantInput, input)", note: "same statement (subquery)"}
+      - {class: Product, assoc: Category, mode: read, op: select, shape: perItem, per: "product variants of the input",
+         via: DiscountService.generateDiscountAppliesToCategoryCondition, table: ProductToCategoryEntity, today: copy,
+         at: "service/DiscountService.kt#val discounts = findApplicableDiscountsForProductVariant(productVariantInput, input)",
+         note: "same statement: categories of the variant's product"}
+      - {class: Coupon, mode: read, op: select, shape: perItem, per: "product variants of the input", via: DiscountService.generateNoCouponsCondition,
+         table: CouponEntity, today: local, at: "service/DiscountService.kt#val discounts = findApplicableDiscountsForProductVariant(productVariantInput, input)",
+         note: "same statement: NOT EXISTS coupon of the discount, or IN (coupons of the input redeemed by the user)"}
+      - {class: CouponRedemption, mode: read, op: select, shape: perItem, per: "product variants of the input", via: DiscountService.generateUserHasCouponCondition,
+         table: CouponRedemptionEntity, today: local, at: "service/DiscountService.kt#val discounts = findApplicableDiscountsForProductVariant(productVariantInput, input)",
+         note: "same statement: the user redeemed the input coupon"}
+      - {class: DiscountUsage, mode: read, op: select, shape: batch, rows: "found discounts with maxUsagesPerUser", via: DiscountUsageRepository.findByUserIdAndDiscountIdIn,
+         table: DiscountUsageEntity, today: local, at: "service/DiscountUsageService.kt#repository.findByUserIdAndDiscountIdIn(userId, discountIds)",
+         note: "remaining usages of the user; also called with an empty id set"}
+      - {class: Coupon, mode: read, op: select, shape: batch, rows: "distinct coupon ids of the input", when: "coupon ids given", strong: true,
+         via: CouponRepository.findAllById, table: CouponEntity, today: local, at: service/DiscountService.kt#couponRepository.findAllById(couponIds),
+         note: "every coupon must exist; no statement for an empty id list"}
+
+  # ------------------------------------------------------------------ mutations
+  - id: discount.createCoupon
+    kind: command
+    trigger: {graphql: Mutation.createCoupon}
+    entry: graphql/Mutation.kt#suspend fun createCoupon(
+    feature: F12
+    transaction: {at: "service/CouponService.kt#@Transactional@1", classes: [Coupon], publishInside: true}
+    accesses:
+      - {class: Discount, mode: read, op: exists, shape: one, strong: true, via: DiscountRepository.existsById, table: DiscountEntity, today: local,
+         at: service/CouponService.kt#discountRepository.existsById(couponInput.discountId), note: "the discount must exist"}
+      - {class: Coupon, mode: read, op: select, shape: optional, strong: true, via: CouponRepository.findByCode, table: CouponEntity, today: local,
+         at: service/CouponService.kt#repository.findByCode(couponInput.code), note: "the code must be unused"}
+      - {class: Coupon, mode: write, op: insert, shape: one, via: CouponRepository.save, table: CouponEntity, today: local,
+         at: service/CouponService.kt#val savedCoupon = repository.save(coupon), note: "foreign key on discountId"}
+    publishes:
+      - {topic: discount/coupon/created, at: service/CouponService.kt#DiscountEvents.COUPON_CREATED, payload: [Coupon]}
+
+  - id: discount.createDiscount
+    kind: command
+    trigger: {graphql: Mutation.createDiscount}
+    entry: graphql/Mutation.kt#suspend fun createDiscount(
+    feature: F12
+    note: one existsById per referenced id and one INSERT per join row (saveAll); the join inserts check foreign keys on the copies
+    transaction:
+      at: "service/DiscountService.kt#@Transactional@1"
+      classes: [Discount]
+      publishInside: true
+      note: the discount row and its applies-to join rows (Discount-Category, Discount-Product, Discount-ProductVariant)
+    accesses:
+      - {class: Category, mode: read, op: exists, shape: batch, rows: "discountAppliesToCategoryIds", when: "discountAppliesToCategoryIds not empty", strong: true,
+         via: DiscountService.ensureEntitiesExist, table: CategoryEntity, today: copy,
+         at: "service/DiscountService.kt#conditionQueries.existingIds<CategoryEntity>(categoryIds)", note: "one SELECT t.id ... = ANY(ids)"}
+      - {class: Product, mode: read, op: exists, shape: batch, rows: "discountAppliesToProductIds", when: "discountAppliesToProductIds not empty", strong: true,
+         via: DiscountService.ensureEntitiesExist, table: ProductEntity, today: copy,
+         at: "service/DiscountService.kt#conditionQueries.existingIds<ProductEntity>(productIds)", note: "one SELECT t.id ... = ANY(ids)"}
+      - {class: ProductVariant, mode: read, op: exists, shape: batch, rows: "discountAppliesToProductVariantIds", when: "discountAppliesToProductVariantIds not empty", strong: true,
+         via: DiscountService.ensureEntitiesExist, table: ProductVariantEntity, today: copy,
+         at: "service/DiscountService.kt#conditionQueries.existingIds<ProductVariantEntity>(productVariantIds)", note: "one SELECT t.id ... = ANY(ids)"}
+      - {class: Discount, mode: write, op: insert, shape: one, via: DiscountRepository.save, table: DiscountEntity, today: local,
+         at: service/DiscountService.kt#val savedDiscount = repository.save(discount)}
+      - {class: Discount, assoc: Category, mode: write, op: insert, shape: perItem, per: "discountAppliesToCategoryIds", via: DiscountToCategoryRepository.saveAll,
+         table: DiscountToCategoryEntity, today: local, at: service/DiscountService.kt#discountToCategoryRepository.saveAll(}
+      - {class: Discount, assoc: Product, mode: write, op: insert, shape: perItem, per: "discountAppliesToProductIds", via: DiscountToProductRepository.saveAll,
+         table: DiscountToProductEntity, today: local, at: service/DiscountService.kt#discountToProductRepository.saveAll(}
+      - {class: Discount, assoc: ProductVariant, mode: write, op: insert, shape: perItem, per: "discountAppliesToProductVariantIds",
+         via: DiscountToProductVariantRepository.saveAll, table: DiscountToProductVariantEntity, today: local,
+         at: service/DiscountService.kt#discountToProductVariantRepository.saveAll(}
+    publishes:
+      - {topic: discount/discount/created, at: "service/DiscountService.kt#DiscountEvents.DISCOUNT_CREATED", payload: [Discount],
+         note: "with the applies-to category, product and product-variant id lists; no subscriber"}
+
+  - id: discount.registerCoupon
+    kind: command
+    trigger: {graphql: Mutation.registerCoupon}
+    entry: graphql/Mutation.kt#suspend fun registerCoupon(
+    feature: F13
+    note: >-
+      no event is published; a second registration of the same coupon by the user violates the PRIMARY KEY (couponId, userId);
+      the foreign key userId -> UserEntity (the id copy) is no access: it exists only because of the copy (DESIGN.md AB40)
+    transaction:
+      at: "service/CouponService.kt#@Transactional@3"
+      classes: [CouponRedemption, Coupon]
+      publishInside: false
+      note: the redemption insert and, by trigger update_coupon_usages in the same statement, the coupon's usages update
+    accesses:
+      - {class: Coupon, mode: read, op: select, shape: optional, strong: true, via: CouponRepository.findByCode, table: CouponEntity, today: local,
+         at: service/CouponService.kt#repository.findByCode(input.code), note: "coupon must exist and be valid now"}
+      - {class: CouponRedemption, mode: write, op: insert, shape: one, via: CouponRedemptionRepository.save, table: CouponRedemptionEntity, today: local,
+         at: service/CouponService.kt#couponRedemptionRepository.save(}
+      - {class: Coupon, mode: write, op: update, shape: one, via: CouponRedemptionRepository.save, table: CouponEntity, today: local,
+         at: service/CouponService.kt#couponRedemptionRepository.save(,
+         note: "trigger update_coupon_usages: UPDATE usages = usages + 1 RETURNING usages, maxUsages (the limit checked in the same statement, atomic)"}
+      - {class: Coupon, mode: read, op: select, shape: one, via: CouponRepository.findById, table: CouponEntity, today: local,
+         at: service/CouponService.kt#repository.findByIdOrThrow(coupon.requiredId), note: "re-read for the answer"}
+
+  - id: discount.updateCoupon
+    kind: command
+    trigger: {graphql: Mutation.updateCoupon}
+    entry: graphql/Mutation.kt#suspend fun updateCoupon(
+    feature: F12
+    transaction: {at: "service/CouponService.kt#@Transactional@2", classes: [Coupon], publishInside: true}
+    accesses:
+      - {class: Coupon, mode: read, op: select, shape: one, strong: true, via: CouponRepository.findById, table: CouponEntity, today: local,
+         at: service/CouponService.kt#repository.findByIdOrThrow(couponInput.id)}
+      - {class: Coupon, mode: write, op: update, shape: one, via: CouponRepository.save, table: CouponEntity, today: local,
+         at: service/CouponService.kt#val updatedCoupon = repository.save(coupon)}
+    publishes:
+      - {topic: discount/coupon/updated, at: service/CouponService.kt#DiscountEvents.COUPON_UPDATED, payload: [Coupon], note: "no subscriber"}
+
+  - id: discount.updateDiscount
+    kind: command
+    trigger: {graphql: Mutation.updateDiscount}
+    entry: graphql/Mutation.kt#suspend fun updateDiscount(
+    feature: F12
+    transaction:
+      at: "service/DiscountService.kt#@Transactional@2"
+      classes: [Discount]
+      publishInside: true
+      note: the discount row and its applies-to join rows
+    accesses:
+      - {class: Discount, mode: read, op: select, shape: one, strong: true, via: DiscountRepository.findById, table: DiscountEntity, today: local,
+         at: "service/DiscountService.kt#val discount = repository.findByIdOrThrow(discountInput.id)"}
+      - {class: Category, mode: read, op: exists, shape: batch, rows: "addedDiscountAppliesToCategoryIds", when: "addedDiscountAppliesToCategoryIds not empty", strong: true,
+         via: DiscountService.ensureEntitiesExist, table: CategoryEntity, today: copy,
+         at: "service/DiscountService.kt#conditionQueries.existingIds<CategoryEntity>(categoryIds)", note: "one SELECT t.id ... = ANY(ids)"}
+      - {class: Product, mode: read, op: exists, shape: batch, rows: "addedDiscountAppliesToProductIds", when: "addedDiscountAppliesToProductIds not empty", strong: true,
+         via: DiscountService.ensureEntitiesExist, table: ProductEntity, today: copy,
+         at: "service/DiscountService.kt#conditionQueries.existingIds<ProductEntity>(productIds)", note: "one SELECT t.id ... = ANY(ids)"}
+      - {class: ProductVariant, mode: read, op: exists, shape: batch, rows: "addedDiscountAppliesToProductVariantIds", when: "addedDiscountAppliesToProductVariantIds not empty", strong: true,
+         via: DiscountService.ensureEntitiesExist, table: ProductVariantEntity, today: copy,
+         at: "service/DiscountService.kt#conditionQueries.existingIds<ProductVariantEntity>(productVariantIds)", note: "one SELECT t.id ... = ANY(ids)"}
+      - {class: Discount, assoc: Category, mode: write, op: insert, shape: perItem, per: "addedDiscountAppliesToCategoryIds", via: DiscountToCategoryRepository.saveAll,
+         table: DiscountToCategoryEntity, today: local, at: service/DiscountService.kt#discountToCategoryRepository.saveAll(}
+      - {class: Discount, assoc: Product, mode: write, op: insert, shape: perItem, per: "addedDiscountAppliesToProductIds", via: DiscountToProductRepository.saveAll,
+         table: DiscountToProductEntity, today: local, at: service/DiscountService.kt#discountToProductRepository.saveAll(}
+      - {class: Discount, assoc: ProductVariant, mode: write, op: insert, shape: perItem, per: "addedDiscountAppliesToProductVariantIds",
+         via: DiscountToProductVariantRepository.saveAll, table: DiscountToProductVariantEntity, today: local,
+         at: service/DiscountService.kt#discountToProductVariantRepository.saveAll(}
+      - {class: Discount, assoc: Category, mode: write, op: delete, shape: perItem, per: "removedDiscountAppliesToCategoryIds",
+         via: DiscountToCategoryRepository.deleteById, table: DiscountToCategoryEntity, today: local,
+         at: service/DiscountService.kt#discountToCategoryRepository.deleteById(}
+      - {class: Discount, assoc: Product, mode: write, op: delete, shape: perItem, per: "removedDiscountAppliesToProductIds",
+         via: DiscountToProductRepository.deleteById, table: DiscountToProductEntity, today: local,
+         at: service/DiscountService.kt#discountToProductRepository.deleteById(}
+      - {class: Discount, assoc: ProductVariant, mode: write, op: delete, shape: perItem, per: "removedDiscountAppliesToProductVariantIds",
+         via: DiscountToProductVariantRepository.deleteById, table: DiscountToProductVariantEntity, today: local,
+         at: service/DiscountService.kt#discountToProductVariantRepository.deleteById(}
+      - {class: Discount, mode: write, op: update, shape: one, via: DiscountRepository.save, table: DiscountEntity, today: local,
+         at: service/DiscountService.kt#val updatedDiscount = repository.save(discount)}
+      - {class: Discount, assoc: Category, mode: read, op: select, shape: list, rows: "categories of the discount", via: DiscountToCategoryRepository.findByKeyDiscountId,
+         table: DiscountToCategoryEntity, today: local, at: service/DiscountService.kt#discountToCategoryRepository.findByKeyDiscountId(discountInput.id),
+         note: "for the event payload"}
+      - {class: Discount, assoc: Product, mode: read, op: select, shape: list, rows: "products of the discount", via: DiscountToProductRepository.findByKeyDiscountId,
+         table: DiscountToProductEntity, today: local, at: service/DiscountService.kt#discountToProductRepository.findByKeyDiscountId(discountInput.id),
+         note: "for the event payload"}
+      - {class: Discount, assoc: ProductVariant, mode: read, op: select, shape: list, rows: "product variants of the discount",
+         via: DiscountToProductVariantRepository.findByKeyDiscountId, table: DiscountToProductVariantEntity, today: local,
+         at: service/DiscountService.kt#discountToProductVariantRepository.findByKeyDiscountId(discountInput.id), note: "for the event payload"}
+    publishes:
+      - {topic: discount/discount/updated, at: "service/DiscountService.kt#DiscountEvents.DISCOUNT_UPDATED", payload: [Discount],
+         note: "with the applies-to id lists; no subscriber"}
+
+  # ------------------------------------------------------------------ federation: Category
+  - id: discount._entities.Category
+    kind: query
+    trigger: {graphql: _entities(Category)}
+    entry: graphql/federation/CategoryResolver.kt#class CategoryResolver
+    feature: F12
+    trivial: true
+    note: builds the Category stub from the representation, no database access
+
+  - id: discount.Category.discounts
+    kind: query
+    trigger: {graphql: Category.discounts}
+    entry: graphql/model/Category.kt#fun discounts(
+    feature: F12
+    note: employees only; DiscountEntity t INNER JOIN DiscountToCategoryEntity j in one statement
+    accesses:
+      - {class: Discount, mode: read, op: select, shape: list, rows: "discounts of the category (page: first)", via: DiscountConnection.nodes,
+         table: DiscountEntity, today: local, at: graphql/model/Category.kt#DiscountConnection(}
+      - {class: Discount, assoc: Category, mode: read, op: select, shape: list, rows: "discounts of the category (page: first)", via: DiscountConnection.nodes,
+         table: DiscountToCategoryEntity, today: local, at: graphql/model/Category.kt#DiscountConnection(, note: "same statement (join)"}
+      - {class: Discount, mode: read, op: count, shape: one, when: totalCount selected, via: DiscountConnection.totalCount, table: DiscountEntity,
+         today: local, at: graphql/model/Category.kt#DiscountConnection(}
+      - {class: Discount, assoc: Category, mode: read, op: count, shape: one, when: totalCount selected, via: DiscountConnection.totalCount,
+         table: DiscountToCategoryEntity, today: local, at: graphql/model/Category.kt#DiscountConnection(, note: "same statement (join)"}
+
+  # ------------------------------------------------------------------ federation: Coupon
+  - id: discount._entities.Coupon
+    kind: query
+    trigger: {graphql: _entities(Coupon)}
+    entry: graphql/federation/CouponResolver.kt#class CouponResolver
+    feature: F12
+    accesses:
+      - {class: Coupon, mode: read, op: select, shape: batch, rows: 1, via: CouponRepository.findAllById, table: CouponEntity, today: local,
+         at: graphql/federation/CouponResolver.kt#CouponDataLoader::class}
+
+  - id: discount.Coupon.discount
+    kind: query
+    trigger: {graphql: Coupon.discount}
+    entry: graphql/model/Coupon.kt#fun discount(
+    feature: F12
+    accesses:
+      - {class: Discount, mode: read, op: select, shape: batch, rows: 1, via: DiscountRepository.findAllById, table: DiscountEntity, today: local,
+         at: graphql/model/Coupon.kt#DiscountDataLoader::class}
+
+  - id: discount.Coupon.users
+    kind: query
+    trigger: {graphql: Coupon.users}
+    entry: graphql/model/Coupon.kt#fun users(
+    feature: F12
+    note: employees only; UserEntity t INNER JOIN CouponRedemptionEntity j in one statement
+    accesses:
+      - {class: User, mode: read, op: select, shape: list, rows: "users who redeemed the coupon (page: first)", via: UserConnection.nodes, table: UserEntity,
+         today: copy, at: graphql/model/Coupon.kt#UserConnection(}
+      - {class: CouponRedemption, mode: read, op: select, shape: list, rows: "redemptions of the coupon (page: first)", via: UserConnection.nodes,
+         table: CouponRedemptionEntity, today: local, at: graphql/model/Coupon.kt#UserConnection(, note: "same statement (join)"}
+      - {class: User, mode: read, op: count, shape: one, when: totalCount selected, via: UserConnection.totalCount, table: UserEntity, today: copy,
+         at: graphql/model/Coupon.kt#UserConnection(}
+      - {class: CouponRedemption, mode: read, op: count, shape: one, when: totalCount selected, via: UserConnection.totalCount, table: CouponRedemptionEntity,
+         today: local, at: graphql/model/Coupon.kt#UserConnection(, note: "same statement (join)"}
+
+  # ------------------------------------------------------------------ federation: Discount
+  - id: discount._entities.Discount
+    kind: query
+    trigger: {graphql: _entities(Discount)}
+    entry: graphql/federation/DiscountResolver.kt#class DiscountResolver
+    feature: F12
+    accesses:
+      - {class: Discount, mode: read, op: select, shape: batch, rows: 1, via: DiscountRepository.findAllById, table: DiscountEntity, today: local,
+         at: graphql/federation/DiscountResolver.kt#DiscountDataLoader::class}
+
+  - id: discount.Discount.discountAppliesToCategories
+    kind: query
+    trigger: {graphql: Discount.discountAppliesToCategories}
+    entry: graphql/model/Discount.kt#fun discountAppliesToCategories(
+    feature: F12
+    note: employees only; CategoryEntity t INNER JOIN DiscountToCategoryEntity j in one statement
+    accesses:
+      - {class: Category, mode: read, op: select, shape: list, rows: "categories of the discount (page: first)", via: CategoryConnection.nodes,
+         table: CategoryEntity, today: copy, at: graphql/model/Discount.kt#CategoryConnection(}
+      - {class: Discount, assoc: Category, mode: read, op: select, shape: list, rows: "categories of the discount (page: first)", via: CategoryConnection.nodes,
+         table: DiscountToCategoryEntity, today: local, at: graphql/model/Discount.kt#CategoryConnection(, note: "same statement (join)"}
+      - {class: Category, mode: read, op: count, shape: one, when: totalCount selected, via: CategoryConnection.totalCount, table: CategoryEntity,
+         today: copy, at: graphql/model/Discount.kt#CategoryConnection(}
+      - {class: Discount, assoc: Category, mode: read, op: count, shape: one, when: totalCount selected, via: CategoryConnection.totalCount,
+         table: DiscountToCategoryEntity, today: local, at: graphql/model/Discount.kt#CategoryConnection(, note: "same statement (join)"}
+
+  - id: discount.Discount.discountAppliesToProductVariants
+    kind: query
+    trigger: {graphql: Discount.discountAppliesToProductVariants}
+    entry: graphql/model/Discount.kt#fun discountAppliesToProductVariants(
+    feature: F12
+    note: employees only; ProductVariantEntity t INNER JOIN DiscountToProductVariantEntity j in one statement
+    accesses:
+      - {class: ProductVariant, mode: read, op: select, shape: list, rows: "product variants of the discount (page: first)", via: ProductVariantConnection.nodes,
+         table: ProductVariantEntity, today: copy, at: graphql/model/Discount.kt#ProductVariantConnection(}
+      - {class: Discount, assoc: ProductVariant, mode: read, op: select, shape: list, rows: "product variants of the discount (page: first)",
+         via: ProductVariantConnection.nodes, table: DiscountToProductVariantEntity, today: local, at: graphql/model/Discount.kt#ProductVariantConnection(,
+         note: "same statement (join)"}
+      - {class: ProductVariant, mode: read, op: count, shape: one, when: totalCount selected, via: ProductVariantConnection.totalCount,
+         table: ProductVariantEntity, today: copy, at: graphql/model/Discount.kt#ProductVariantConnection(}
+      - {class: Discount, assoc: ProductVariant, mode: read, op: count, shape: one, when: totalCount selected, via: ProductVariantConnection.totalCount,
+         table: DiscountToProductVariantEntity, today: local, at: graphql/model/Discount.kt#ProductVariantConnection(, note: "same statement (join)"}
+
+  - id: discount.Discount.discountAppliesToProducts
+    kind: query
+    trigger: {graphql: Discount.discountAppliesToProducts}
+    entry: graphql/model/Discount.kt#fun discountAppliesToProducts(
+    feature: F12
+    note: employees only; ProductEntity t INNER JOIN DiscountToProductEntity j in one statement
+    accesses:
+      - {class: Product, mode: read, op: select, shape: list, rows: "products of the discount (page: first)", via: ProductConnection.nodes,
+         table: ProductEntity, today: copy, at: graphql/model/Discount.kt#ProductConnection(}
+      - {class: Discount, assoc: Product, mode: read, op: select, shape: list, rows: "products of the discount (page: first)", via: ProductConnection.nodes,
+         table: DiscountToProductEntity, today: local, at: graphql/model/Discount.kt#ProductConnection(, note: "same statement (join)"}
+      - {class: Product, mode: read, op: count, shape: one, when: totalCount selected, via: ProductConnection.totalCount, table: ProductEntity,
+         today: copy, at: graphql/model/Discount.kt#ProductConnection(}
+      - {class: Discount, assoc: Product, mode: read, op: count, shape: one, when: totalCount selected, via: ProductConnection.totalCount,
+         table: DiscountToProductEntity, today: local, at: graphql/model/Discount.kt#ProductConnection(, note: "same statement (join)"}
+
+  - id: discount.Discount.discountRequiresCoupon
+    kind: query
+    trigger: {graphql: Discount.discountRequiresCoupon}
+    entry: graphql/model/Discount.kt#fun discountRequiresCoupon(
+    feature: F12
+    note: >-
+      no employee check: non-employees see only coupons they redeemed (authorizedUserFilter adds a CouponRedemptionEntity
+      subquery), unauthenticated callers get WHERE FALSE (the statement still runs)
+    accesses:
+      - {class: Coupon, mode: read, op: select, shape: list, rows: "coupons of the discount (page: first)", via: CouponConnection.nodes, table: CouponEntity,
+         today: local, at: graphql/model/Discount.kt#CouponConnection(}
+      - {class: CouponRedemption, mode: read, op: select, shape: list, rows: "redemptions of the user", when: "caller is not an employee, or filter.userHasCoupon given",
+         via: CouponConnection.userHasCouponCondition, table: CouponRedemptionEntity, today: local, at: graphql/model/Discount.kt#CouponConnection(,
+         note: "same statement (IN subquery)"}
+      - {class: Coupon, mode: read, op: count, shape: one, when: totalCount selected, via: CouponConnection.totalCount, table: CouponEntity, today: local,
+         at: graphql/model/Discount.kt#CouponConnection(}
+      - {class: CouponRedemption, mode: read, op: count, shape: one, when: "totalCount selected and (caller is not an employee, or filter.userHasCoupon given)",
+         via: CouponConnection.userHasCouponCondition, table: CouponRedemptionEntity, today: local, at: graphql/model/Discount.kt#CouponConnection(,
+         note: "same statement (IN subquery)"}
+
+  - id: discount.Discount.discountUsages
+    kind: query
+    trigger: {graphql: Discount.discountUsages}
+    entry: graphql/model/Discount.kt#fun discountUsages(
+    feature: F12
+    note: employees only
+    accesses:
+      - {class: DiscountUsage, mode: read, op: select, shape: list, rows: "usages of the discount (page: first)", via: DiscountUsageConnection.nodes,
+         table: DiscountUsageEntity, today: local, at: graphql/model/Discount.kt#DiscountUsageConnection(}
+      - {class: DiscountUsage, mode: read, op: count, shape: one, when: totalCount selected, via: DiscountUsageConnection.totalCount, table: DiscountUsageEntity,
+         today: local, at: graphql/model/Discount.kt#DiscountUsageConnection(}
+
+  # ------------------------------------------------------------------ federation: DiscountUsage
+  - id: discount._entities.DiscountUsage
+    kind: query
+    trigger: {graphql: _entities(DiscountUsage)}
+    entry: graphql/federation/DiscountUsageResolver.kt#class DiscountUsageResolver
+    feature: F12
+    accesses:
+      - {class: DiscountUsage, mode: read, op: select, shape: batch, rows: 1, via: DiscountUsageRepository.findAllById, table: DiscountUsageEntity,
+         today: local, at: graphql/federation/DiscountUsageResolver.kt#DiscountUsageDataLoader::class}
+
+  - id: discount.DiscountUsage.discount
+    kind: query
+    trigger: {graphql: DiscountUsage.discount}
+    entry: graphql/model/DiscountUsage.kt#fun discount(
+    feature: F12
+    accesses:
+      - {class: Discount, mode: read, op: select, shape: batch, rows: 1, via: DiscountRepository.findAllById, table: DiscountEntity, today: local,
+         at: graphql/model/DiscountUsage.kt#DiscountDataLoader::class}
+
+  - id: discount.DiscountUsage.user
+    kind: query
+    trigger: {graphql: DiscountUsage.user}
+    entry: graphql/model/DiscountUsage.kt#fun user(
+    feature: F12
+    accesses:
+      - {class: User, mode: read, op: select, shape: batch, rows: 1, via: UserRepository.findAllById, table: UserEntity, today: copy,
+         at: graphql/model/DiscountUsage.kt#UserDataLoader::class, note: "returns the User stub (id) from the copy"}
+
+  # ------------------------------------------------------------------ federation: Product
+  - id: discount._entities.Product
+    kind: query
+    trigger: {graphql: _entities(Product)}
+    entry: graphql/federation/ProductResolver.kt#class ProductResolver
+    feature: F12
+    trivial: true
+    note: builds the Product stub from the representation, no database access
+
+  - id: discount.Product.discounts
+    kind: query
+    trigger: {graphql: Product.discounts}
+    entry: graphql/model/Product.kt#fun discounts(
+    feature: F12
+    note: employees only; DiscountEntity t INNER JOIN DiscountToProductEntity j in one statement
+    accesses:
+      - {class: Discount, mode: read, op: select, shape: list, rows: "discounts of the product (page: first)", via: DiscountConnection.nodes,
+         table: DiscountEntity, today: local, at: graphql/model/Product.kt#DiscountConnection(}
+      - {class: Discount, assoc: Product, mode: read, op: select, shape: list, rows: "discounts of the product (page: first)", via: DiscountConnection.nodes,
+         table: DiscountToProductEntity, today: local, at: graphql/model/Product.kt#DiscountConnection(, note: "same statement (join)"}
+      - {class: Discount, mode: read, op: count, shape: one, when: totalCount selected, via: DiscountConnection.totalCount, table: DiscountEntity,
+         today: local, at: graphql/model/Product.kt#DiscountConnection(}
+      - {class: Discount, assoc: Product, mode: read, op: count, shape: one, when: totalCount selected, via: DiscountConnection.totalCount,
+         table: DiscountToProductEntity, today: local, at: graphql/model/Product.kt#DiscountConnection(, note: "same statement (join)"}
+
+  # ------------------------------------------------------------------ federation: ProductVariant
+  - id: discount._entities.ProductVariant
+    kind: query
+    trigger: {graphql: _entities(ProductVariant)}
+    entry: graphql/federation/ProductVariantResolver.kt#class ProductVariantResolver
+    feature: F12
+    trivial: true
+    note: builds the ProductVariant stub from the representation, no database access (no check against the copy)
+
+  - id: discount.ProductVariant.applicableDiscounts
+    kind: query
+    trigger: {graphql: ProductVariant.applicableDiscounts}
+    entry: graphql/model/ProductVariant.kt#fun applicableDiscounts(
+    feature: F14
+    note: >-
+      no authorization; one statement over DiscountEntity with IN/EXISTS subqueries over the three join tables, the
+      product-variant and product-category copies, CouponEntity and (authenticated callers) CouponRedemptionEntity;
+      totalCount runs the same predicate as a COUNT
+    accesses:
+      - {class: Discount, mode: read, op: select, shape: list, rows: "applicable discounts of the variant (page: first)", via: DiscountConnection.nodes,
+         table: DiscountEntity, today: local, at: "graphql/model/ProductVariant.kt#DiscountConnection(@2"}
+      - {class: Discount, assoc: ProductVariant, mode: read, op: select, shape: list, rows: "discounts of the variant", via: DiscountService.generateDiscountAppliesToProductVariantCondition,
+         table: DiscountToProductVariantEntity, today: local, at: "graphql/model/ProductVariant.kt#DiscountConnection(@2", note: "same statement (subquery)"}
+      - {class: Discount, assoc: Product, mode: read, op: select, shape: list, rows: "discounts of the variant's product", via: DiscountService.generateDiscountAppliesToProductCondition,
+         table: DiscountToProductEntity, today: local, at: "graphql/model/ProductVariant.kt#DiscountConnection(@2", note: "same statement (subquery)"}
+      - {class: ProductVariant, mode: read, op: select, shape: one, via: DiscountService.generateDiscountAppliesToProductCondition, table: ProductVariantEntity,
+         today: copy, at: "graphql/model/ProductVariant.kt#DiscountConnection(@2", note: "same statement: productId of the variant (product and category subqueries)"}
+      - {class: Discount, assoc: Category, mode: read, op: select, shape: list, rows: "discounts of the product's categories",
+         via: DiscountService.generateDiscountAppliesToCategoryCondition, table: DiscountToCategoryEntity, today: local,
+         at: "graphql/model/ProductVariant.kt#DiscountConnection(@2", note: "same statement (subquery)"}
+      - {class: Product, mode: read, op: select, shape: list, rows: "categories of the variant's product", via: DiscountService.generateDiscountAppliesToCategoryCondition,
+         table: ProductToCategoryEntity, today: copy, at: "graphql/model/ProductVariant.kt#DiscountConnection(@2", note: "same statement (subquery)"}
+      - {class: Coupon, mode: read, op: select, shape: list, rows: "coupons of the candidate discounts", via: DiscountService.generateNoCouponsCondition,
+         table: CouponEntity, today: local, at: "graphql/model/ProductVariant.kt#DiscountConnection(@2", note: "same statement (NOT EXISTS / EXISTS)"}
+      - {class: CouponRedemption, mode: read, op: select, shape: list, rows: "redemptions of the caller", when: "caller authenticated",
+         via: DiscountService.generateFullDiscountAppliesCondition, table: CouponRedemptionEntity, today: local,
+         at: "graphql/model/ProductVariant.kt#DiscountConnection(@2", note: "same statement (EXISTS coupon redeemed by the caller)"}
+      - {class: Discount, mode: read, op: count, shape: one, when: totalCount selected, via: DiscountConnection.totalCount, table: DiscountEntity,
+         today: local, at: "graphql/model/ProductVariant.kt#DiscountConnection(@2", note: "same predicate and subqueries as nodes (tables above)"}
+
+  - id: discount.ProductVariant.discounts
+    kind: query
+    trigger: {graphql: ProductVariant.discounts}
+    entry: graphql/model/ProductVariant.kt#fun discounts(
+    feature: F12
+    note: employees only; DiscountEntity t INNER JOIN DiscountToProductVariantEntity j in one statement
+    accesses:
+      - {class: Discount, mode: read, op: select, shape: list, rows: "discounts of the variant (page: first)", via: DiscountConnection.nodes,
+         table: DiscountEntity, today: local, at: "graphql/model/ProductVariant.kt#DiscountConnection(@1"}
+      - {class: Discount, assoc: ProductVariant, mode: read, op: select, shape: list, rows: "discounts of the variant (page: first)", via: DiscountConnection.nodes,
+         table: DiscountToProductVariantEntity, today: local, at: "graphql/model/ProductVariant.kt#DiscountConnection(@1", note: "same statement (join)"}
+      - {class: Discount, mode: read, op: count, shape: one, when: totalCount selected, via: DiscountConnection.totalCount, table: DiscountEntity,
+         today: local, at: "graphql/model/ProductVariant.kt#DiscountConnection(@1"}
+      - {class: Discount, assoc: ProductVariant, mode: read, op: count, shape: one, when: totalCount selected, via: DiscountConnection.totalCount,
+         table: DiscountToProductVariantEntity, today: local, at: "graphql/model/ProductVariant.kt#DiscountConnection(@1", note: "same statement (join)"}
+
+  # ------------------------------------------------------------------ federation: User
+  - id: discount._entities.User
+    kind: query
+    trigger: {graphql: _entities(User)}
+    entry: graphql/federation/UserResolver.kt#class UserResolver
+    feature: F13
+    trivial: true
+    note: builds the User stub from the representation, no database access (no check against the copy)
+
+  - id: discount.User.coupons
+    kind: query
+    trigger: {graphql: User.coupons}
+    entry: graphql/model/User.kt#fun coupons(
+    feature: F13
+    note: >-
+      own coupons (or employee); CouponEntity t INNER JOIN CouponRedemptionEntity j in one statement, plus the
+      authorization subquery on CouponRedemptionEntity for non-employees
+    accesses:
+      - {class: Coupon, mode: read, op: select, shape: list, rows: "coupons redeemed by the user (page: first)", via: CouponConnection.nodes, table: CouponEntity,
+         today: local, at: graphql/model/User.kt#CouponConnection(}
+      - {class: CouponRedemption, mode: read, op: select, shape: list, rows: "redemptions of the user (page: first)", via: CouponConnection.nodes,
+         table: CouponRedemptionEntity, today: local, at: graphql/model/User.kt#CouponConnection(, note: "same statement (join, and IN subquery for non-employees)"}
+      - {class: Coupon, mode: read, op: count, shape: one, when: totalCount selected, via: CouponConnection.totalCount, table: CouponEntity, today: local,
+         at: graphql/model/User.kt#CouponConnection(}
+      - {class: CouponRedemption, mode: read, op: count, shape: one, when: totalCount selected, via: CouponConnection.totalCount, table: CouponRedemptionEntity,
+         today: local, at: graphql/model/User.kt#CouponConnection(, note: "same statement (join)"}
+
+  - id: discount.User.discountUsages
+    kind: query
+    trigger: {graphql: User.discountUsages}
+    entry: graphql/model/User.kt#fun discountUsages(
+    feature: F12
+    note: employees only
+    accesses:
+      - {class: DiscountUsage, mode: read, op: select, shape: list, rows: "usages of the user (page: first)", via: DiscountUsageConnection.nodes,
+         table: DiscountUsageEntity, today: local, at: graphql/model/User.kt#DiscountUsageConnection(}
+      - {class: DiscountUsage, mode: read, op: count, shape: one, when: totalCount selected, via: DiscountUsageConnection.totalCount, table: DiscountUsageEntity,
+         today: local, at: graphql/model/User.kt#DiscountUsageConnection(}
+
+  # ------------------------------------------------------------------ events
+  - id: discount.on:user/user/created
+    kind: reaction
+    mechanism: copy
+    trigger: {topic: user/user/created}
+    entry: event/EventController.kt#suspend fun onUserCreated(
+    feature: F1
+    accesses:
+      - {class: User, mode: write, op: upsert, shape: one, via: UserRepository.createUser, table: UserEntity, today: copy,
+         at: service/UserService.kt#repository.createUser(userDTO.id), note: "INSERT ... ON CONFLICT (id) DO NOTHING"}
+
+  - id: discount.on:catalog/product/created
+    kind: reaction
+    mechanism: copy
+    trigger: {topic: catalog/product/created}
+    entry: event/EventController.kt#suspend fun onProductCreated(
+    feature: F5
+    transaction: {at: service/ProductService.kt#@Transactional, classes: [Product], publishInside: false,
+                  note: "@Transactional registerProduct: the product copy and its category links"}
+    accesses:
+      - {class: Product, mode: write, op: upsert, shape: one, via: ProductRepository.createProduct, table: ProductEntity, today: copy,
+         at: service/ProductService.kt#repository.createProduct(productDTO.id), note: "INSERT ... ON CONFLICT (id) DO NOTHING"}
+      - {class: Product, mode: write, op: upsert, shape: perItem, per: "categoryIds of the product", via: ProductToCategoryRepository.createProductToCategory,
+         table: ProductToCategoryEntity, today: copy, at: service/ProductService.kt#productToCategoryRepository.createProductToCategory(productDTO.id, it),
+         note: "INSERT ... ON CONFLICT (productId, categoryId) DO NOTHING"}
+
+  - id: discount.on:catalog/category/created
+    kind: reaction
+    mechanism: copy
+    trigger: {topic: catalog/category/created}
+    entry: event/EventController.kt#suspend fun onCategoryCreated(
+    feature: F4
+    accesses:
+      - {class: Category, mode: write, op: upsert, shape: one, via: CategoryRepository.createCategory, table: CategoryEntity, today: copy,
+         at: service/CategoryService.kt#repository.createCategory(categoryDTO.id), note: "INSERT ... ON CONFLICT (id) DO NOTHING"}
+
+  - id: discount.on:catalog/product-variant/created
+    kind: reaction
+    mechanism: copy
+    trigger: {topic: catalog/product-variant/created}
+    entry: event/EventController.kt#suspend fun onProductVariantCreated(
+    feature: F5
+    accesses:
+      - {class: ProductVariant, mode: write, op: upsert, shape: one, via: ProductVariantRepository.createProductVariant, table: ProductVariantEntity,
+         today: copy, at: service/ProductVariantService.kt#repository.createProductVariant(productVariantDTO.id, productVariantDTO.productId),
+         note: "INSERT ... ON CONFLICT (id) DO NOTHING"}
+
+  - id: discount.on:inventory/product-item/reservation-succeeded
+    kind: reaction
+    trigger: {topic: inventory/product-item/reservation-succeeded}
+    entry: event/EventController.kt#suspend fun onInventoryReserved(
+    feature: F19
+    sagaStep: {saga: Buy, role: step}
+    note: >-
+      checks the per-user usage limits of the order's discounts (not whether they apply) and counts the usages; the
+      result event is published inside the transaction; on any exception (e.g. a trigger rejecting a concurrent order)
+      rollback and validation-failed with no failing discount ids, published outside the transaction; the foreign key
+      DiscountUsageEntity.userId -> UserEntity (the id copy) is no access: it exists only because of the copy, and
+      createOrder has checked the buyer (DESIGN.md AB40)
+    transaction:
+      at: service/DiscountUsageService.kt#@Transactional
+      classes: [DiscountUsage]
+      publishInside: true
+      note: "DiscountUsageService.validateOrder: reads, usage upserts (with trigger reads of DiscountEntity) and the result event"
+    accesses:
+      - {class: Order, mode: read, shape: one, today: payload, topic: inventory/product-item/reservation-succeeded,
+         at: event/EventController.kt#discountService.validateOrder(cloudEvent.data.order), note: "userId (and the whole order, re-published)"}
+      - {class: OrderItem, mode: read, shape: list, rows: "items of the order", today: payload, topic: inventory/product-item/reservation-succeeded,
+         at: event/EventController.kt#discountService.validateOrder(cloudEvent.data.order), note: "count per item"}
+      - {class: OrderItem, assoc: Discount, mode: read, shape: list, rows: "discounts of the order items", today: payload, topic: inventory/product-item/reservation-succeeded,
+         at: event/EventController.kt#discountService.validateOrder(cloudEvent.data.order), note: "discountIds per item"}
+      - {class: Discount, mode: read, op: select, shape: batch, rows: "distinct discounts of the order", when: "the order has discounts", strong: true,
+         via: DiscountRepository.findAllById, table: DiscountEntity, today: local, at: service/DiscountUsageService.kt#discountRepository.findAllById(orderItemsByDiscount.keys),
+         note: "maxUsagesPerUser; Spring Data issues no statement for an empty id list"}
+      - {class: DiscountUsage, mode: read, op: select, shape: batch, rows: "discounts of the order with maxUsagesPerUser", strong: true,
+         via: DiscountUsageRepository.findByUserIdAndDiscountIdIn, table: DiscountUsageEntity, today: local,
+         at: "service/DiscountUsageService.kt#repository.findByUserIdAndDiscountIdIn(userId, discountIds)",
+         note: "the user's current usages; also called with an empty id set"}
+      - {class: DiscountUsage, mode: write, op: upsert, shape: perItem, per: "distinct discounts of the order", when: "no discount over its limit",
+         via: DiscountUsageRepository.upsertDiscountUsage, table: DiscountUsageEntity, today: local,
+         at: "service/DiscountUsageService.kt#repository.upsertDiscountUsage(discount, order.userId", note: "usages += count of the items"}
+      - {class: Discount, mode: read, op: select, shape: perItem, per: "distinct discounts of the order", when: "no discount over its limit", strong: true,
+         via: DiscountUsageRepository.upsertDiscountUsage, table: DiscountEntity, today: local,
+         at: "service/DiscountUsageService.kt#repository.upsertDiscountUsage(discount, order.userId",
+         note: "trigger check_discount_usages in the same statement (maxUsagesPerUser; fires on the insert attempt and on the conflict update)"}
+    publishes:
+      - {topic: discount/order/validation-failed, at: "service/DiscountUsageService.kt#DiscountEvents.VALIDATION_FAILED, ValidationFailedDTO(order, failedDiscounts)",
+         payload: [Order, OrderItem], when: "a discount is over the user's limit", note: "inside the transaction; with the failing discount ids"}
+      - {topic: discount/order/validation-succeeded, at: service/DiscountUsageService.kt#DiscountEvents.VALIDATION_SUCCEEDED, payload: [Order, OrderItem],
+         when: "all discounts within their limits", note: "inside the transaction"}
+      - {topic: discount/order/validation-failed, at: "service/DiscountService.kt#DiscountEvents.VALIDATION_FAILED, ValidationFailedDTO(order, emptyList())",
+         payload: [Order, OrderItem], when: "exception in the transaction (rolled back)", note: "outside the transaction"}

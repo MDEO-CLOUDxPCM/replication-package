@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "platform.schema.json",
+  "title": "Case platform parameters",
+  "description": "A case's platform parameters (case.json inputs.platform; MiSArch: cases/misarch/generator/platform.json, written by its platform.py): the middleware, infrastructure and cost constants core/generator/derive.py reads as S[...]. The required keys are the ones the core reads; a case's adapter may read more (MiSArch's: gateway, broker and Keycloak parameters).",
+  "type": "object",
+  "required": ["parameters"],
+  "properties": {
+    "about": {"type": "string"},
+    "parameters": {
+      "type": "object",
+      "additionalProperties": {"type": "number"},
+      "required": ["hopCallerCpuMs", "hopCalleeCpuMs", "hopLatencyMs", "publishCpuMs", "deliverCpuMs", "gatewayFetchCpuMs",
+                   "cacheHitRatio", "cacheHitCpuMs", "replicaReadDbMs", "replicaReadCpuMs", "replicaWriteCpuMs",
+                   "replicaWriteDbMs", "entityCacheHitCpuMs", "entityCacheMissCpuMs", "orchestratorStepCpuMs",
+                   "coresPerReplica", "dbCores", "costPerCore", "costPerReplicaOverhead", "costPerCache"],
+      "properties": {
+        "hopCallerCpuMs": {"description": "a remote call's CPU on the caller's sidecar (RemoteCalls.callerCpuMs)"},
+        "hopCalleeCpuMs": {"description": "a remote call's CPU on the callee's sidecar (RemoteCalls.calleeCpuMs)"},
+        "hopLatencyMs": {"description": "a remote hop's latency (RemoteCalls.latencyMs)"},
+        "publishCpuMs": {"description": "a message's publish CPU (RemoteCalls.publishCpuMs)"},
+        "deliverCpuMs": {"description": "a message's delivery CPU (RemoteCalls.deliverCpuMs)"},
+        "gatewayFetchCpuMs": {"description": "the entry's compose CPU of a joined field (ComposedCall.composeCpuMs)"},
+        "cacheHitRatio": {"description": "a cache's hit ratio where a site has none of its own"},
+        "cacheHitCpuMs": {"description": "a caller-side cache hit's CPU (CachedCall.hitCpuMs)"},
+        "replicaReadDbMs": {"description": "a local copy's read, database ms per statement"},
+        "replicaReadCpuMs": {"description": "a local copy's read, reader CPU"},
+        "replicaWriteCpuMs": {"description": "a local copy's update per delivered event, CPU"},
+        "replicaWriteDbMs": {"description": "a local copy's update, database ms"},
+        "entityCacheHitCpuMs": {"description": "the provider's entity cache (joinCache as built): its CPU per hit, receiving envelope included (ComposedCall.hitCpuMs; the cached operation's lookup is this minus the measured providers' receiving envelope, at least 0)"},
+        "entityCacheMissCpuMs": {"description": "the provider's entity cache: CPU per miss on top of the uncached call (ComposedCall.missCpuMs)"},
+        "orchestratorStepCpuMs": {"description": "an orchestrated saga's coordinator CPU per step (Orchestrated.stepCpuMs)"},
+        "coresPerReplica": {"description": "CPU per replica of an application container (Deployable.cpuPerReplica)"},
+        "dbCores": {"description": "cores of a database server"},
+        "costPerCore": {"description": "CostModel.perCore"},
+        "costPerReplicaOverhead": {"description": "CostModel.perReplicaOverhead"},
+        "costPerCache": {"description": "CostModel.perCache"}
+      }
+    }
+  }
+}

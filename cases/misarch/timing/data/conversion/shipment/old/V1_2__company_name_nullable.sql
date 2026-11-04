@@ -1,0 +1,1 @@
+ALTER TABLE AddressEntity ALTER COLUMN companyName DROP NOT NULL;

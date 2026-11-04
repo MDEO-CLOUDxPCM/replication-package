@@ -1,0 +1,6 @@
+{
+  "$comment": "MiSArch's explorer packet builder (the case's side of the explorer, docs/case-interface.md): ES modules, run from core/explorer (pnpm packet:misarch); its npm packages resolve through node_modules, a link to core/explorer/node_modules (core/explorer/tools/link-packets.mjs)",
+  "name": "misarch-explorer-packet",
+  "private": true,
+  "type": "module"
+}

@@ -1,0 +1,5 @@
+allowBuilds:
+  esbuild: true
+  core-js: false
+minimumReleaseAgeExclude:
+  - orthoflow@0.1.0

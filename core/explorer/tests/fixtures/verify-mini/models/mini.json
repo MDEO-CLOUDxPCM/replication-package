@@ -1,0 +1,159 @@
+{
+ "contract": "1.10.0",
+ "domainId": "mini",
+ "generatedAt": "2026-01-01T00:00:00Z",
+ "inputs": [],
+ "origin": [],
+ "classes": [],
+ "references": [],
+ "operations": [
+  {
+   "id": "shop.order",
+   "name": "order",
+   "service": "shop",
+   "kind": "mutation",
+   "modelKind": "COMMAND",
+   "trigger": "Mutation.order",
+   "homeClass": "Order",
+   "cpuMs": 1,
+   "accesses": [],
+   "calls": [],
+   "raises": [
+    {
+     "event": "shop/order/placed",
+     "probability": 1
+    }
+   ],
+   "bindings": [],
+   "seffs": [
+    "shop.order@order"
+   ],
+   "reach": [
+    {
+     "request": "order",
+     "visits": 1
+    }
+   ],
+   "rate": 1
+  },
+  {
+   "id": "stock.reserve",
+   "name": "reserve",
+   "service": "stock",
+   "kind": "reaction",
+   "modelKind": "REACTION",
+   "trigger": "shop/order/placed",
+   "homeClass": "Stock",
+   "cpuMs": 1,
+   "accesses": [],
+   "calls": [],
+   "raises": [],
+   "reactsTo": "shop/order/placed",
+   "bindings": [],
+   "seffs": [
+    "stock.reserve"
+   ],
+   "reach": [
+    {
+     "request": "order",
+     "visits": 1
+    }
+   ],
+   "rate": 1
+  }
+ ],
+ "events": [
+  {
+   "id": "shop/order/placed",
+   "name": "placed",
+   "payload": [
+    "Order"
+   ],
+   "publishers": [
+    "shop.order"
+   ],
+   "reactions": [
+    "stock.reserve"
+   ]
+  }
+ ],
+ "bindings": [],
+ "processes": [],
+ "requests": [
+  {
+   "id": "order",
+   "document": "mutation order($id: ID!) { order(id: $id) { id } }",
+   "plan": [
+    {
+     "op": "shop.order",
+     "via": "root"
+    }
+   ],
+   "rate": 1,
+   "seff": "gw.order",
+   "work": {
+    "gateway": 1,
+    "app": 1,
+    "db": 1
+   }
+  }
+ ],
+ "sessions": [],
+ "designSessionsPerS": 1,
+ "seffs": [
+  {
+   "id": "shop.order@order",
+   "component": "Order",
+   "signature": "order",
+   "kind": "request",
+   "op": "shop.order",
+   "request": "order",
+   "parts": [
+    {
+     "t": "work",
+     "name": "work",
+     "ms": 1
+    },
+    {
+     "t": "call",
+     "name": "eventPlaced",
+     "kind": "event",
+     "to": "stock.reserve",
+     "site": "s1",
+     "p": 1
+    }
+   ]
+  },
+  {
+   "id": "stock.reserve",
+   "component": "Stock",
+   "signature": "reserve",
+   "kind": "operation",
+   "op": "stock.reserve",
+   "parts": [
+    {
+     "t": "work",
+     "name": "work",
+     "ms": 1
+    }
+   ]
+  }
+ ],
+ "sites": [
+  {
+   "id": "s1",
+   "op": "shop.order",
+   "request": "order",
+   "kind": "event",
+   "callee": "stock.reserve",
+   "event": "shop/order/placed",
+   "allowed": [
+    "sync",
+    "async"
+   ],
+   "today": "async"
+  }
+ ],
+ "parameters": [],
+ "metamodels": []
+}

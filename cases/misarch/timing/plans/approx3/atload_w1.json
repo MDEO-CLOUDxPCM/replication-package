@@ -1,0 +1,214 @@
+{
+ "name": "atload_w1",
+ "kind": "sessions",
+ "workload": "realistic",
+ "scale": 1.0,
+ "sessions": null,
+ "admin": true,
+ "tail": 60,
+ "phases": [
+  {
+   "name": "L0.25:trans",
+   "duration": 40,
+   "volume": 0.25,
+   "mix": "shopping",
+   "classRates": {
+    "browser": 14.14526,
+    "cartAbandoner": 3.97835,
+    "buyer": 1.98918,
+    "account": 1.98918,
+    "admin": 0.4453
+   }
+  },
+  {
+   "name": "L0.25:steady",
+   "duration": 150,
+   "volume": 0.25,
+   "mix": "shopping",
+   "classRates": {
+    "browser": 14.14526,
+    "cartAbandoner": 3.97835,
+    "buyer": 1.98918,
+    "account": 1.98918,
+    "admin": 0.4453
+   }
+  },
+  {
+   "name": "L0.5:trans",
+   "duration": 40,
+   "volume": 0.5,
+   "mix": "shopping",
+   "classRates": {
+    "browser": 28.29052,
+    "cartAbandoner": 7.95671,
+    "buyer": 3.97835,
+    "account": 3.97835,
+    "admin": 0.4453
+   }
+  },
+  {
+   "name": "L0.5:steady",
+   "duration": 150,
+   "volume": 0.5,
+   "mix": "shopping",
+   "classRates": {
+    "browser": 28.29052,
+    "cartAbandoner": 7.95671,
+    "buyer": 3.97835,
+    "account": 3.97835,
+    "admin": 0.4453
+   }
+  },
+  {
+   "name": "L0.75:trans",
+   "duration": 40,
+   "volume": 0.75,
+   "mix": "shopping",
+   "classRates": {
+    "browser": 42.43577,
+    "cartAbandoner": 11.93506,
+    "buyer": 5.96753,
+    "account": 5.96753,
+    "admin": 0.4453
+   }
+  },
+  {
+   "name": "L0.75:steady",
+   "duration": 150,
+   "volume": 0.75,
+   "mix": "shopping",
+   "classRates": {
+    "browser": 42.43577,
+    "cartAbandoner": 11.93506,
+    "buyer": 5.96753,
+    "account": 5.96753,
+    "admin": 0.4453
+   }
+  },
+  {
+   "name": "L1:trans",
+   "duration": 40,
+   "volume": 1.0,
+   "mix": "shopping",
+   "classRates": {
+    "browser": 56.58103,
+    "cartAbandoner": 15.91342,
+    "buyer": 7.95671,
+    "account": 7.95671,
+    "admin": 0.4453
+   }
+  },
+  {
+   "name": "L1:steady",
+   "duration": 150,
+   "volume": 1.0,
+   "mix": "shopping",
+   "classRates": {
+    "browser": 56.58103,
+    "cartAbandoner": 15.91342,
+    "buyer": 7.95671,
+    "account": 7.95671,
+    "admin": 0.4453
+   }
+  },
+  {
+   "name": "L1.25:trans",
+   "duration": 40,
+   "volume": 1.25,
+   "mix": "shopping",
+   "classRates": {
+    "browser": 70.72629,
+    "cartAbandoner": 19.89177,
+    "buyer": 9.94588,
+    "account": 9.94588,
+    "admin": 0.4453
+   }
+  },
+  {
+   "name": "L1.25:steady",
+   "duration": 150,
+   "volume": 1.25,
+   "mix": "shopping",
+   "classRates": {
+    "browser": 70.72629,
+    "cartAbandoner": 19.89177,
+    "buyer": 9.94588,
+    "account": 9.94588,
+    "admin": 0.4453
+   }
+  },
+  {
+   "name": "L1.5:trans",
+   "duration": 40,
+   "volume": 1.5,
+   "mix": "shopping",
+   "classRates": {
+    "browser": 84.87155,
+    "cartAbandoner": 23.87012,
+    "buyer": 11.93506,
+    "account": 11.93506,
+    "admin": 0.4453
+   }
+  },
+  {
+   "name": "L1.5:steady",
+   "duration": 150,
+   "volume": 1.5,
+   "mix": "shopping",
+   "classRates": {
+    "browser": 84.87155,
+    "cartAbandoner": 23.87012,
+    "buyer": 11.93506,
+    "account": 11.93506,
+    "admin": 0.4453
+   }
+  }
+ ],
+ "config": "off",
+ "block": 7,
+ "rateLevel": "sessions",
+ "types": [],
+ "prep": [
+  "calibration/.venv/bin/python calibration/scripts/maintain.py --stack kotlin",
+  "calibration/.venv/bin/python requests/run.py prep --n 400"
+ ],
+ "durationS": 1140,
+ "burstTypes": [
+  "products",
+  "product",
+  "users",
+  "address",
+  "paymentInformations",
+  "shipmentMethods",
+  "notifications",
+  "wishlistView",
+  "login",
+  "registration",
+  "createShoppingcartItem",
+  "createOrder",
+  "placeOrder",
+  "orderTracking",
+  "return.createReturn",
+  "createReview",
+  "addToWishlist",
+  "wishlist.createWishlist",
+  "user.updateUser",
+  "address.createUserAddress",
+  "payment.createCreditCardPaymentInformation",
+  "discount.registerCoupon",
+  "adminUpdateProduct",
+  "adminNewPrice",
+  "adminCreateVariant",
+  "adminCreateProduct",
+  "catalog.updateProductVariant",
+  "catalog.createCategory",
+  "inventory.createProductItemBatch",
+  "media.uploadMedia",
+  "discount.createDiscount",
+  "discount.createCoupon",
+  "tax.createTaxRate",
+  "tax.createTaxRateVersion",
+  "shipment.createShipmentMethod",
+  "address.createVendorAddress"
+ ]
+}

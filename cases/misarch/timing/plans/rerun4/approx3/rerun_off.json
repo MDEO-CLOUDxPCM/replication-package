@@ -1,0 +1,105 @@
+{
+ "name": "rerun_off",
+ "config": "off",
+ "block": 2,
+ "rateLevel": "mid",
+ "types": [
+  "products",
+  "products.anon",
+  "address.createUserAddress"
+ ],
+ "prep": [
+  "calibration/.venv/bin/python calibration/scripts/maintain.py --stack kotlin",
+  "calibration/.venv/bin/python requests/run.py cleanup"
+ ],
+ "durationS": 440,
+ "phases": [
+  {
+   "name": "idle",
+   "duration": 60,
+   "rates": {}
+  },
+  {
+   "name": "products:pre",
+   "duration": 15,
+   "rates": {}
+  },
+  {
+   "name": "products:warm",
+   "duration": 20,
+   "rates": {
+    "products": 40.079
+   }
+  },
+  {
+   "name": "products:steady",
+   "duration": 75,
+   "rates": {
+    "products": 40.079
+   }
+  },
+  {
+   "name": "products:drain",
+   "duration": 15,
+   "rates": {}
+  },
+  {
+   "name": "products.anon:pre",
+   "duration": 15,
+   "rates": {}
+  },
+  {
+   "name": "products.anon:warm",
+   "duration": 20,
+   "rates": {
+    "products.anon": 46.035
+   }
+  },
+  {
+   "name": "products.anon:steady",
+   "duration": 75,
+   "rates": {
+    "products.anon": 46.035
+   }
+  },
+  {
+   "name": "products.anon:drain",
+   "duration": 15,
+   "rates": {}
+  },
+  {
+   "name": "address.createUserAddress:pre",
+   "duration": 15,
+   "rates": {}
+  },
+  {
+   "name": "address.createUserAddress:warm",
+   "duration": 15,
+   "rates": {
+    "address.createUserAddress": 5.602
+   }
+  },
+  {
+   "name": "address.createUserAddress:steady",
+   "duration": 45,
+   "rates": {
+    "address.createUserAddress": 5.602
+   }
+  },
+  {
+   "name": "address.createUserAddress:drain",
+   "duration": 25,
+   "rates": {}
+  },
+  {
+   "name": "idle_end",
+   "duration": 30,
+   "rates": {}
+  }
+ ],
+ "burstTypes": [
+  "products",
+  "products.anon",
+  "address.createUserAddress"
+ ]
+}

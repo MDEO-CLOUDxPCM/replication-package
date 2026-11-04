@@ -1,0 +1,121 @@
+{
+ "source": "timing/plans/rerun_plans.py",
+ "windows": [
+  {
+   "config": "off",
+   "block": 2,
+   "rateLevel": "mid",
+   "prep": [
+    "calibration/.venv/bin/python calibration/scripts/maintain.py --stack kotlin",
+    "calibration/.venv/bin/python requests/run.py cleanup"
+   ],
+   "warm": "warm_timing.json",
+   "plan": "rerun_off.json",
+   "name": "rerun_off",
+   "durationS": 440,
+   "burstTypes": [
+    "products",
+    "products.anon",
+    "address.createUserAddress"
+   ],
+   "rerunOf": {
+    "off_w1": [
+     "products",
+     "products.anon"
+    ],
+    "off_w3": [
+     "address.createUserAddress"
+    ]
+   }
+  },
+  {
+   "config": "on",
+   "block": 3,
+   "rateLevel": "mid",
+   "prep": [
+    "calibration/.venv/bin/python calibration/scripts/maintain.py --stack kotlin",
+    "calibration/.venv/bin/python requests/run.py prep --n 400"
+   ],
+   "warm": "warm_timing.json",
+   "plan": "rerun_on.json",
+   "name": "rerun_on",
+   "durationS": 1005,
+   "burstTypes": [
+    "user.updateUser",
+    "adminUpdateProduct",
+    "catalog.updateProductVariant",
+    "registration",
+    "createShoppingcartItem",
+    "createOrder",
+    "placeOrder"
+   ],
+   "rerunOf": {
+    "on_w2": [
+     "user.updateUser",
+     "adminUpdateProduct",
+     "catalog.updateProductVariant",
+     "registration",
+     "createShoppingcartItem",
+     "createOrder",
+     "placeOrder"
+    ]
+   }
+  },
+  {
+   "config": "off",
+   "block": 2,
+   "rateLevel": "mid",
+   "prep": [
+    "calibration/.venv/bin/python calibration/scripts/maintain.py --stack kotlin",
+    "calibration/.venv/bin/python requests/run.py cleanup"
+   ],
+   "warm": "warm_timing.json",
+   "plan": "rerun_off2.json",
+   "name": "rerun_off2",
+   "durationS": 215,
+   "burstTypes": [
+    "product"
+   ],
+   "rerunOf": {
+    "off_w1": [
+     "product"
+    ]
+   }
+  },
+  {
+   "config": "on",
+   "block": 6,
+   "rateLevel": "mid",
+   "prep": [
+    "calibration/.venv/bin/python calibration/scripts/maintain.py --stack kotlin",
+    "calibration/.venv/bin/python requests/run.py cleanup"
+   ],
+   "warm": "warm_mech.json",
+   "mechanisms": {
+    "localCopies": true,
+    "entityCache": true,
+    "cacheTtlS": 60,
+    "sharedCache": true
+   },
+   "burstScale": 0.5,
+   "plan": "rerun_mech_on.json",
+   "name": "rerun_mech_on",
+   "durationS": 565,
+   "burstTypes": [
+    "wishlistView.hot",
+    "wishlistView.cold",
+    "discount.createDiscount",
+    "discount.updateDiscount"
+   ],
+   "rerunOf": {
+    "mech_on_w2": [
+     "wishlist.createWishlist",
+     "wishlistView.hot",
+     "wishlistView.cold",
+     "discount.createDiscount",
+     "discount.updateDiscount"
+    ]
+   }
+  }
+ ]
+}

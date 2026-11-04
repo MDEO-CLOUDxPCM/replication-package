@@ -1,0 +1,97 @@
+{
+ "name": "mech_cc_w1",
+ "config": "off",
+ "block": 6,
+ "rateLevel": "mid",
+ "types": [
+  "createOrder",
+  "createOrder.hot"
+ ],
+ "baseTypes": {
+  "createOrder": "createOrder",
+  "createOrder.hot": "createOrder"
+ },
+ "mechanisms": {
+  "localCopies": false,
+  "entityCache": false,
+  "cacheTtlS": 60,
+  "callerCache": "shipment,discount,inventory"
+ },
+ "prep": [
+  "calibration/.venv/bin/python calibration/scripts/maintain.py --stack kotlin"
+ ],
+ "warm": "warm_mech.json",
+ "burstTypes": [
+  "createOrder",
+  "createOrder.hot"
+ ],
+ "burstScale": 0.5,
+ "durationS": 395,
+ "phases": [
+  {
+   "name": "idle",
+   "duration": 60,
+   "rates": {}
+  },
+  {
+   "name": "createShoppingcartItem:fill",
+   "duration": 45,
+   "rates": {
+    "createShoppingcartItem": 38.978
+   }
+  },
+  {
+   "name": "createOrder:pre",
+   "duration": 15,
+   "rates": {}
+  },
+  {
+   "name": "createOrder:warm",
+   "duration": 20,
+   "rates": {
+    "createOrder": 16.687
+   }
+  },
+  {
+   "name": "createOrder:steady",
+   "duration": 75,
+   "rates": {
+    "createOrder": 16.687
+   }
+  },
+  {
+   "name": "createOrder:drain",
+   "duration": 20,
+   "rates": {}
+  },
+  {
+   "name": "createOrder.hot:pre",
+   "duration": 15,
+   "rates": {}
+  },
+  {
+   "name": "createOrder.hot:warm",
+   "duration": 20,
+   "rates": {
+    "createOrder.hot": 16.687
+   }
+  },
+  {
+   "name": "createOrder.hot:steady",
+   "duration": 75,
+   "rates": {
+    "createOrder.hot": 16.687
+   }
+  },
+  {
+   "name": "createOrder.hot:drain",
+   "duration": 20,
+   "rates": {}
+  },
+  {
+   "name": "idle_end",
+   "duration": 30,
+   "rates": {}
+  }
+ ]
+}

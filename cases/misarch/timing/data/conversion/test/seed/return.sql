@@ -1,0 +1,9 @@
+INSERT INTO OrderEntity (id, userId) VALUES ('84000000-0000-4000-8000-0000000000d1', '84000000-0000-4000-8000-000000000001');
+INSERT INTO ProductVariantVersionEntity (id, canBeReturnedForDays) VALUES ('84000000-0000-4000-8000-0000000000b1', 30);
+INSERT INTO ShipmentEntity (id, deliveredAt) VALUES ('84000000-0000-4000-8000-0000000000e1', now() - interval '2 days');
+INSERT INTO OrderItemEntity (id, sentWithId, orderId, compensatableAmount, productVariantVersionId)
+    SELECT ('84000000-0000-4000-8000-00000000000' || i)::uuid, '84000000-0000-4000-8000-0000000000e1', '84000000-0000-4000-8000-0000000000d1', 100,
+           '84000000-0000-4000-8000-0000000000b1' FROM generate_series(1, 2) i;
+INSERT INTO ReturnEntity (id, reason, orderId, refundedAmount, createdAt)
+    VALUES ('84000000-0000-4000-8000-0000000000f1', 'too small', '84000000-0000-4000-8000-0000000000d1', 100, now());
+UPDATE OrderItemEntity SET returnedWithId = '84000000-0000-4000-8000-0000000000f1' WHERE id = '84000000-0000-4000-8000-000000000001';

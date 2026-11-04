@@ -1,0 +1,429 @@
+{
+ "name": "mech_on_w2",
+ "config": "on",
+ "block": 6,
+ "rateLevel": "mid",
+ "types": [
+  "createOrder",
+  "orderTracking.hot",
+  "orderTracking.cold",
+  "wishlistView.hot",
+  "wishlistView.cold",
+  "discount.createDiscount",
+  "discount.updateDiscount",
+  "discount.createCoupon",
+  "adminCreateProduct",
+  "adminUpdateProduct",
+  "adminCreateVariant",
+  "adminNewPrice",
+  "shipment.createShipmentMethod",
+  "shipment.archiveShipmentMethod"
+ ],
+ "baseTypes": {
+  "createOrder": "createOrder",
+  "orderTracking.hot": "orderTracking",
+  "orderTracking.cold": "orderTracking",
+  "wishlistView.hot": "wishlistView",
+  "wishlistView.cold": "wishlistView",
+  "discount.createDiscount": "discount.createDiscount",
+  "discount.updateDiscount": "discount.createDiscount",
+  "discount.createCoupon": "discount.createCoupon",
+  "adminCreateProduct": "adminCreateProduct",
+  "adminUpdateProduct": "adminUpdateProduct",
+  "adminCreateVariant": "adminCreateVariant",
+  "adminNewPrice": "adminNewPrice",
+  "shipment.createShipmentMethod": "shipment.createShipmentMethod",
+  "shipment.archiveShipmentMethod": "shipment.createShipmentMethod"
+ },
+ "mechanisms": {
+  "localCopies": true,
+  "entityCache": true,
+  "cacheTtlS": 60,
+  "sharedCache": true
+ },
+ "prep": [
+  "calibration/.venv/bin/python calibration/scripts/maintain.py --stack kotlin",
+  "calibration/.venv/bin/python requests/run.py cleanup"
+ ],
+ "warm": "warm_mech.json",
+ "durationS": 1660,
+ "phases": [
+  {
+   "name": "idle",
+   "duration": 60,
+   "rates": {}
+  },
+  {
+   "name": "createShoppingcartItem:fill",
+   "duration": 45,
+   "rates": {
+    "createShoppingcartItem": 38.978
+   }
+  },
+  {
+   "name": "createOrder:pre",
+   "duration": 15,
+   "rates": {}
+  },
+  {
+   "name": "createOrder:warm",
+   "duration": 20,
+   "rates": {
+    "createOrder": 16.687
+   }
+  },
+  {
+   "name": "createOrder:steady",
+   "duration": 75,
+   "rates": {
+    "createOrder": 16.687
+   }
+  },
+  {
+   "name": "createOrder:drain",
+   "duration": 20,
+   "rates": {}
+  },
+  {
+   "name": "orderTracking.hot:pre",
+   "duration": 15,
+   "rates": {}
+  },
+  {
+   "name": "orderTracking.hot:warm",
+   "duration": 20,
+   "rates": {
+    "orderTracking.hot": 15.879
+   }
+  },
+  {
+   "name": "orderTracking.hot:steady",
+   "duration": 75,
+   "rates": {
+    "orderTracking.hot": 15.879
+   }
+  },
+  {
+   "name": "orderTracking.hot:drain",
+   "duration": 20,
+   "rates": {}
+  },
+  {
+   "name": "orderTracking.cold:pre",
+   "duration": 15,
+   "rates": {}
+  },
+  {
+   "name": "orderTracking.cold:warm",
+   "duration": 20,
+   "rates": {
+    "orderTracking.cold": 15.879
+   }
+  },
+  {
+   "name": "orderTracking.cold:steady",
+   "duration": 75,
+   "rates": {
+    "orderTracking.cold": 15.879
+   }
+  },
+  {
+   "name": "orderTracking.cold:drain",
+   "duration": 20,
+   "rates": {}
+  },
+  {
+   "name": "wishlist.createWishlist:fill",
+   "duration": 35,
+   "rates": {
+    "wishlist.createWishlist": 20.943
+   }
+  },
+  {
+   "name": "wishlistView.hot:pre",
+   "duration": 15,
+   "rates": {}
+  },
+  {
+   "name": "wishlistView.hot:warm",
+   "duration": 20,
+   "rates": {
+    "wishlistView.hot": 6.819
+   }
+  },
+  {
+   "name": "wishlistView.hot:steady",
+   "duration": 75,
+   "rates": {
+    "wishlistView.hot": 6.819
+   }
+  },
+  {
+   "name": "wishlistView.hot:drain",
+   "duration": 20,
+   "rates": {}
+  },
+  {
+   "name": "wishlistView.cold:pre",
+   "duration": 15,
+   "rates": {}
+  },
+  {
+   "name": "wishlistView.cold:warm",
+   "duration": 20,
+   "rates": {
+    "wishlistView.cold": 6.819
+   }
+  },
+  {
+   "name": "wishlistView.cold:steady",
+   "duration": 75,
+   "rates": {
+    "wishlistView.cold": 6.819
+   }
+  },
+  {
+   "name": "wishlistView.cold:drain",
+   "duration": 20,
+   "rates": {}
+  },
+  {
+   "name": "discount.createDiscount:pre",
+   "duration": 10,
+   "rates": {}
+  },
+  {
+   "name": "discount.createDiscount:warm",
+   "duration": 15,
+   "rates": {
+    "discount.createDiscount": 1.212
+   }
+  },
+  {
+   "name": "discount.createDiscount:steady",
+   "duration": 45,
+   "rates": {
+    "discount.createDiscount": 1.212
+   }
+  },
+  {
+   "name": "discount.createDiscount:drain",
+   "duration": 20,
+   "rates": {}
+  },
+  {
+   "name": "discount.updateDiscount:pre",
+   "duration": 10,
+   "rates": {}
+  },
+  {
+   "name": "discount.updateDiscount:warm",
+   "duration": 15,
+   "rates": {
+    "discount.updateDiscount": 1.212
+   }
+  },
+  {
+   "name": "discount.updateDiscount:steady",
+   "duration": 45,
+   "rates": {
+    "discount.updateDiscount": 1.212
+   }
+  },
+  {
+   "name": "discount.updateDiscount:drain",
+   "duration": 20,
+   "rates": {}
+  },
+  {
+   "name": "discount.createCoupon:pre",
+   "duration": 10,
+   "rates": {}
+  },
+  {
+   "name": "discount.createCoupon:warm",
+   "duration": 15,
+   "rates": {
+    "discount.createCoupon": 1.796
+   }
+  },
+  {
+   "name": "discount.createCoupon:steady",
+   "duration": 45,
+   "rates": {
+    "discount.createCoupon": 1.796
+   }
+  },
+  {
+   "name": "discount.createCoupon:drain",
+   "duration": 20,
+   "rates": {}
+  },
+  {
+   "name": "adminCreateProduct:pre",
+   "duration": 10,
+   "rates": {}
+  },
+  {
+   "name": "adminCreateProduct:warm",
+   "duration": 15,
+   "rates": {
+    "adminCreateProduct": 1.453
+   }
+  },
+  {
+   "name": "adminCreateProduct:steady",
+   "duration": 45,
+   "rates": {
+    "adminCreateProduct": 1.453
+   }
+  },
+  {
+   "name": "adminCreateProduct:drain",
+   "duration": 35,
+   "rates": {}
+  },
+  {
+   "name": "adminUpdateProduct:pre",
+   "duration": 10,
+   "rates": {}
+  },
+  {
+   "name": "adminUpdateProduct:warm",
+   "duration": 15,
+   "rates": {
+    "adminUpdateProduct": 1.285
+   }
+  },
+  {
+   "name": "adminUpdateProduct:steady",
+   "duration": 45,
+   "rates": {
+    "adminUpdateProduct": 1.285
+   }
+  },
+  {
+   "name": "adminUpdateProduct:drain",
+   "duration": 20,
+   "rates": {}
+  },
+  {
+   "name": "adminCreateVariant:pre",
+   "duration": 10,
+   "rates": {}
+  },
+  {
+   "name": "adminCreateVariant:warm",
+   "duration": 15,
+   "rates": {
+    "adminCreateVariant": 1.815
+   }
+  },
+  {
+   "name": "adminCreateVariant:steady",
+   "duration": 45,
+   "rates": {
+    "adminCreateVariant": 1.815
+   }
+  },
+  {
+   "name": "adminCreateVariant:drain",
+   "duration": 30,
+   "rates": {}
+  },
+  {
+   "name": "adminNewPrice:pre",
+   "duration": 10,
+   "rates": {}
+  },
+  {
+   "name": "adminNewPrice:warm",
+   "duration": 15,
+   "rates": {
+    "adminNewPrice": 1.654
+   }
+  },
+  {
+   "name": "adminNewPrice:steady",
+   "duration": 45,
+   "rates": {
+    "adminNewPrice": 1.654
+   }
+  },
+  {
+   "name": "adminNewPrice:drain",
+   "duration": 25,
+   "rates": {}
+  },
+  {
+   "name": "shipment.createShipmentMethod:pre",
+   "duration": 10,
+   "rates": {}
+  },
+  {
+   "name": "shipment.createShipmentMethod:warm",
+   "duration": 15,
+   "rates": {
+    "shipment.createShipmentMethod": 1.743
+   }
+  },
+  {
+   "name": "shipment.createShipmentMethod:steady",
+   "duration": 45,
+   "rates": {
+    "shipment.createShipmentMethod": 1.743
+   }
+  },
+  {
+   "name": "shipment.createShipmentMethod:drain",
+   "duration": 20,
+   "rates": {}
+  },
+  {
+   "name": "shipment.archiveShipmentMethod:pre",
+   "duration": 10,
+   "rates": {}
+  },
+  {
+   "name": "shipment.archiveShipmentMethod:warm",
+   "duration": 15,
+   "rates": {
+    "shipment.archiveShipmentMethod": 1.569
+   }
+  },
+  {
+   "name": "shipment.archiveShipmentMethod:steady",
+   "duration": 45,
+   "rates": {
+    "shipment.archiveShipmentMethod": 1.569
+   }
+  },
+  {
+   "name": "shipment.archiveShipmentMethod:drain",
+   "duration": 20,
+   "rates": {}
+  },
+  {
+   "name": "idle_end",
+   "duration": 30,
+   "rates": {}
+  }
+ ],
+ "burstTypes": [
+  "createOrder",
+  "orderTracking.hot",
+  "orderTracking.cold",
+  "wishlistView.hot",
+  "wishlistView.cold",
+  "discount.createDiscount",
+  "discount.updateDiscount",
+  "discount.createCoupon",
+  "adminCreateProduct",
+  "adminUpdateProduct",
+  "adminCreateVariant",
+  "adminNewPrice",
+  "shipment.createShipmentMethod",
+  "shipment.archiveShipmentMethod"
+ ],
+ "burstScale": 0.5
+}

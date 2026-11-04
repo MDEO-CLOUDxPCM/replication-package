@@ -1,0 +1,40 @@
+{
+ "about": "the class names of the case domain the lint (no-case-code.test.ts) looks for in user-visible strings; derived once from its exported domain (the sources, relative to the repository), checked against them when they exist",
+ "sources": [
+  "build/explorer-sim/domains/misarch-kotlin-derived.json"
+ ],
+ "classes": [
+  "Category",
+  "CategoryCharacteristic",
+  "CategoryCharacteristicValue",
+  "Coupon",
+  "CouponRedemption",
+  "Discount",
+  "DiscountUsage",
+  "Invoice",
+  "Media",
+  "Notification",
+  "Order",
+  "OrderCompensation",
+  "OrderItem",
+  "OrderItemDiscount",
+  "Payment",
+  "PaymentInformation",
+  "Product",
+  "ProductItem",
+  "ProductVariant",
+  "ProductVariantVersion",
+  "Return",
+  "Review",
+  "Shipment",
+  "ShipmentMethod",
+  "ShoppingCart",
+  "ShoppingCartItem",
+  "TaxRate",
+  "TaxRateVersion",
+  "User",
+  "UserAddress",
+  "VendorAddress",
+  "Wishlist"
+ ]
+}

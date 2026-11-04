@@ -1,0 +1,118 @@
+{
+ "address": {
+  "addressentity": 130155,
+  "flyway_schema_history": 1,
+  "userentity": 100000
+ },
+ "catalog": {
+  "categorycharacteristicentity": 1423,
+  "categorycharacteristicvalueentity": 1043070,
+  "categoryentity": 300,
+  "flyway_schema_history": 1,
+  "mediaentity": 49620,
+  "productentity": 50000,
+  "producttocategoryentity": 64865,
+  "productvariantentity": 85058,
+  "productvariantversionentity": 169368,
+  "productvariantversiontomediaentity": 99240,
+  "taxrateentity": 6
+ },
+ "discount": {
+  "categoryentity": 300,
+  "couponentity": 500,
+  "couponredemptionentity": 9784,
+  "discountentity": 51,
+  "discounttocategoryentity": 30,
+  "discounttoproductentity": 37,
+  "discounttoproductvariantentity": 0,
+  "discountusageentity": 24014,
+  "flyway_schema_history": 1,
+  "productentity": 50000,
+  "producttocategoryentity": 64865,
+  "productvariantentity": 85058,
+  "userentity": 100000
+ },
+ "inventory": {
+  "flyway_schema_history": 1,
+  "productitementity": 2613462,
+  "productvariantentity": 85058
+ },
+ "invoice": {
+  "flyway_schema_history": 1,
+  "invoiceentity": 290928,
+  "useraddressentity": 130154,
+  "userentity": 100000,
+  "vendoraddressentity": 1
+ },
+ "notification": {
+  "flyway_schema_history": 1,
+  "notificationentity": 499670,
+  "userentity": 100000
+ },
+ "order": {
+  "couponentity": 500,
+  "flyway_schema_history": 1,
+  "ordercompensationentity": 0,
+  "ordercompensationtoorderitementity": 0,
+  "orderentity": 300000,
+  "orderitementity": 375215,
+  "orderitemtodiscountentity": 24955,
+  "productvariantentity": 85058,
+  "shipmentmethodentity": 15,
+  "taxrateentity": 6,
+  "useraddressentity": 130154,
+  "userentity": 100000
+ },
+ "payment": {
+  "flyway_schema_history": 1,
+  "openorderentity": 290928,
+  "paymententity": 290928,
+  "paymentinformationentity": 239898
+ },
+ "return": {
+  "flyway_schema_history": 1,
+  "orderentity": 290928,
+  "orderitementity": 363865,
+  "productvariantversionentity": 169368,
+  "returnentity": 8516,
+  "shipmententity": 290928
+ },
+ "review": {
+  "flyway_schema_history": 1,
+  "productentity": 50000,
+  "productvariantentity": 85058,
+  "reviewentity": 50000,
+  "userentity": 100000
+ },
+ "shipment": {
+  "addressentity": 130155,
+  "flyway_schema_history": 1,
+  "orderitementity": 363865,
+  "productvariantversionentity": 169368,
+  "shipmententity": 299444,
+  "shipmentmethodentity": 15,
+  "shipmenttoorderitementity": 374514
+ },
+ "shoppingcart": {
+  "flyway_schema_history": 1,
+  "productvariantentity": 85058,
+  "shoppingcartitementity": 10329,
+  "userentity": 100000
+ },
+ "tax": {
+  "flyway_schema_history": 1,
+  "taxrateentity": 6,
+  "taxrateversionentity": 18
+ },
+ "user": {
+  "flyway_schema_history": 1,
+  "userentity": 100000
+ },
+ "wishlist": {
+  "flyway_schema_history": 1,
+  "productvariantentity": 85058,
+  "userentity": 100000,
+  "wishlistentity": 20000,
+  "wishlisttoproductvariantentity": 159510
+ }
+}

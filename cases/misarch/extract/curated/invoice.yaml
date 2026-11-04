@@ -1,0 +1,146 @@
+# invoice (Kotlin rewrite of the Rust/Mongo original). Curated; schema: build.py docstring. Anchors are relative to
+# services/invoice/src/main/kotlin/org/misarch/invoice/.
+service: invoice
+transactional: >-
+  service/InvoiceService.kt createInvoice is @Transactional: the idempotency check, the copy reads, the insert and the
+  publish of invoice/invoice/created (EventPublisher) run in one transaction; a failed publish rolls the invoice back
+  (the event is redelivered). The copy handlers are single statements.
+
+tables:
+  InvoiceEntity:
+    kind: class
+    class: Invoice
+    refs:
+      - {attr: orderId, to: Order, kind: association, mult: "1", note: "unique (fix: one invoice per order); no Order copy"}
+      - {attr: userAddressId, to: UserAddress, kind: association, mult: "1", snapshot: true,
+         note: "the invoice address's id; its data (street1, street2, city, country, company name) is rendered into content"}
+      - {attr: vendorAddressId, to: VendorAddress, kind: association, mult: "1", snapshot: true,
+         note: "the vendor address's id; its data is rendered into content"}
+    note: >-
+      content is the rendered invoice text: a snapshot of the vendor address, the user's name (User copy, else the
+      address name), the invoice address, the order items (id, productVariantId, count, compensatableAmount) and the
+      order amount
+  UserEntity:
+    kind: copy
+    copyOf: {User: [id, firstName, lastName]}
+    fedBy: [user/user/created]
+  UserAddressEntity:
+    kind: copy
+    copyOf: {UserAddress: [id, userId, street1, street2, city, postalCode, country, companyName, firstName, lastName]}
+    fedBy: [address/user-address/created, address/user-address/archived]
+    own: {isArchived: "set by address/user-address/archived (not used by createInvoice)"}
+  VendorAddressEntity:
+    kind: copy
+    copyOf: {VendorAddress: [id, street1, street2, city, postalCode, country, companyName, version]}
+    fedBy: [address/vendor-address/created]
+    note: "createInvoice uses the current vendor address (highest version), as shipment does"
+
+operations:
+  - id: invoice.invoice
+    kind: query
+    trigger: {graphql: Query.invoice}
+    entry: graphql/Query.kt#fun invoice(
+    feature: F22
+    accesses:
+      - {class: Invoice, mode: read, op: select, shape: batch, rows: 1, via: InvoiceRepository.findAllById, table: InvoiceEntity,
+         today: local, at: graphql/Query.kt#InvoiceDataLoader::class, note: "DataLoader"}
+
+  - id: invoice._entities.Invoice
+    kind: query
+    trigger: {graphql: _entities(Invoice)}
+    entry: graphql/federation/InvoiceResolver.kt#class InvoiceResolver
+    feature: F22
+    accesses:
+      - {class: Invoice, mode: read, op: select, shape: batch, rows: 1, via: InvoiceRepository.findAllById, table: InvoiceEntity,
+         today: local, at: graphql/federation/InvoiceResolver.kt#InvoiceDataLoader::class, note: "DataLoader"}
+
+  - id: invoice._entities.Order
+    kind: query
+    trigger: {graphql: _entities(Order)}
+    entry: graphql/federation/OrderResolver.kt#class OrderResolver
+    feature: F22
+    trivial: true
+    note: builds the Order stub from the representation, no database access (Order.invoice is its own resolver)
+
+  - id: invoice.Order.invoice
+    kind: query
+    trigger: {graphql: Order.invoice}
+    entry: graphql/model/Order.kt#fun invoice(
+    feature: F22
+    note: "an order without invoice is an error (the data loader finds no value)"
+    accesses:
+      - {class: Invoice, mode: read, op: select, shape: batch, rows: 1, via: OrderInvoiceDataLoader.loadAll, table: InvoiceEntity,
+         today: local, at: graphql/model/Order.kt#OrderInvoiceDataLoader::class,
+         note: "DataLoader by orderId: SELECT ... WHERE t.orderId = ANY(ids)"}
+
+  - id: invoice.on:discount/order/validation-succeeded
+    kind: reaction
+    trigger: {topic: discount/order/validation-succeeded}
+    entry: event/EventController.kt#fun onOrderValidationSucceeded(
+    feature: F22
+    sagaStep: {saga: Buy, role: step}
+    transaction:
+      at: "service/InvoiceService.kt#@Transactional"
+      classes: [Invoice, UserAddress, VendorAddress, User]
+      publishInside: true
+      note: "the idempotency check, the copy reads and the insert; the publish is inside, its failure rolls back"
+    note: "a missing address/vendor/name fails the event (Dapr redelivers)"
+    accesses:
+      - {class: Order, mode: read, op: select, shape: one, strong: true, today: payload, topic: discount/order/validation-succeeded,
+         at: "event/EventController.kt#invoiceService.createInvoice(cloudEvent.data.order)",
+         note: "id, userId, invoiceAddressId, vatNumber, compensatableOrderAmount; the whole order is republished"}
+      - {class: OrderItem, mode: read, op: select, shape: list, rows: "items of the order", strong: true, today: payload,
+         topic: discount/order/validation-succeeded, at: "service/InvoiceService.kt#for (item in order.orderItems)", note: "rendered into the content"}
+      - {class: Invoice, mode: read, op: exists, shape: one, strong: true, via: InvoiceRepository.existsByOrderId, table: InvoiceEntity,
+         today: local, at: "service/InvoiceService.kt#repository.existsByOrderId(order.id)", note: "idempotency: a redelivery ends here"}
+      - {class: UserAddress, mode: read, op: select, shape: one, strong: true, via: UserAddressRepository.findById, table: UserAddressEntity,
+         today: copy, at: service/InvoiceService.kt#userAddressRepository.findById, note: "the invoice address (archived ones too)"}
+      - {class: VendorAddress, mode: read, op: select, shape: one, strong: true, via: VendorAddressRepository.findCurrentVendorAddress,
+         table: VendorAddressEntity, today: copy, at: service/InvoiceService.kt#vendorAddressRepository.findCurrentVendorAddress()}
+      - {class: User, mode: read, op: select, shape: optional, strong: true, via: UserRepository.findById, table: UserEntity, today: copy,
+         at: "service/InvoiceService.kt#userRepository.findById(order.userId)", note: "first/last name; falls back to the address name"}
+      - {class: Invoice, mode: write, op: insert, shape: one, via: InvoiceService.createInvoice, table: InvoiceEntity, today: local,
+         at: service/InvoiceService.kt#conditionQueries.insert(, note: "ConditionQueries.insert (the id is part of the content)"}
+    publishes:
+      - {topic: invoice/invoice/created, at: "service/InvoiceService.kt#InvoiceEvents.INVOICE_CREATED", payload: [Invoice, Order, OrderItem],
+         note: "{order: <order>, invoice: {id, orderId, issuedAt, content, ...}}"}
+
+  - id: invoice.on:address/vendor-address/created
+    kind: reaction
+    mechanism: copy
+    trigger: {topic: address/vendor-address/created}
+    entry: event/EventController.kt#fun onVendorAddressCreated(
+    feature: F3
+    accesses:
+      - {class: VendorAddress, mode: write, op: upsert, shape: one, via: VendorAddressRepository.upsertVendorAddress,
+         table: VendorAddressEntity, today: copy, at: service/VendorAddressService.kt#repository.upsertVendorAddress}
+
+  - id: invoice.on:user/user/created
+    kind: reaction
+    mechanism: copy
+    trigger: {topic: user/user/created}
+    entry: event/EventController.kt#fun onUserCreated(
+    feature: F1
+    accesses:
+      - {class: User, mode: write, op: insert, shape: one, via: UserRepository.createUser, table: UserEntity, today: copy,
+         at: service/UserService.kt#repository.createUser, note: "ON CONFLICT (id) DO NOTHING"}
+
+  - id: invoice.on:address/user-address/created
+    kind: reaction
+    mechanism: copy
+    trigger: {topic: address/user-address/created}
+    entry: event/EventController.kt#fun onUserAddressCreated(
+    feature: F3
+    accesses:
+      - {class: UserAddress, mode: write, op: insert, shape: one, via: UserAddressRepository.createUserAddress, table: UserAddressEntity,
+         today: copy, at: service/UserAddressService.kt#repository.createUserAddress, note: "ON CONFLICT (id) DO NOTHING"}
+
+  - id: invoice.on:address/user-address/archived
+    kind: reaction
+    mechanism: copy
+    trigger: {topic: address/user-address/archived}
+    entry: event/EventController.kt#fun onUserAddressArchived(
+    feature: F3
+    accesses:
+      - {class: UserAddress, mode: write, op: update, shape: optional, via: UserAddressRepository.archiveUserAddress, table: UserAddressEntity,
+         today: copy, at: service/UserAddressService.kt#repository.archiveUserAddress, note: "isArchived = TRUE WHERE id AND userId"}

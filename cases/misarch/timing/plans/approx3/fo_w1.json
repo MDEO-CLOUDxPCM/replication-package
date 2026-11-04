@@ -1,0 +1,310 @@
+{
+ "name": "fo_w1",
+ "config": "on",
+ "block": "4b",
+ "rateLevel": "factorial",
+ "cells": [
+  "i1q1c1PREs60",
+  "i1q1c0CCs60",
+  "i1q1c0INVs60",
+  "i1q3c0PREs60",
+  "i1q3c1CCs60",
+  "i1q3c1INVs60",
+  "i3q1c1PREs60",
+  "i3q1c0CCs60"
+ ],
+ "prep": [
+  "calibration/.venv/bin/python calibration/scripts/maintain.py --stack kotlin",
+  "calibration/.venv/bin/python requests/run.py stock"
+ ],
+ "durationS": 1490,
+ "phases": [
+  {
+   "name": "idle",
+   "duration": 60,
+   "rates": {}
+  },
+  {
+   "name": "i1q1c1PREs60:fill",
+   "duration": 20,
+   "rates": {
+    "foCart.i1q1c1PREs60": 5.75
+   },
+   "deterministic": true
+  },
+  {
+   "name": "i1q1c1PREs60:pre",
+   "duration": 15,
+   "rates": {}
+  },
+  {
+   "name": "i1q1c1PREs60:warm",
+   "duration": 20,
+   "rates": {
+    "foOrder.i1q1c1PREs60": 1.0,
+    "foPlace.i1q1c1PREs60": 1.0
+   }
+  },
+  {
+   "name": "i1q1c1PREs60:steady",
+   "duration": 75,
+   "rates": {
+    "foOrder.i1q1c1PREs60": 1.0,
+    "foPlace.i1q1c1PREs60": 1.0
+   }
+  },
+  {
+   "name": "i1q1c1PREs60:drain",
+   "duration": 45,
+   "rates": {}
+  },
+  {
+   "name": "i1q1c0CCs60:fill",
+   "duration": 20,
+   "rates": {
+    "foCart.i1q1c0CCs60": 5.75
+   },
+   "deterministic": true
+  },
+  {
+   "name": "i1q1c0CCs60:pre",
+   "duration": 15,
+   "rates": {}
+  },
+  {
+   "name": "i1q1c0CCs60:warm",
+   "duration": 20,
+   "rates": {
+    "foOrder.i1q1c0CCs60": 1.0,
+    "foPlace.i1q1c0CCs60": 1.0
+   }
+  },
+  {
+   "name": "i1q1c0CCs60:steady",
+   "duration": 75,
+   "rates": {
+    "foOrder.i1q1c0CCs60": 1.0,
+    "foPlace.i1q1c0CCs60": 1.0
+   }
+  },
+  {
+   "name": "i1q1c0CCs60:drain",
+   "duration": 45,
+   "rates": {}
+  },
+  {
+   "name": "i1q1c0INVs60:fill",
+   "duration": 20,
+   "rates": {
+    "foCart.i1q1c0INVs60": 5.75
+   },
+   "deterministic": true
+  },
+  {
+   "name": "i1q1c0INVs60:pre",
+   "duration": 15,
+   "rates": {}
+  },
+  {
+   "name": "i1q1c0INVs60:warm",
+   "duration": 20,
+   "rates": {
+    "foOrder.i1q1c0INVs60": 1.0,
+    "foPlace.i1q1c0INVs60": 1.0
+   }
+  },
+  {
+   "name": "i1q1c0INVs60:steady",
+   "duration": 75,
+   "rates": {
+    "foOrder.i1q1c0INVs60": 1.0,
+    "foPlace.i1q1c0INVs60": 1.0
+   }
+  },
+  {
+   "name": "i1q1c0INVs60:drain",
+   "duration": 45,
+   "rates": {}
+  },
+  {
+   "name": "i1q3c0PREs60:fill",
+   "duration": 20,
+   "rates": {
+    "foCart.i1q3c0PREs60": 5.75
+   },
+   "deterministic": true
+  },
+  {
+   "name": "i1q3c0PREs60:pre",
+   "duration": 15,
+   "rates": {}
+  },
+  {
+   "name": "i1q3c0PREs60:warm",
+   "duration": 20,
+   "rates": {
+    "foOrder.i1q3c0PREs60": 1.0,
+    "foPlace.i1q3c0PREs60": 1.0
+   }
+  },
+  {
+   "name": "i1q3c0PREs60:steady",
+   "duration": 75,
+   "rates": {
+    "foOrder.i1q3c0PREs60": 1.0,
+    "foPlace.i1q3c0PREs60": 1.0
+   }
+  },
+  {
+   "name": "i1q3c0PREs60:drain",
+   "duration": 45,
+   "rates": {}
+  },
+  {
+   "name": "i1q3c1CCs60:fill",
+   "duration": 20,
+   "rates": {
+    "foCart.i1q3c1CCs60": 5.75
+   },
+   "deterministic": true
+  },
+  {
+   "name": "i1q3c1CCs60:pre",
+   "duration": 15,
+   "rates": {}
+  },
+  {
+   "name": "i1q3c1CCs60:warm",
+   "duration": 20,
+   "rates": {
+    "foOrder.i1q3c1CCs60": 1.0,
+    "foPlace.i1q3c1CCs60": 1.0
+   }
+  },
+  {
+   "name": "i1q3c1CCs60:steady",
+   "duration": 75,
+   "rates": {
+    "foOrder.i1q3c1CCs60": 1.0,
+    "foPlace.i1q3c1CCs60": 1.0
+   }
+  },
+  {
+   "name": "i1q3c1CCs60:drain",
+   "duration": 45,
+   "rates": {}
+  },
+  {
+   "name": "i1q3c1INVs60:fill",
+   "duration": 20,
+   "rates": {
+    "foCart.i1q3c1INVs60": 5.75
+   },
+   "deterministic": true
+  },
+  {
+   "name": "i1q3c1INVs60:pre",
+   "duration": 15,
+   "rates": {}
+  },
+  {
+   "name": "i1q3c1INVs60:warm",
+   "duration": 20,
+   "rates": {
+    "foOrder.i1q3c1INVs60": 1.0,
+    "foPlace.i1q3c1INVs60": 1.0
+   }
+  },
+  {
+   "name": "i1q3c1INVs60:steady",
+   "duration": 75,
+   "rates": {
+    "foOrder.i1q3c1INVs60": 1.0,
+    "foPlace.i1q3c1INVs60": 1.0
+   }
+  },
+  {
+   "name": "i1q3c1INVs60:drain",
+   "duration": 45,
+   "rates": {}
+  },
+  {
+   "name": "i3q1c1PREs60:fill",
+   "duration": 20,
+   "rates": {
+    "foCart.i3q1c1PREs60": 5.75
+   },
+   "deterministic": true
+  },
+  {
+   "name": "i3q1c1PREs60:pre",
+   "duration": 15,
+   "rates": {}
+  },
+  {
+   "name": "i3q1c1PREs60:warm",
+   "duration": 20,
+   "rates": {
+    "foOrder.i3q1c1PREs60": 1.0,
+    "foPlace.i3q1c1PREs60": 1.0
+   }
+  },
+  {
+   "name": "i3q1c1PREs60:steady",
+   "duration": 75,
+   "rates": {
+    "foOrder.i3q1c1PREs60": 1.0,
+    "foPlace.i3q1c1PREs60": 1.0
+   }
+  },
+  {
+   "name": "i3q1c1PREs60:drain",
+   "duration": 45,
+   "rates": {}
+  },
+  {
+   "name": "i3q1c0CCs60:fill",
+   "duration": 20,
+   "rates": {
+    "foCart.i3q1c0CCs60": 5.75
+   },
+   "deterministic": true
+  },
+  {
+   "name": "i3q1c0CCs60:pre",
+   "duration": 15,
+   "rates": {}
+  },
+  {
+   "name": "i3q1c0CCs60:warm",
+   "duration": 20,
+   "rates": {
+    "foOrder.i3q1c0CCs60": 1.0,
+    "foPlace.i3q1c0CCs60": 1.0
+   }
+  },
+  {
+   "name": "i3q1c0CCs60:steady",
+   "duration": 75,
+   "rates": {
+    "foOrder.i3q1c0CCs60": 1.0,
+    "foPlace.i3q1c0CCs60": 1.0
+   }
+  },
+  {
+   "name": "i3q1c0CCs60:drain",
+   "duration": 45,
+   "rates": {}
+  },
+  {
+   "name": "idle_end",
+   "duration": 30,
+   "rates": {}
+  }
+ ],
+ "burstTypes": [
+  "foOrder.i1q1c1INVs60",
+  "foOrder.i1q1c1PREs60",
+  "foOrder.i1q1c1CCs60"
+ ]
+}

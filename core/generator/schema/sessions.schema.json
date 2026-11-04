@@ -1,0 +1,754 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "sessions.schema.json",
+  "title": "Case session usage model",
+  "description": "The session usage model a case provides (MiSArch: workload/sessions.json, described in workload/WORKLOAD.md): request types mapped onto domain operations, session classes as step behaviours (calls, think times, loops, branches, fragments), workloads (mixes and design load) and load profiles over time. Read by core/generator/sessions.py (and the case's gen_sessions.py) (load_model, expect, class_stats, workload_rates, loadprofile, pcm) and core/generator/derive.py (Domain.__init__ reads requests, profile_steps reads profiles.day). Required: what these readers access unconditionally; think, fragments and cardinalities are required in effect as soon as a step refers to them (`think`, `use`, `@name`), which the schema does not check. Every called request key must be a key of requests.",
+  "type": "object",
+  "properties": {
+    "requests": {
+      "type": "object",
+      "description": "request key -> request type (derive Domain.__init__, usage_text; sessions role_sig, to_operations). `login` is the Keycloak token request, skipped by derive's plans.",
+      "additionalProperties": {
+        "$ref": "#/$defs/request"
+      },
+      "minProperties": 1
+    },
+    "classes": {
+      "type": "object",
+      "description": "session class -> behaviour (sessions class_stats, workload_rates, pcm).",
+      "additionalProperties": {
+        "$ref": "#/$defs/sessionClass"
+      },
+      "minProperties": 1
+    },
+    "workloads": {
+      "type": "object",
+      "description": "Workloads by name (sessions workload_rates; derive uses `realistic` through sessions pcm).",
+      "properties": {
+        "realistic": {
+          "$ref": "#/$defs/mixWorkload"
+        },
+        "round2": {
+          "$ref": "#/$defs/sessionWorkload"
+        }
+      },
+      "required": [
+        "realistic"
+      ],
+      "additionalProperties": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/mixWorkload"
+          },
+          {
+            "$ref": "#/$defs/sessionWorkload"
+          }
+        ]
+      }
+    },
+    "profiles": {
+      "type": "object",
+      "description": "Load profiles by name (derive profile_steps reads `day`; sessions loadprofile).",
+      "properties": {
+        "day": {
+          "$ref": "#/$defs/profile"
+        }
+      },
+      "required": [
+        "day"
+      ],
+      "additionalProperties": {
+        "$ref": "#/$defs/profile"
+      }
+    },
+    "think": {
+      "type": "object",
+      "description": "think-time name -> distribution (sessions expect, pcm).",
+      "additionalProperties": {
+        "$ref": "#/$defs/think"
+      }
+    },
+    "fragments": {
+      "type": "object",
+      "description": "fragment name -> steps (sessions expect, pcm).",
+      "additionalProperties": {
+        "$ref": "#/$defs/fragment"
+      }
+    },
+    "cardinalities": {
+      "type": "object",
+      "description": "cardinality name -> value; `about` is a description text (sessions resolve_param).",
+      "additionalProperties": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "$ref": "#/$defs/cardinality"
+          }
+        ]
+      }
+    },
+    "browseOperations": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Request keys that are browse (not order) interactions (sessions check, page_shares only)."
+    },
+    "version": {
+      "type": "integer",
+      "description": "Format version (informative)."
+    },
+    "about": {
+      "type": "string",
+      "description": "Description."
+    },
+    "sources": {
+      "type": "object",
+      "description": "Source key -> citation.",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "data": {
+      "type": "object",
+      "description": "Data volumes of the test data (informative).",
+      "additionalProperties": true
+    }
+  },
+  "required": [
+    "requests",
+    "classes",
+    "workloads",
+    "profiles"
+  ],
+  "additionalProperties": true,
+  "$defs": {
+    "steps": {
+      "type": "array",
+      "description": "A sequence of steps, run in order (sessions expect, sample_pages, pcm behaviour).",
+      "items": {
+        "$ref": "#/$defs/step"
+      }
+    },
+    "step": {
+      "description": "One step of a behaviour: exactly one of call, think, delay, use, loop (with body), branch (sessions expect; an unknown step stops the interpreter).",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/callStep"
+        },
+        {
+          "$ref": "#/$defs/thinkStep"
+        },
+        {
+          "$ref": "#/$defs/delayStep"
+        },
+        {
+          "$ref": "#/$defs/useStep"
+        },
+        {
+          "$ref": "#/$defs/loopStep"
+        },
+        {
+          "$ref": "#/$defs/branchStep"
+        }
+      ]
+    },
+    "callStep": {
+      "type": "object",
+      "description": "A request.",
+      "properties": {
+        "call": {
+          "type": "string",
+          "description": "Request key (requests.<key>; `login` is the Keycloak token) (sessions expect visits, pcm EntryLevelSystemCall)."
+        },
+        "params": {
+          "type": "object",
+          "description": "Input parameter characterisations: `<reference>.<KIND>` (e.g. items.NUMBER_OF_ELEMENTS) -> value; `${arg}` is a fragment argument, `@name` a cardinality (sessions pcm, resolve_param).",
+          "additionalProperties": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "propertyNames": {
+            "pattern": "^.+\\.[A-Z_]+$"
+          }
+        }
+      },
+      "required": [
+        "call"
+      ],
+      "additionalProperties": true,
+      "not": {
+        "anyOf": [
+          {
+            "required": [
+              "think"
+            ]
+          },
+          {
+            "required": [
+              "delay"
+            ]
+          },
+          {
+            "required": [
+              "use"
+            ]
+          },
+          {
+            "required": [
+              "loop"
+            ]
+          },
+          {
+            "required": [
+              "branch"
+            ]
+          }
+        ]
+      }
+    },
+    "thinkStep": {
+      "type": "object",
+      "description": "A think time.",
+      "properties": {
+        "think": {
+          "type": "string",
+          "description": "Key of think (sessions expect, pcm Delay); `sub` separates the requests of one page (sessions sample_pages)."
+        }
+      },
+      "required": [
+        "think"
+      ],
+      "additionalProperties": true,
+      "not": {
+        "anyOf": [
+          {
+            "required": [
+              "call"
+            ]
+          },
+          {
+            "required": [
+              "delay"
+            ]
+          },
+          {
+            "required": [
+              "use"
+            ]
+          },
+          {
+            "required": [
+              "loop"
+            ]
+          },
+          {
+            "required": [
+              "branch"
+            ]
+          }
+        ]
+      }
+    },
+    "delayStep": {
+      "type": "object",
+      "description": "A literal delay.",
+      "properties": {
+        "delay": {
+          "type": "string",
+          "description": "Distribution UniDouble(a, b), Exp(rate) or a number of seconds (sessions dist_mean, pcm Delay).",
+          "pattern": "^\\s*(UniDouble\\(\\s*[-+0-9.eE]+\\s*,\\s*[-+0-9.eE]+\\s*\\)|Exp\\(\\s*[-+0-9.eE]+\\s*\\)|[-+0-9.eE]+)\\s*$"
+        }
+      },
+      "required": [
+        "delay"
+      ],
+      "additionalProperties": true,
+      "not": {
+        "anyOf": [
+          {
+            "required": [
+              "call"
+            ]
+          },
+          {
+            "required": [
+              "think"
+            ]
+          },
+          {
+            "required": [
+              "use"
+            ]
+          },
+          {
+            "required": [
+              "loop"
+            ]
+          },
+          {
+            "required": [
+              "branch"
+            ]
+          }
+        ]
+      }
+    },
+    "useStep": {
+      "type": "object",
+      "description": "An inlined fragment.",
+      "properties": {
+        "use": {
+          "type": "string",
+          "description": "Key of fragments (sessions expect, pcm)."
+        },
+        "args": {
+          "type": "object",
+          "description": "Fragment arguments (`${name}` in its params) (sessions pcm).",
+          "additionalProperties": {
+            "type": [
+              "string",
+              "number"
+            ]
+          }
+        },
+        "with": {
+          "type": "object",
+          "description": "Cardinality overrides for the fragment (`@name` values) (sessions pcm).",
+          "additionalProperties": {
+            "type": [
+              "string",
+              "number"
+            ]
+          }
+        }
+      },
+      "required": [
+        "use"
+      ],
+      "additionalProperties": true,
+      "not": {
+        "anyOf": [
+          {
+            "required": [
+              "call"
+            ]
+          },
+          {
+            "required": [
+              "think"
+            ]
+          },
+          {
+            "required": [
+              "delay"
+            ]
+          },
+          {
+            "required": [
+              "loop"
+            ]
+          },
+          {
+            "required": [
+              "branch"
+            ]
+          }
+        ]
+      }
+    },
+    "loopStep": {
+      "type": "object",
+      "description": "A loop.",
+      "properties": {
+        "loop": {
+          "type": "string",
+          "description": "Iteration count IntPMF[(n;p)...] (sessions pmf_mean, pcm Loop).",
+          "pattern": "^\\s*IntPMF\\[\\s*(\\(\\s*-?\\d+\\s*;\\s*[0-9.eE-]+\\s*\\)\\s*)+\\]\\s*$"
+        },
+        "body": {
+          "$ref": "#/$defs/steps",
+          "description": "Loop body."
+        }
+      },
+      "required": [
+        "loop",
+        "body"
+      ],
+      "additionalProperties": true,
+      "not": {
+        "anyOf": [
+          {
+            "required": [
+              "call"
+            ]
+          },
+          {
+            "required": [
+              "think"
+            ]
+          },
+          {
+            "required": [
+              "delay"
+            ]
+          },
+          {
+            "required": [
+              "use"
+            ]
+          },
+          {
+            "required": [
+              "branch"
+            ]
+          }
+        ]
+      }
+    },
+    "branch": {
+      "type": "object",
+      "description": "A branch transition. Also carries (not read by the generator): name.",
+      "properties": {
+        "p": {
+          "type": "number",
+          "description": "Probability (normalised over the branch's transitions) (sessions expect, pcm BranchTransition).",
+          "minimum": 0
+        },
+        "body": {
+          "$ref": "#/$defs/steps",
+          "description": "Branch body."
+        }
+      },
+      "required": [
+        "p",
+        "body"
+      ],
+      "additionalProperties": true
+    },
+    "branchStep": {
+      "type": "object",
+      "description": "A probabilistic branch.",
+      "properties": {
+        "branch": {
+          "type": "array",
+          "description": "Transitions (sessions expect, pcm Branch).",
+          "items": {
+            "$ref": "#/$defs/branch"
+          },
+          "minItems": 1
+        }
+      },
+      "required": [
+        "branch"
+      ],
+      "additionalProperties": true,
+      "not": {
+        "anyOf": [
+          {
+            "required": [
+              "call"
+            ]
+          },
+          {
+            "required": [
+              "think"
+            ]
+          },
+          {
+            "required": [
+              "delay"
+            ]
+          },
+          {
+            "required": [
+              "use"
+            ]
+          },
+          {
+            "required": [
+              "loop"
+            ]
+          }
+        ]
+      }
+    },
+    "request": {
+      "type": "object",
+      "description": "A request type of the usage model. Also carries (not read by the generator): note.",
+      "properties": {
+        "operations": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Domain operation ids it runs, root first (derive Domain.__init__: compared with the domain plan of roundTwoRequest, else a plan is built from them; sessions to_operations)."
+        },
+        "msa": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Name in the msa model; null for login (derive Domain.requests comment, sessions role_sig/msa_of/admin_reqs)."
+        },
+        "roundTwoRequest": {
+          "type": "string",
+          "description": "domain requests[].type whose plan it uses (derive Domain.__init__)."
+        }
+      },
+      "required": [
+        "operations",
+        "msa"
+      ],
+      "additionalProperties": true
+    },
+    "sessionClass": {
+      "type": "object",
+      "description": "A session class (user type). Also carries (not read by the generator): src.",
+      "properties": {
+        "about": {
+          "type": "string",
+          "description": "Description (sessions pcm scenario comment)."
+        },
+        "steps": {
+          "$ref": "#/$defs/steps",
+          "description": "The session's behaviour (sessions class_stats, pcm)."
+        }
+      },
+      "required": [
+        "about",
+        "steps"
+      ],
+      "additionalProperties": true
+    },
+    "think": {
+      "type": "object",
+      "description": "A think-time distribution. Also carries (not read by the generator): src.",
+      "properties": {
+        "dist": {
+          "type": "string",
+          "description": "UniDouble(a, b), Exp(rate) or a number of seconds (sessions dist_mean, pcm Delay).",
+          "pattern": "^\\s*(UniDouble\\(\\s*[-+0-9.eE]+\\s*,\\s*[-+0-9.eE]+\\s*\\)|Exp\\(\\s*[-+0-9.eE]+\\s*\\)|[-+0-9.eE]+)\\s*$"
+        }
+      },
+      "required": [
+        "dist"
+      ],
+      "additionalProperties": true
+    },
+    "fragment": {
+      "type": "object",
+      "description": "A reusable step sequence. Also carries (not read by the generator): src.",
+      "properties": {
+        "steps": {
+          "$ref": "#/$defs/steps",
+          "description": "Its steps (sessions expect, pcm)."
+        },
+        "args": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Argument names (informative)."
+        }
+      },
+      "required": [
+        "steps"
+      ],
+      "additionalProperties": true
+    },
+    "cardinality": {
+      "type": "object",
+      "description": "A workload cardinality the code leaves open. Also carries (not read by the generator): mean, src.",
+      "properties": {
+        "value": {
+          "type": [
+            "string",
+            "number"
+          ],
+          "description": "StoEx value substituted for `@name` (sessions resolve_param)."
+        }
+      },
+      "required": [
+        "value"
+      ],
+      "additionalProperties": true
+    },
+    "mix": {
+      "type": "object",
+      "description": "A mix of session classes. Also carries (not read by the generator): src.",
+      "properties": {
+        "shares": {
+          "type": "object",
+          "description": "class -> share (normalised) (sessions workload_rates, loadprofile).",
+          "additionalProperties": {
+            "type": "number",
+            "minimum": 0
+          },
+          "minProperties": 1
+        }
+      },
+      "required": [
+        "shares"
+      ],
+      "additionalProperties": true
+    },
+    "admin": {
+      "type": "object",
+      "description": "The admin session class of a workload. Also carries (not read by the generator): rate, operationsPerSecond.",
+      "properties": {
+        "class": {
+          "type": "string",
+          "description": "Session class (sessions workload_rates)."
+        },
+        "sessionsPerSecondAtLoadFactor1": {
+          "type": "number",
+          "description": "Sessions/s at msa load factor 1 (sessions workload_rates, session-rate workloads only).",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "class"
+      ],
+      "additionalProperties": true
+    },
+    "mixWorkload": {
+      "type": "object",
+      "description": "A workload defined by mixes: the design load is the number of sessions at which its base mix sends as many client requests as the referenced workload's design sessions. Also carries (not read by the generator): about.",
+      "properties": {
+        "requestsEquivalentTo": {
+          "type": "string",
+          "description": "Key of a session-rate workload with designSessions (sessions workload_rates)."
+        },
+        "mixes": {
+          "type": "object",
+          "description": "mix name -> mix (sessions workload_rates, loadprofile).",
+          "additionalProperties": {
+            "$ref": "#/$defs/mix"
+          },
+          "minProperties": 1
+        },
+        "baseMix": {
+          "type": "string",
+          "description": "Key of mixes: the design-load and profile reference (sessions workload_rates, loadprofile)."
+        },
+        "admin": {
+          "$ref": "#/$defs/admin",
+          "description": "Admin class, constant rate (sessions workload_rates)."
+        }
+      },
+      "required": [
+        "requestsEquivalentTo",
+        "mixes",
+        "baseMix",
+        "admin"
+      ],
+      "additionalProperties": true
+    },
+    "sessionWorkload": {
+      "type": "object",
+      "description": "A workload defined by session rates per class (round 2's). Also carries (not read by the generator): about.",
+      "properties": {
+        "designSessions": {
+          "type": "number",
+          "description": "Design sessions/s (sessions workload_rates).",
+          "minimum": 0
+        },
+        "customers": {
+          "type": "object",
+          "description": "class -> share of the design sessions (sessions workload_rates).",
+          "additionalProperties": {
+            "type": "number"
+          }
+        },
+        "admin": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/admin"
+            }
+          ],
+          "required": [
+            "sessionsPerSecondAtLoadFactor1"
+          ],
+          "description": "Admin class, scaled with the load (sessions workload_rates)."
+        }
+      },
+      "required": [
+        "designSessions",
+        "customers",
+        "admin"
+      ],
+      "additionalProperties": true
+    },
+    "phase": {
+      "type": "object",
+      "description": "A phase of a load profile.",
+      "properties": {
+        "from": {
+          "type": "number",
+          "description": "Start second (derive profile_steps, sessions loadprofile).",
+          "minimum": 0
+        },
+        "volume": {
+          "type": "number",
+          "description": "Sessions relative to the design load (sessions loadprofile).",
+          "minimum": 0
+        },
+        "mix": {
+          "type": "string",
+          "description": "Key of the realistic workload's mixes (sessions loadprofile)."
+        },
+        "name": {
+          "type": "string",
+          "description": "Phase name (derive profile_steps: LoadStep names)."
+        }
+      },
+      "required": [
+        "from",
+        "volume",
+        "mix",
+        "name"
+      ],
+      "additionalProperties": true
+    },
+    "profile": {
+      "type": "object",
+      "description": "A load profile over time.",
+      "properties": {
+        "about": {
+          "type": "string",
+          "description": "Description (derive profile_steps: LoadProfile comment)."
+        },
+        "warmUpSeconds": {
+          "type": "number",
+          "description": "Not measured before this second (derive profile_steps).",
+          "minimum": 0
+        },
+        "endSeconds": {
+          "type": "number",
+          "description": "End of the simulation (derive profile_steps).",
+          "minimum": 0
+        },
+        "phases": {
+          "type": "array",
+          "description": "Phases by start time (derive profile_steps, sessions loadprofile).",
+          "items": {
+            "$ref": "#/$defs/phase"
+          },
+          "minItems": 1
+        }
+      },
+      "required": [
+        "about",
+        "warmUpSeconds",
+        "endSeconds",
+        "phases"
+      ],
+      "additionalProperties": true
+    }
+  }
+}

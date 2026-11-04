@@ -1,0 +1,273 @@
+# inventory (Kotlin port of the NestJS/Mongo original). Curated; schema: build.py docstring. Anchors are relative to
+# services/inventory/src/main/kotlin/org/misarch/inventory/.
+service: inventory
+transactional: >-
+  @Transactional service methods (service/ProductItemService.kt): createProductItemBatch, updateProductItem,
+  deleteProductItem, reserveProductItemBatch and reserveProductItemsForOrder (one order item's count and reservation:
+  UPDATE ... WHERE id IN (SELECT ... FOR UPDATE SKIP LOCKED), all or nothing). The order/created handler
+  (service/ReservationService.kt) reserves each order item in its own transaction, concurrently; the release of an
+  order's items (one UPDATE ... WHERE orderId) and the status updates by order autocommit. Publishes go through
+  libs/common EventPublisher.publishEvent, after the transactions.
+branchProbabilities: >-
+  reservation failure ~0 (misarch-optimization msa: reserveItems -> validateOrder callsPerOp 1.0, the loadgen keeps
+  stock); shipment status DELIVERED 0.95 / FAILED 0.05 (simulation SHIPMENT_SUCCESS_RATE default); return shipments
+  (orderId null) ~1% of shipments (msa rates createReturn 0.005 vs placeOrder 0.483).
+
+tables:
+  ProductItemEntity:
+    kind: class
+    class: ProductItem
+    refs:
+      - {attr: productVariantId, to: ProductVariant, kind: association, mult: "1", note: "no FK; validated against the ProductVariant copy on create/update"}
+      - {attr: orderId, to: Order, kind: association, mult: "0..1", note: "the order the item is reserved for (no Order copy)"}
+    note: "one row per physical item; inventoryStatus IN_STORAGE -> RESERVED -> IN_FULFILLMENT -> SHIPPED -> DELIVERED | LOST"
+  ProductVariantEntity:
+    kind: copy
+    copyOf: {ProductVariant: [id]}
+    fedBy: [catalog/product-variant/created]
+    note: "existence check of createProductItemBatch and updateProductItem"
+
+operations:
+  - id: inventory.productItems
+    kind: query
+    trigger: {graphql: Query.productItems}
+    entry: graphql/Query.kt#fun productItems(
+    feature: F9
+    note: "employee/admin; ProductItemConnection over libs/common connectionQuery: page, COUNT, probe, each only when selected"
+    accesses:
+      - {class: ProductItem, mode: read, op: select, shape: list, rows: "matching items (first, default unbounded)", when: nodes selected,
+         via: ProductItemConnection.nodes, table: ProductItemEntity, today: local, at: graphql/Query.kt#ProductItemConnection(}
+      - {class: ProductItem, mode: read, op: count, shape: one, when: totalCount selected, via: ProductItemConnection.totalCount,
+         table: ProductItemEntity, today: local, at: graphql/Query.kt#ProductItemConnection(}
+      - {class: ProductItem, mode: read, op: exists, shape: optional, when: hasNextPage selected, via: ProductItemConnection.nodes,
+         table: ProductItemEntity, today: local, at: graphql/Query.kt#ProductItemConnection(,
+         note: "probe: SELECT 1 ... LIMIT 1 OFFSET first + skip"}
+
+  - id: inventory.productItem
+    kind: query
+    trigger: {graphql: Query.productItem}
+    entry: graphql/Query.kt#fun productItem(
+    feature: F9
+    accesses:
+      - {class: ProductItem, mode: read, op: select, shape: batch, rows: 1, via: ProductItemRepository.findAllById, table: ProductItemEntity,
+         today: local, at: graphql/Query.kt#ProductItemDataLoader::class}
+
+  - id: inventory.createProductItemBatch
+    kind: command
+    trigger: {graphql: Mutation.createProductItemBatch}
+    entry: graphql/Mutation.kt#fun createProductItemBatch(
+    feature: F9
+    transaction: {at: "service/ProductItemService.kt#@Transactional@1", classes: [ProductItem, ProductVariant], publishInside: false,
+                  note: "the variant check and the inserts of the batch; no event"}
+    accesses:
+      - {class: ProductVariant, mode: read, op: exists, shape: one, strong: true, via: ProductVariantRepository.existsById,
+         table: ProductVariantEntity, today: copy, at: service/ProductVariantService.kt#repository.existsByIdOrThrow(id), note: "the variant must exist"}
+      - {class: ProductItem, mode: write, op: insert, shape: perItem, per: "number of items in the batch", via: ProductItemRepository.saveAll,
+         table: ProductItemEntity, today: local, at: service/ProductItemService.kt#repository.saveAll(productItems), note: "one INSERT per item"}
+
+  - id: inventory.updateProductItem
+    kind: command
+    trigger: {graphql: Mutation.updateProductItem}
+    entry: graphql/Mutation.kt#fun updateProductItem(
+    feature: F9
+    transaction: {at: "service/ProductItemService.kt#@Transactional@2", classes: [ProductItem, ProductVariant], publishInside: false,
+                  note: "no row lock; no event"}
+    accesses:
+      - {class: ProductVariant, mode: read, op: exists, shape: one, strong: true, via: ProductVariantRepository.existsById,
+         table: ProductVariantEntity, today: copy, at: service/ProductVariantService.kt#repository.existsByIdOrThrow(id)}
+      - {class: ProductItem, mode: read, op: select, shape: one, strong: true, via: ProductItemRepository.findById, table: ProductItemEntity,
+         today: local, at: service/ProductItemService.kt#repository.findByIdOrThrow(id), note: "the item is saved back with its orderId"}
+      - {class: ProductItem, mode: write, op: update, shape: one, via: ProductItemRepository.save, table: ProductItemEntity, today: local,
+         at: service/ProductItemService.kt#repository.save(productItem)}
+
+  - id: inventory.deleteProductItem
+    kind: command
+    trigger: {graphql: Mutation.deleteProductItem}
+    entry: graphql/Mutation.kt#fun deleteProductItem(
+    feature: F9
+    transaction: {at: "service/ProductItemService.kt#@Transactional@3", classes: [ProductItem], publishInside: false, note: "no event"}
+    accesses:
+      - {class: ProductItem, mode: read, op: select, shape: one, via: ProductItemRepository.findById, table: ProductItemEntity, today: local,
+         at: service/ProductItemService.kt#repository.findByIdOrThrow(id), note: "not found -> error; the loaded row is the answer"}
+      - {class: ProductItem, mode: write, op: delete, shape: one, via: ProductItemRepository.delete, table: ProductItemEntity, today: local,
+         at: service/ProductItemService.kt#repository.delete(productItem)}
+
+  - id: inventory.reserveProductItemBatch
+    kind: command
+    trigger: {graphql: Mutation.reserveProductItemBatch}
+    entry: graphql/Mutation.kt#fun reserveProductItemBatch(
+    feature: F18
+    note: "manual reservation by an employee (the saga uses the order/order/created handler); no event"
+    transaction: {at: "service/ProductItemService.kt#@Transactional@4", classes: [ProductItem], publishInside: false,
+                  note: "FOR UPDATE SKIP LOCKED row locks; rolled back if fewer items than requested"}
+    accesses:
+      - {class: ProductItem, mode: write, op: update, shape: list, rows: "number requested", via: ProductItemRepository.reserve,
+         table: ProductItemEntity, today: local, at: "service/ProductItemService.kt#repository.reserve(",
+         note: "UPDATE ... WHERE id IN (SELECT ... WHERE productVariantId AND IN_STORAGE ORDER BY seq LIMIT n FOR UPDATE SKIP LOCKED) RETURNING *"}
+
+  - id: inventory._entities.ProductVariant
+    kind: query
+    trigger: {graphql: _entities(ProductVariant)}
+    entry: graphql/federation/ProductVariantResolver.kt#class ProductVariantResolver
+    feature: F9
+    trivial: true
+    note: builds the ProductVariant stub from the representation, no database access
+
+  - id: inventory.ProductVariant.productItems
+    kind: query
+    trigger: {graphql: ProductVariant.productItems}
+    entry: graphql/model/ProductVariant.kt#fun productItems(
+    feature: F9
+    note: "employee/admin; ProductItemConnection over libs/common connectionQuery (WHERE productVariantId): page, COUNT, probe, each only when selected"
+    accesses:
+      - {class: ProductItem, mode: read, op: select, shape: list, rows: "items of the variant (first, default unbounded)", when: nodes selected,
+         via: ProductItemConnection.nodes, table: ProductItemEntity, today: local, at: graphql/model/ProductVariant.kt#ProductItemConnection(}
+      - {class: ProductItem, mode: read, op: count, shape: one, when: totalCount selected, via: ProductItemConnection.totalCount,
+         table: ProductItemEntity, today: local, at: graphql/model/ProductVariant.kt#ProductItemConnection(}
+      - {class: ProductItem, mode: read, op: exists, shape: optional, when: hasNextPage selected, via: ProductItemConnection.nodes,
+         table: ProductItemEntity, today: local, at: graphql/model/ProductVariant.kt#ProductItemConnection(,
+         note: "probe: SELECT 1 ... LIMIT 1 OFFSET first + skip"}
+
+  - id: inventory.ProductVariant.inventoryCount
+    kind: query
+    trigger: {graphql: ProductVariant.inventoryCount}
+    entry: graphql/model/ProductVariant.kt#fun inventoryCount(
+    feature: F9
+    note: "public"
+    accesses:
+      - {class: ProductItem, mode: read, op: count, shape: one, rows: "IN_STORAGE items of the variant",
+         via: ProductItemRepository.countByProductVariantIdAndInventoryStatus, table: ProductItemEntity, today: local,
+         at: service/ProductItemService.kt#repository.countByProductVariantIdAndInventoryStatus(productVariantId,
+         note: "COUNT(*) WHERE productVariantId AND inventoryStatus = IN_STORAGE (index prefix)"}
+
+  - id: inventory._entities.ProductItem
+    kind: query
+    trigger: {graphql: _entities(ProductItem)}
+    entry: graphql/federation/ProductItemResolver.kt#class ProductItemResolver
+    feature: F9
+    note: "employees only"
+    accesses:
+      - {class: ProductItem, mode: read, op: select, shape: batch, rows: 1, via: ProductItemRepository.findAllById, table: ProductItemEntity,
+         today: local, at: graphql/federation/ProductItemResolver.kt#ProductItemDataLoader::class}
+
+  - id: inventory.ProductItem.productVariant
+    kind: query
+    trigger: {graphql: ProductItem.productVariant}
+    entry: graphql/model/ProductItem.kt#fun productVariant(
+    feature: F9
+    trivial: true
+    note: builds the ProductVariant stub from the row, no database access
+
+  - id: inventory.on:catalog/product-variant/created
+    kind: reaction
+    mechanism: copy
+    trigger: {topic: catalog/product-variant/created}
+    entry: event/EventController.kt#fun onProductVariantCreated(
+    feature: F5
+    accesses:
+      - {class: ProductVariant, mode: write, op: insert, shape: one, via: ProductVariantRepository.createProductVariant, table: ProductVariantEntity,
+         today: copy, at: service/ProductVariantService.kt#repository.createProductVariant, note: "ON CONFLICT (id) DO NOTHING"}
+
+  - id: inventory.on:order/order/created
+    kind: reaction
+    trigger: {topic: order/order/created}
+    entry: event/EventController.kt#fun onOrderCreated(
+    feature: F18
+    sagaStep: {saga: Buy, role: step}
+    note: >-
+      one transaction for the whole order: the items already reserved for it are read once, then each item's missing
+      count is reserved; on any shortfall everything reserved for the order is released and reservation-failed is
+      published, else reservation-succeeded; both publishes inside the transaction (a failing publish rolls back).
+      Idempotent per order (only the missing count is reserved)
+    transaction:
+      at: "service/ReservationService.kt#@Transactional@1"
+      classes: [ProductItem]
+      publishInside: true
+      note: "one transaction per order; FOR UPDATE SKIP LOCKED row locks"
+    accesses:
+      - {class: Order, mode: read, op: select, shape: one, strong: true, today: payload, topic: order/order/created,
+         at: "event/EventController.kt#reservationService.reserveProductItemsOfOrder(cloudEvent.data)", note: "order id"}
+      - {class: OrderItem, mode: read, op: select, shape: list, rows: "items of the order", strong: true, today: payload, topic: order/order/created,
+         at: "service/ReservationService.kt#for (item in order.orderItems)", note: "productVariantId, count per item"}
+      - {class: ProductItem, mode: read, op: select, shape: list, rows: "items already reserved for the order (0 on the first delivery)", strong: true,
+         via: ProductItemRepository.findByOrderId, table: ProductItemEntity, today: local,
+         at: service/ReservationService.kt#repository.findByOrderId(order.id), note: "already reserved for this order (idempotency)"}
+      - {class: ProductItem, mode: write, op: update, shape: perItem, per: "items of the order", rows: "count of the item",
+         via: ProductItemRepository.reserve, table: ProductItemEntity, today: local, at: "service/ReservationService.kt#repository.reserve(",
+         note: "IN_STORAGE -> RESERVED, orderId; FOR UPDATE SKIP LOCKED"}
+      - {class: ProductItem, mode: write, op: update, shape: list, rows: "items reserved for the order", prob: 0, when: "a reservation failed",
+         via: ProductItemRepository.releaseByOrderId, table: ProductItemEntity, today: local,
+         at: service/ReservationService.kt#repository.releaseByOrderId(order.id), note: "-> IN_STORAGE, orderId NULL (WHERE orderId)"}
+    publishes:
+      - {topic: inventory/product-item/reservation-succeeded, at: service/ReservationService.kt#InventoryEvents.RESERVATION_SUCCEEDED, payload: [Order, OrderItem],
+         prob: 1, when: "all items reserved", note: "{order: <the received order>}"}
+      - {topic: inventory/product-item/reservation-failed, at: service/ReservationService.kt#InventoryEvents.RESERVATION_FAILED, payload: [Order, OrderItem],
+         prob: 0, when: "not enough IN_STORAGE items of a variant", note: "{order, failedProductVariantIds}"}
+
+  - id: inventory.on:payment/payment/payment-enabled
+    kind: reaction
+    trigger: {topic: payment/payment/payment-enabled}
+    entry: event/EventController.kt#fun onPaymentEnabled(
+    feature: F9
+    sagaStep: {saga: Buy, role: step}
+    accesses:
+      - {class: Order, mode: read, op: select, shape: one, today: payload, topic: payment/payment/payment-enabled,
+         at: "event/EventController.kt#productItemService.markProductItemsOfOrderInFulfillment(cloudEvent.data.order.id)", note: "order id only"}
+      - {class: ProductItem, mode: write, op: update, shape: list, rows: "items reserved for the order", via: ProductItemRepository.updateInventoryStatusByOrderId,
+         table: ProductItemEntity, today: local, at: service/ProductItemService.kt#repository.updateInventoryStatusByOrderId@1,
+         note: "-> IN_FULFILLMENT (WHERE orderId)"}
+
+  - id: inventory.on:payment/payment/payment-failed
+    kind: reaction
+    trigger: {topic: payment/payment/payment-failed}
+    entry: event/EventController.kt#fun onPaymentFailed(
+    feature: F18
+    sagaStep: {saga: Buy, role: compensation}
+    accesses:
+      - {class: Order, mode: read, op: select, shape: one, today: payload, topic: payment/payment/payment-failed,
+         at: "event/EventController.kt#productItemService.releaseProductItemsOfOrder(cloudEvent.data.order.id)@1", note: "order id only"}
+      - {class: ProductItem, mode: write, op: update, shape: list, rows: "items reserved for the order", via: ProductItemRepository.releaseByOrderId,
+         table: ProductItemEntity, today: local, at: service/ProductItemService.kt#repository.releaseByOrderId(orderId),
+         note: "-> IN_STORAGE, orderId NULL (one UPDATE WHERE orderId)"}
+
+  - id: inventory.on:shipment/shipment/status-updated
+    kind: reaction
+    trigger: {topic: shipment/shipment/status-updated}
+    entry: event/EventController.kt#fun onShipmentStatusUpdated(
+    feature: F9
+    sagaStep: {saga: Buy, role: step}
+    note: >-
+      only order shipments; all items of the order are updated, not only those of this shipment (an order with several
+      shipment methods has several shipments)
+    accesses:
+      - {class: Shipment, mode: read, op: select, shape: one, today: payload, topic: shipment/shipment/status-updated,
+         at: "service/ProductItemService.kt#val inventoryStatus = when (shipmentDTO.status)", note: "orderId, status"}
+      - {class: ProductItem, mode: write, op: update, shape: list, rows: "items of the order", prob: 0.99, when: "order shipment, DELIVERED (0.95) or FAILED (0.05)",
+         via: ProductItemRepository.updateInventoryStatusByOrderId, table: ProductItemEntity, today: local,
+         at: service/ProductItemService.kt#repository.updateInventoryStatusByOrderId@3, note: "-> DELIVERED | LOST"}
+
+  - id: inventory.on:shipment/shipment/created
+    kind: reaction
+    trigger: {topic: shipment/shipment/created}
+    entry: event/EventController.kt#fun onShipmentCreated(
+    feature: F9
+    sagaStep: {saga: Buy, role: step}
+    accesses:
+      - {class: Shipment, mode: read, op: select, shape: one, today: payload, topic: shipment/shipment/created,
+         at: "service/ProductItemService.kt#val orderId = shipmentDTO.orderId ?: return@1", note: "orderId"}
+      - {class: ProductItem, mode: write, op: update, shape: list, rows: "items of the order", prob: 0.99, when: "order shipment",
+         via: ProductItemRepository.updateInventoryStatusByOrderId, table: ProductItemEntity, today: local,
+         at: service/ProductItemService.kt#repository.updateInventoryStatusByOrderId@2, note: "-> SHIPPED, all items of the order"}
+
+  - id: inventory.on:discount/order/validation-failed
+    kind: reaction
+    trigger: {topic: discount/order/validation-failed}
+    entry: event/EventController.kt#fun onDiscountValidationFailed(
+    feature: F18
+    sagaStep: {saga: Buy, role: compensation}
+    accesses:
+      - {class: Order, mode: read, op: select, shape: one, today: payload, topic: discount/order/validation-failed,
+         at: "event/EventController.kt#productItemService.releaseProductItemsOfOrder(cloudEvent.data.order.id)@2", note: "order id only"}
+      - {class: ProductItem, mode: write, op: update, shape: list, rows: "items reserved for the order", via: ProductItemRepository.releaseByOrderId,
+         table: ProductItemEntity, today: local, at: service/ProductItemService.kt#repository.releaseByOrderId(orderId),
+         note: "-> IN_STORAGE, orderId NULL (one UPDATE WHERE orderId)"}

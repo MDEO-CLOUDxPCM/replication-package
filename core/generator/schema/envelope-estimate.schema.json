@@ -1,0 +1,143 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "envelope-estimate.schema.json",
+  "title": "Case envelope estimate",
+  "description": "The envelope estimate a case provides (MiSArch: timing/envelope-estimate-v2.json, timing/README.md §6): per handler the CPU an effect step pays for running in a transaction of its own (dispatch, decoding, idempotency, begin/commit) as opposed to its work, and per service the callee envelope of a synchronous invocation; its request rows give the receiving envelope of a synchronous call across containers (derive Envelope.inbound). core/generator/derive.py class Envelope reads it when timing/parts.json has no `envelope` (parts version 2); the same object is parts.json's `envelope` in version 3.",
+  "type": "object",
+  "properties": {
+    "handlers": {
+      "type": "object",
+      "description": "operation id -> handler (derive Envelope).",
+      "additionalProperties": {
+        "$ref": "#/$defs/handler"
+      },
+      "minProperties": 1
+    },
+    "callees": {
+      "type": "object",
+      "description": "service -> callee envelope (derive Envelope.callee; else the service's handler mean, else all handlers' mean).",
+      "additionalProperties": {
+        "$ref": "#/$defs/callee"
+      }
+    },
+    "rows": {
+      "type": "array",
+      "description": "Per (request type, container) the profile shares x D (derive Envelope.inbound: D x (dispatch + decode + tx) of a query type's plan container without deliveries). Reads type, container, D, shares.dispatch/decode/tx, deliveriesPerReq, sampledMs.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string"
+          },
+          "container": {
+            "type": "string"
+          },
+          "D": {
+            "type": "number",
+            "minimum": 0
+          },
+          "shares": {
+            "type": "object",
+            "properties": {
+              "dispatch": {
+                "type": "number"
+              },
+              "decode": {
+                "type": "number"
+              },
+              "tx": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "dispatch",
+              "decode"
+            ]
+          },
+          "deliveriesPerReq": {
+            "type": "object"
+          },
+          "sampledMs": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "type",
+          "container",
+          "D",
+          "shares"
+        ],
+        "additionalProperties": true
+      }
+    },
+    "requestOverhead": {
+      "type": "object",
+      "description": "request type -> its entry operation and plan containers (derive Envelope.inbound reads entryOperation and the keys of byPlanContainer).",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "entryOperation": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "byPlanContainer": {
+            "type": [
+              "object",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": true
+      }
+    }
+  },
+  "required": [
+    "handlers"
+  ],
+  "additionalProperties": true,
+  "$defs": {
+    "handler": {
+      "type": "object",
+      "description": "A handler (reaction) of the timing campaign, by operation id. Also carries (not read by the generator): topic, types, envelopeCpuMs, envelopeParts, from, flag, workFrom, idempotencyCheck, countersRemainderCpuMs.",
+      "properties": {
+        "service": {
+          "type": "string",
+          "description": "Service of the handler (derive Envelope.by_svc: pooled envelope per service)."
+        },
+        "envelopeAppCpuMs": {
+          "type": "number",
+          "description": "App-side envelope CPU ms (dispatch, decode, idempotency, transaction) (derive Envelope.share, pooled).",
+          "minimum": 0
+        },
+        "workCpuMs": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0,
+          "description": "Work CPU ms (business logic and statements); must be a number for a handler of a reaction the workload reaches (derive Envelope.share)."
+        }
+      },
+      "required": [
+        "service",
+        "envelopeAppCpuMs",
+        "workCpuMs"
+      ],
+      "additionalProperties": true
+    },
+    "callee": {
+      "type": "object",
+      "description": "Callee envelope of a synchronous invocation of a service. Also carries (not read by the generator): dispatchCpuMs, decodeCpuMs, txCpuMs, types, flag.",
+      "properties": {
+        "envelopeAppCpuMs": {
+          "type": "number",
+          "description": "Envelope CPU ms; ignored unless a number (derive Envelope.callee).",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": true
+    }
+  }
+}

@@ -1,0 +1,12 @@
+build/
+__pycache__/
+node_modules/
+core/platform/node_modules
+# core/platform/wait.sh's state log
+/core/platform/wait.log
+# machine-wide locks (README.md "Machine-wide locks"; the repository root is their directory)
+/MEASURING.lock
+/STACK.lock
+
+# the case packets' link to core/explorer/node_modules (core/explorer/tools/link-packets.mjs)
+/cases/*/explorer-packet/node_modules

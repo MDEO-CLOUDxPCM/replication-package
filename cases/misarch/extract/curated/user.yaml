@@ -1,0 +1,86 @@
+# user (Kotlin original). Curated; schema: build.py docstring. Anchors are relative to
+# services/user/src/main/kotlin/org/misarch/user/.
+service: user
+transactional: >-
+  service/UserService.kt: createUser (the user/user/create handler; fix docs/fixes/user.md: insert + read back +
+  publish in one transaction) and updateUser (read and write in one transaction) are @Transactional
+
+tables:
+  UserEntity:
+    kind: class
+    class: User
+    note: >-
+      profile (username, first/last name, gender, birthday, dateJoined); credentials live in Keycloak, which
+      publishes user/user/create
+
+operations:
+  - id: user.currentUser
+    kind: query
+    trigger: {graphql: Query.currentUser}
+    entry: graphql/Query.kt#fun currentUser(
+    feature: F2
+    accesses:
+      - {class: User, mode: read, op: select, shape: one, via: UserRepository.findById, table: UserEntity, today: local,
+         at: "service/UserService.kt#suspend fun findUser(id: UUID): UserEntity = repository.findByIdOrThrow(id)", note: "the authenticated user's row (null without a JWT: no access)"}
+
+  - id: user.user
+    kind: query
+    trigger: {graphql: Query.user}
+    entry: graphql/Query.kt#fun user(
+    feature: F2
+    accesses:
+      - {class: User, mode: read, op: select, shape: batch, rows: 1, via: UserRepository.findAllById, table: UserEntity, today: local,
+         at: graphql/Query.kt#UserDataLoader::class}
+
+  - id: user.users
+    kind: query
+    trigger: {graphql: Query.users}
+    entry: graphql/Query.kt#fun users(
+    feature: F2
+    accesses:
+      - {class: User, mode: read, op: select, shape: list, rows: "all users (page: first)", via: UserConnection.nodes, table: UserEntity,
+         today: local, at: graphql/Query.kt#return UserConnection(}
+      - {class: User, mode: read, op: count, shape: one, when: totalCount selected, via: UserConnection.totalCount, table: UserEntity,
+         today: local, at: graphql/Query.kt#return UserConnection(}
+
+  - id: user.updateUser
+    kind: command
+    trigger: {graphql: Mutation.updateUser}
+    entry: graphql/Mutation.kt#fun updateUser(
+    feature: F2
+    transaction: {at: "service/UserService.kt#@Transactional@2", classes: [User], publishInside: false, note: "no event"}
+    accesses:
+      - {class: User, mode: read, op: select, shape: one, strong: true, via: UserRepository.findById, table: UserEntity, today: local,
+         at: service/UserService.kt#repository.findByIdOrThrow(input.id)}
+      - {class: User, mode: write, op: update, shape: one, via: UserRepository.save, table: UserEntity, today: local,
+         at: service/UserService.kt#repository.save(user)}
+    note: >-
+      read and write in one transaction (no row lock: last writer wins); publishes nothing (there is no
+      user/user/updated topic), so the User copies in other services never see the change
+
+  - id: user._entities.User
+    kind: query
+    trigger: {graphql: _entities(User)}
+    entry: graphql/federation/UserResolver.kt#class UserResolver
+    feature: F2
+    accesses:
+      - {class: User, mode: read, op: select, shape: batch, rows: 1, via: UserRepository.findAllById, table: UserEntity, today: local,
+         at: graphql/federation/UserResolver.kt#UserDataLoader::class}
+
+  - id: user.on:user/user/create
+    kind: reaction
+    trigger: {topic: user/user/create}
+    entry: event/EventController.kt#fun onUserCreate(
+    feature: F1
+    sagaStep: {saga: Registration, role: step}
+    transaction: {at: "service/UserService.kt#@Transactional@1", classes: [User], publishInside: true,
+                  note: "a failed publish rolls the insert back, the redelivery creates and publishes again (fix, docs/fixes/user.md)"}
+    accesses:
+      - {class: User, mode: write, op: upsert, shape: one, via: UserRepository.createUser, table: UserEntity, today: local,
+         at: service/UserService.kt#repository.createUser(, note: "INSERT ... ON CONFLICT (id) DO NOTHING (idempotent)"}
+      - {class: User, mode: read, op: select, shape: one, strong: true, via: UserRepository.findById, table: UserEntity, today: local,
+         at: service/UserService.kt#repository.findByIdOrThrow(createUserDTO.id), note: "read back for the event payload (dateJoined)"}
+    publishes:
+      - {topic: user/user/created, at: service/UserService.kt#UserEvents.USER_CREATED, payload: [User],
+         when: "the row was inserted (not a redelivery)", prob: 1.0}
+    note: the event comes from Keycloak (sign-up), not from a MiSArch service

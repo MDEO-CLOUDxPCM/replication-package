@@ -1,0 +1,21 @@
+# Mechanism switches of block 6 (README.md §4.1): misarch-kotlin `timing-mechanisms` (docs/MECHANISMS.md).
+# Appended by timing/timing-up.sh for `--images mech` after the image pins (and the timing override in mode on).
+# The values come from timing/raw/state/mech-switches.env (written by `timing-up.sh mech|up --copies --cache --ttl`);
+# the defaults are off, which is today's cut.
+services:
+  order:
+    environment:
+      MISARCH_LOCAL_COPIES: "${MECH_LOCAL_COPIES:-false}"
+      # README.md §4.1: caller-side cache of createOrder's sync invocations (targets shipment,discount,inventory)
+      MISARCH_CALLER_CACHE_TARGETS: "${MECH_ORDER_CALLER_CACHE_TARGETS:-}"
+      MISARCH_CALLER_CACHE_TTL_SECONDS: "${MECH_CACHE_TTL_S:-60}"
+  catalog:
+    environment:
+      MISARCH_ENTITY_CACHE_TYPES: "${MECH_CATALOG_CACHE_TYPES:-}"
+      # README.md §4.1: one cache entry per key for these public types, shared by all users (default: per user)
+      MISARCH_ENTITY_CACHE_SHARED_TYPES: "${MECH_CATALOG_CACHE_SHARED_TYPES:-}"
+      MISARCH_ENTITY_CACHE_TTL_SECONDS: "${MECH_CACHE_TTL_S:-60}"
+  shipment:
+    environment:
+      MISARCH_ENTITY_CACHE_TYPES: "${MECH_SHIPMENT_CACHE_TYPES:-}"
+      MISARCH_ENTITY_CACHE_TTL_SECONDS: "${MECH_CACHE_TTL_S:-60}"

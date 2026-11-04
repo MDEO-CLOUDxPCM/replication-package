@@ -1,0 +1,744 @@
+{
+ "contract": "1.14.0",
+ "runId": "bookshop-static",
+ "designs": [
+  {
+   "id": "145cc41dd95e2b",
+   "runId": "bookshop-static",
+   "hash": "145cc41dd95e2b",
+   "label": "three services",
+   "objectives": [
+    7.2,
+    2053.4,
+    0.10987
+   ],
+   "constraints": [
+    0
+   ],
+   "feasible": true,
+   "rank": 0,
+   "born": 0,
+   "inFinalPopulation": true,
+   "reference": true,
+   "metrics": {
+    "services": 3,
+    "databases": 3
+   },
+   "hasDetail": true,
+   "hasDecisions": true,
+   "decisions": {
+    "services": [
+     {
+      "id": "s1",
+      "name": "Author + Book",
+      "classes": [
+       "Book",
+       "Author"
+      ],
+      "database": "db1",
+      "replicas": {
+       "mode": "fixed",
+       "count": 1
+      }
+     },
+     {
+      "id": "s2",
+      "name": "Basket + Customer",
+      "classes": [
+       "Customer",
+       "Basket"
+      ],
+      "database": "db2",
+      "replicas": {
+       "mode": "fixed",
+       "count": 1
+      }
+     },
+     {
+      "id": "s3",
+      "name": "Purchase",
+      "classes": [
+       "Purchase",
+       "PurchaseLine"
+      ],
+      "database": "db3",
+      "replicas": {
+       "mode": "fixed",
+       "count": 1
+      }
+     }
+    ],
+    "mechanisms": {
+     "addToBasket|Book|read": "sync",
+     "checkout|Basket|write": "saga",
+     "checkout|Book|read": "sync",
+     "checkout|Customer|read": "sync"
+    },
+    "sagas": [
+     {
+      "process": "Checkout",
+      "style": "choreography"
+     }
+    ],
+    "databases": [
+     {
+      "id": "db1",
+      "name": "Author + Book db",
+      "placement": "own",
+      "services": [
+       "s1"
+      ]
+     },
+     {
+      "id": "db2",
+      "name": "Basket + Customer db",
+      "placement": "own",
+      "services": [
+       "s2"
+      ]
+     },
+     {
+      "id": "db3",
+      "name": "Purchase db",
+      "placement": "own",
+      "services": [
+       "s3"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "id": "0fef10d73f43bc",
+   "runId": "bookshop-static",
+   "hash": "0fef10d73f43bc",
+   "label": "monolith",
+   "objectives": [
+    3.8,
+    4007.4,
+    0
+   ],
+   "constraints": [
+    0
+   ],
+   "feasible": true,
+   "rank": 0,
+   "born": 0,
+   "inFinalPopulation": true,
+   "reference": true,
+   "metrics": {
+    "services": 1,
+    "databases": 1
+   },
+   "hasDetail": false,
+   "hasDecisions": true,
+   "decisions": {
+    "services": [
+     {
+      "id": "s1",
+      "name": "Purchase + Author +3",
+      "classes": [
+       "Book",
+       "Author",
+       "Customer",
+       "Basket",
+       "Purchase",
+       "PurchaseLine"
+      ],
+      "database": "db1",
+      "replicas": {
+       "mode": "fixed",
+       "count": 1
+      }
+     }
+    ],
+    "mechanisms": {},
+    "sagas": [],
+    "databases": [
+     {
+      "id": "db1",
+      "name": "Purchase + Author +3 db",
+      "placement": "own",
+      "services": [
+       "s1"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "id": "05a8a3aa28d085",
+   "runId": "bookshop-static",
+   "hash": "05a8a3aa28d085",
+   "objectives": [
+    7.9,
+    1945.9,
+    0.10987
+   ],
+   "constraints": [
+    0
+   ],
+   "feasible": true,
+   "rank": 0,
+   "born": 3,
+   "inFinalPopulation": true,
+   "metrics": {
+    "services": 3,
+    "databases": 3
+   },
+   "hasDetail": false,
+   "hasDecisions": true,
+   "decisions": {
+    "services": [
+     {
+      "id": "s1",
+      "name": "Author + Book",
+      "classes": [
+       "Book",
+       "Author"
+      ],
+      "database": "db1",
+      "replicas": {
+       "mode": "fixed",
+       "count": 1
+      }
+     },
+     {
+      "id": "s2",
+      "name": "Purchase + Customer",
+      "classes": [
+       "Customer",
+       "Purchase",
+       "PurchaseLine"
+      ],
+      "database": "db2",
+      "replicas": {
+       "mode": "fixed",
+       "count": 1
+      }
+     },
+     {
+      "id": "s3",
+      "name": "Basket",
+      "classes": [
+       "Basket"
+      ],
+      "database": "db3",
+      "replicas": {
+       "mode": "fixed",
+       "count": 2
+      }
+     }
+    ],
+    "mechanisms": {
+     "addToBasket|Book|read": "sync",
+     "checkout|Basket|write": "saga",
+     "checkout|Book|read": "sync"
+    },
+    "sagas": [
+     {
+      "process": "Checkout",
+      "style": "choreography"
+     }
+    ],
+    "databases": [
+     {
+      "id": "db1",
+      "name": "Author + Book db",
+      "placement": "own",
+      "services": [
+       "s1"
+      ]
+     },
+     {
+      "id": "db2",
+      "name": "Purchase + Customer db",
+      "placement": "own",
+      "services": [
+       "s2"
+      ]
+     },
+     {
+      "id": "db3",
+      "name": "Basket db",
+      "placement": "own",
+      "services": [
+       "s3"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "id": "10196bebf903e8",
+   "runId": "bookshop-static",
+   "hash": "10196bebf903e8",
+   "objectives": [
+    7.3,
+    1989.9,
+    0.14911
+   ],
+   "constraints": [
+    0
+   ],
+   "feasible": true,
+   "rank": 0,
+   "born": 3,
+   "inFinalPopulation": true,
+   "metrics": {
+    "services": 3,
+    "databases": 3
+   },
+   "hasDetail": false,
+   "hasDecisions": true,
+   "decisions": {
+    "services": [
+     {
+      "id": "s1",
+      "name": "Author + Book",
+      "classes": [
+       "Book",
+       "Author"
+      ],
+      "database": "db1",
+      "replicas": {
+       "mode": "fixed",
+       "count": 1
+      }
+     },
+     {
+      "id": "s2",
+      "name": "Basket + Customer",
+      "classes": [
+       "Customer",
+       "Basket"
+      ],
+      "database": "db2",
+      "replicas": {
+       "mode": "fixed",
+       "count": 1
+      }
+     },
+     {
+      "id": "s3",
+      "name": "Purchase",
+      "classes": [
+       "Purchase",
+       "PurchaseLine"
+      ],
+      "database": "db3",
+      "replicas": {
+       "mode": "fixed",
+       "count": 1
+      }
+     }
+    ],
+    "mechanisms": {
+     "addToBasket|Book|read": "sync",
+     "checkout|Basket|write": "saga",
+     "checkout|Book|read": "sync",
+     "checkout|Customer|read": "cache"
+    },
+    "sagas": [
+     {
+      "process": "Checkout",
+      "style": "orchestration",
+      "orchestrator": "s3"
+     }
+    ],
+    "databases": [
+     {
+      "id": "db1",
+      "name": "Author + Book db",
+      "placement": "own",
+      "services": [
+       "s1"
+      ]
+     },
+     {
+      "id": "db2",
+      "name": "Basket + Customer db",
+      "placement": "own",
+      "services": [
+       "s2"
+      ]
+     },
+     {
+      "id": "db3",
+      "name": "Purchase db",
+      "placement": "own",
+      "services": [
+       "s3"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "id": "0d3088cf0055f2",
+   "runId": "bookshop-static",
+   "hash": "0d3088cf0055f2",
+   "objectives": [
+    4.5,
+    2507.7,
+    0
+   ],
+   "constraints": [
+    0
+   ],
+   "feasible": true,
+   "rank": 0,
+   "born": 3,
+   "inFinalPopulation": true,
+   "metrics": {
+    "services": 2,
+    "databases": 1
+   },
+   "hasDetail": false,
+   "hasDecisions": true,
+   "decisions": {
+    "services": [
+     {
+      "id": "s1",
+      "name": "Author + Book",
+      "classes": [
+       "Book",
+       "Author"
+      ],
+      "database": "db2",
+      "replicas": {
+       "mode": "fixed",
+       "count": 1
+      }
+     },
+     {
+      "id": "s2",
+      "name": "Purchase + Basket + Customer",
+      "classes": [
+       "Customer",
+       "Basket",
+       "Purchase",
+       "PurchaseLine"
+      ],
+      "database": "db2",
+      "replicas": {
+       "mode": "fixed",
+       "count": 1
+      }
+     }
+    ],
+    "mechanisms": {
+     "addToBasket|Book|read": "sync",
+     "checkout|Book|read": "sync"
+    },
+    "sagas": [],
+    "databases": [
+     {
+      "id": "db2",
+      "name": "shared db (Purchase + Basket + Customer)",
+      "placement": "shared",
+      "services": [
+       "s1",
+       "s2"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "id": "1333093a698055",
+   "runId": "bookshop-static",
+   "hash": "1333093a698055",
+   "objectives": [
+    5.5,
+    2139.6,
+    0
+   ],
+   "constraints": [
+    0
+   ],
+   "feasible": true,
+   "rank": 0,
+   "born": 2,
+   "inFinalPopulation": true,
+   "metrics": {
+    "services": 2,
+    "databases": 2
+   },
+   "hasDetail": false,
+   "hasDecisions": true,
+   "decisions": {
+    "services": [
+     {
+      "id": "s1",
+      "name": "Author + Book",
+      "classes": [
+       "Book",
+       "Author"
+      ],
+      "database": "db1",
+      "replicas": {
+       "mode": "fixed",
+       "count": 1
+      }
+     },
+     {
+      "id": "s2",
+      "name": "Purchase + Basket + Customer",
+      "classes": [
+       "Customer",
+       "Basket",
+       "Purchase",
+       "PurchaseLine"
+      ],
+      "database": "db2",
+      "replicas": {
+       "mode": "fixed",
+       "count": 1
+      }
+     }
+    ],
+    "mechanisms": {
+     "addToBasket|Book|read": "sync",
+     "checkout|Book|read": "sync"
+    },
+    "sagas": [],
+    "databases": [
+     {
+      "id": "db1",
+      "name": "Author + Book db",
+      "placement": "own",
+      "services": [
+       "s1"
+      ]
+     },
+     {
+      "id": "db2",
+      "name": "Purchase + Basket + Customer db",
+      "placement": "own",
+      "services": [
+       "s2"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "id": "1e1731645d01e9",
+   "runId": "bookshop-static",
+   "hash": "1e1731645d01e9",
+   "objectives": [
+    7.2,
+    2053.4,
+    0.10987
+   ],
+   "constraints": [
+    0
+   ],
+   "feasible": true,
+   "rank": 0,
+   "born": 3,
+   "inFinalPopulation": true,
+   "metrics": {
+    "services": 3,
+    "databases": 3
+   },
+   "hasDetail": false,
+   "hasDecisions": true,
+   "decisions": {
+    "services": [
+     {
+      "id": "s1",
+      "name": "Author + Book",
+      "classes": [
+       "Book",
+       "Author"
+      ],
+      "database": "db1",
+      "replicas": {
+       "mode": "fixed",
+       "count": 1
+      }
+     },
+     {
+      "id": "s2",
+      "name": "Basket + Customer",
+      "classes": [
+       "Customer",
+       "Basket"
+      ],
+      "database": "db2",
+      "replicas": {
+       "mode": "fixed",
+       "count": 1
+      }
+     },
+     {
+      "id": "s3",
+      "name": "Purchase",
+      "classes": [
+       "Purchase",
+       "PurchaseLine"
+      ],
+      "database": "db3",
+      "replicas": {
+       "mode": "fixed",
+       "count": 1
+      }
+     }
+    ],
+    "mechanisms": {
+     "addToBasket|Book|read": "sync",
+     "checkout|Basket|write": "saga",
+     "checkout|Book|read": "sync",
+     "checkout|Customer|read": "sync"
+    },
+    "sagas": [
+     {
+      "process": "Checkout",
+      "style": "orchestration",
+      "orchestrator": "s3"
+     }
+    ],
+    "databases": [
+     {
+      "id": "db1",
+      "name": "Author + Book db",
+      "placement": "own",
+      "services": [
+       "s1"
+      ]
+     },
+     {
+      "id": "db2",
+      "name": "Basket + Customer db",
+      "placement": "own",
+      "services": [
+       "s2"
+      ]
+     },
+     {
+      "id": "db3",
+      "name": "Purchase db",
+      "placement": "own",
+      "services": [
+       "s3"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "id": "14cb2ebfb41315",
+   "runId": "bookshop-static",
+   "hash": "14cb2ebfb41315",
+   "objectives": [
+    23.1,
+    2953.5,
+    0.14911
+   ],
+   "constraints": [
+    11.95
+   ],
+   "feasible": false,
+   "rank": null,
+   "born": 0,
+   "inFinalPopulation": false,
+   "metrics": {
+    "services": 4,
+    "databases": 2
+   },
+   "hasDetail": false,
+   "hasDecisions": true,
+   "decisions": {
+    "services": [
+     {
+      "id": "s1",
+      "name": "Basket + Book",
+      "classes": [
+       "Book",
+       "Basket"
+      ],
+      "database": "db1",
+      "replicas": {
+       "mode": "fixed",
+       "count": 7
+      }
+     },
+     {
+      "id": "s2",
+      "name": "Author",
+      "classes": [
+       "Author"
+      ],
+      "database": "db2",
+      "replicas": {
+       "mode": "fixed",
+       "count": 18
+      }
+     },
+     {
+      "id": "s3",
+      "name": "Customer",
+      "classes": [
+       "Customer"
+      ],
+      "database": "db1",
+      "replicas": {
+       "mode": "fixed",
+       "count": 1
+      }
+     },
+     {
+      "id": "s4",
+      "name": "Purchase",
+      "classes": [
+       "Purchase",
+       "PurchaseLine"
+      ],
+      "database": "db1",
+      "replicas": {
+       "mode": "fixed",
+       "count": 1
+      }
+     }
+    ],
+    "mechanisms": {
+     "browseBooks|Author|read": "sync",
+     "bookDetail|Author|read": "sync",
+     "addBook|Author|read": "sync",
+     "checkout|Basket|write": "saga",
+     "checkout|Book|read": "sync",
+     "checkout|Customer|read": "cache"
+    },
+    "sagas": [
+     {
+      "process": "Checkout",
+      "style": "orchestration",
+      "orchestrator": "s4"
+     }
+    ],
+    "databases": [
+     {
+      "id": "db1",
+      "name": "shared db (Basket + Book)",
+      "placement": "shared",
+      "services": [
+       "s1",
+       "s3",
+       "s4"
+      ]
+     },
+     {
+      "id": "db2",
+      "name": "Author db",
+      "placement": "own",
+      "services": [
+       "s2"
+      ]
+     }
+    ]
+   }
+  }
+ ]
+}

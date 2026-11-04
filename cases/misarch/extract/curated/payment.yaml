@@ -1,0 +1,413 @@
+# payment (Kotlin port of the NestJS/Mongo original). Curated; schema: build.py docstring. Anchors are relative to
+# services/payment/src/main/kotlin/org/misarch/payment/.
+service: payment
+transactional: >-
+  @Transactional service methods (service/PaymentService.kt, service/PaymentInformationService.kt). The processing
+  is awaited in the handlers (docs/fixes/payment.md P12): validation-succeeded stores the open order and the PENDING
+  payment in one short transaction (createPayment), then registers the payment at the provider outside any
+  transaction and publishes payment-enabled (INVOICE, CREDIT_CARD); a failed registration removes the payment again
+  (discardPayment) and fails the event (redelivery). The provider callback locks the payment (SELECT ... FOR UPDATE),
+  applies the status and publishes inside its transaction; a credit-card retry is registered after the commit.
+  Publishes go through libs/common EventPublisher.publishEvent; a failing publish rolls back and fails the request.
+branchProbabilities: >-
+  payment method mix of the placed orders (method of the buyer's first payment information, as the loadgen pays):
+  INVOICE 0.445, PREPAYMENT 0.416, CREDIT_CARD 0.139 (misarch-optimization msa/KOTLIN-MODEL.md, round-1 seed);
+  provider success rate s = 0.95 (simulation config/SimulationVariables.kt PAYMENT_SUCCESS_RATE default). Per order
+  there are 1 + CC*(f + f^2 + f^3) = 1.0073 status callbacks (f = 0.05); the callback probabilities below are per
+  callback.
+
+tables:
+  PaymentInformationEntity:
+    kind: class
+    class: PaymentInformation
+    refs:
+      - {attr: userId, to: User, kind: association, mult: "1", note: "no User copy in payment: the id only"}
+    note: >-
+      default PREPAYMENT and INVOICE informations per user (created on user/user/created), CREDIT_CARD ones by the buyer;
+      the details are JSON columns
+  PaymentEntity:
+    kind: class
+    class: Payment
+    refs:
+      - {attr: paymentInformationId, to: PaymentInformation, kind: association, mult: "1", note: "no FK; index"}
+    note: "totalAmount is a snapshot of the order's compensatableOrderAmount"
+  OpenOrderEntity:
+    kind: copy
+    copyOf:
+      Order: [id, userId, createdAt, orderStatus, placedAt, rejectionReason, shipmentAddressId, invoiceAddressId,
+              compensatableOrderAmount, paymentInformationId, paymentAuthorization, vatNumber]
+      OrderItem: [id, createdAt, productVariantVersionId, productVariantId, taxRateVersionId, shoppingCartItemId, count,
+                  compensatableAmount, shipmentMethodId, discountIds]
+    fedBy: [discount/order/validation-succeeded]
+    process: true
+    own:
+      paymentId: "the Payment of the order (Payment 1 - 1 Order), primary key"
+      orderId: "the order id extracted from the JSON, UNIQUE (fix P4: one payment per order)"
+    refs:
+      - {attr: paymentId, to: Payment, kind: association, mult: "1", note: "Payment -> Order association lives in the copy row"}
+    note: >-
+      the order as received in the saga message, kept verbatim as JSON (orderJson, order with its orderItems); written
+      once at payment start, read to build the payment-enabled / payment-failed payload of the callback and the jobs;
+      deleted only with a payment whose registration failed (discardPayment)
+
+operations:
+  - id: payment.paymentInformations
+    kind: query
+    trigger: {graphql: Query.paymentInformations}
+    entry: graphql/Query.kt#fun paymentInformations(
+    feature: F20
+    note: "admin/employee only; PaymentInformationConnection over libs/common connectionQuery: page, COUNT, probe, each only when selected"
+    accesses:
+      - {class: PaymentInformation, mode: read, op: select, shape: list, rows: "matching informations (first, default unbounded)",
+         when: nodes selected, via: PaymentInformationConnection.nodes, table: PaymentInformationEntity, today: local,
+         at: graphql/Query.kt#PaymentInformationConnection(}
+      - {class: PaymentInformation, mode: read, op: count, shape: one, when: totalCount selected,
+         via: PaymentInformationConnection.totalCount, table: PaymentInformationEntity, today: local, at: graphql/Query.kt#PaymentInformationConnection(}
+      - {class: PaymentInformation, mode: read, op: exists, shape: optional, when: hasNextPage selected,
+         via: PaymentInformationConnection.nodes, table: PaymentInformationEntity, today: local, at: graphql/Query.kt#PaymentInformationConnection(,
+         note: "probe: SELECT 1 ... LIMIT 1 OFFSET first + skip"}
+
+  - id: payment.payments
+    kind: query
+    trigger: {graphql: Query.payments}
+    entry: graphql/Query.kt#fun payments(
+    feature: F21
+    note: >-
+      admin/employee only. PaymentConnection over libs/common connectionQuery: page, COUNT, probe, each only when
+      selected; a paymentMethod filter is a subquery over the payment informations inside each statement. The
+      payments' informations are read by Payment.paymentInformation (one batched statement per request) only when
+      selected
+    accesses:
+      - {class: PaymentInformation, mode: read, op: select, shape: list, rows: "all informations with the method",
+         when: "filter.paymentMethod set (inside each selected statement)", via: PaymentFilter.toCondition,
+         table: PaymentInformationEntity, today: local, at: graphql/model/connection/PaymentConnection.kt#paymentInformationId IN (SELECT id,
+         note: "paymentInformationId IN (SELECT id FROM PaymentInformationEntity WHERE paymentMethod = ?)"}
+      - {class: Payment, mode: read, op: select, shape: list, rows: "matching payments (first, default unbounded)", when: nodes selected,
+         via: PaymentConnection.nodes, table: PaymentEntity, today: local, at: graphql/Query.kt#PaymentConnection(}
+      - {class: Payment, mode: read, op: count, shape: one, when: totalCount selected, via: PaymentConnection.totalCount,
+         table: PaymentEntity, today: local, at: graphql/Query.kt#PaymentConnection(}
+      - {class: Payment, mode: read, op: exists, shape: optional, when: hasNextPage selected, via: PaymentConnection.nodes,
+         table: PaymentEntity, today: local, at: graphql/Query.kt#PaymentConnection(, note: "probe: SELECT 1 ... LIMIT 1 OFFSET first + skip"}
+
+  - id: payment.createCreditCardPaymentInformation
+    kind: command
+    trigger: {graphql: Mutation.createCreditCardPaymentInformation}
+    entry: graphql/Mutation.kt#fun createCreditCardPaymentInformation(
+    feature: F20
+    note: "no event, no user existence check"
+    transaction: {at: "service/PaymentInformationService.kt#@Transactional@2", classes: [PaymentInformation], publishInside: false}
+    accesses:
+      - {class: PaymentInformation, mode: write, op: insert, shape: one, via: PaymentInformationRepository.save, table: PaymentInformationEntity,
+         today: local, at: "service/PaymentInformationService.kt#return repository.save("}
+
+  - id: payment.deletePaymentInformation
+    kind: command
+    trigger: {graphql: Mutation.deletePaymentInformation}
+    entry: graphql/Mutation.kt#fun deletePaymentInformation(
+    feature: F20
+    note: "payments referencing the information are not checked (Payment.paymentInformation then fails)"
+    transaction: {at: "service/PaymentInformationService.kt#@Transactional@3", classes: [PaymentInformation], publishInside: false,
+                  note: "no row lock; no event"}
+    accesses:
+      - {class: PaymentInformation, mode: read, op: select, shape: one, strong: true, via: PaymentInformationRepository.findById,
+         table: PaymentInformationEntity, today: local, at: service/PaymentInformationService.kt#repository.findByIdOrThrow(id),
+         note: "ownership check"}
+      - {class: PaymentInformation, mode: write, op: delete, shape: one, via: PaymentInformationRepository.delete, table: PaymentInformationEntity,
+         today: local, at: service/PaymentInformationService.kt#repository.delete(paymentInformation)}
+
+  - id: payment.deletePayment
+    kind: command
+    trigger: {graphql: Mutation.deletePayment}
+    entry: graphql/Mutation.kt#fun deletePayment(
+    feature: F21
+    note: "admin only; the open order is not touched; the answer's information only by Payment.paymentInformation when selected"
+    transaction: {at: "service/PaymentService.kt#@Transactional@6", classes: [Payment], publishInside: false, note: "no row lock; no event"}
+    accesses:
+      - {class: Payment, mode: read, op: select, shape: one, strong: true, via: PaymentRepository.findById, table: PaymentEntity,
+         today: local, at: "service/PaymentService.kt#val payment = repository.findByIdOrThrow(id)", note: "the payment must exist; the loaded row is the answer"}
+      - {class: Payment, mode: write, op: delete, shape: one, via: PaymentRepository.delete, table: PaymentEntity, today: local,
+         at: service/PaymentService.kt#repository.delete(payment), note: "DELETE by id"}
+
+  - id: payment._entities.User
+    kind: query
+    trigger: {graphql: _entities(User)}
+    entry: graphql/federation/UserResolver.kt#class UserResolver
+    feature: F20
+    trivial: true
+    note: builds the User stub from the representation, no database access
+
+  - id: payment.User.paymentInformations
+    kind: query
+    trigger: {graphql: User.paymentInformations}
+    entry: graphql/model/User.kt#fun paymentInformations(
+    feature: F20
+    note: "owner or employee; PaymentInformationConnection (WHERE userId): page, COUNT, probe, each only when selected"
+    accesses:
+      - {class: PaymentInformation, mode: read, op: select, shape: list, rows: "informations of the user (typically 2-3)", when: nodes selected,
+         via: PaymentInformationConnection.nodes, table: PaymentInformationEntity, today: local,
+         at: graphql/model/User.kt#PaymentInformationConnection(}
+      - {class: PaymentInformation, mode: read, op: count, shape: one, when: totalCount selected,
+         via: PaymentInformationConnection.totalCount, table: PaymentInformationEntity, today: local, at: graphql/model/User.kt#PaymentInformationConnection(}
+      - {class: PaymentInformation, mode: read, op: exists, shape: optional, when: hasNextPage selected,
+         via: PaymentInformationConnection.nodes, table: PaymentInformationEntity, today: local, at: graphql/model/User.kt#PaymentInformationConnection(,
+         note: "probe: SELECT 1 ... LIMIT 1 OFFSET first + skip"}
+
+  - id: payment._entities.PaymentInformation
+    kind: query
+    trigger: {graphql: _entities(PaymentInformation)}
+    entry: graphql/federation/PaymentInformationResolver.kt#class PaymentInformationResolver
+    feature: F20
+    accesses:
+      - {class: PaymentInformation, mode: read, op: select, shape: batch, rows: 1, via: PaymentInformationRepository.findAllById,
+         table: PaymentInformationEntity, today: local, at: graphql/federation/PaymentInformationResolver.kt#PaymentInformationDataLoader::class}
+
+  - id: payment.PaymentInformation.user
+    kind: query
+    trigger: {graphql: PaymentInformation.user}
+    entry: graphql/model/PaymentInformation.kt#fun user(
+    feature: F20
+    trivial: true
+    note: builds the User stub from userId, no database access
+
+  - id: payment.PaymentInformation.payments
+    kind: query
+    trigger: {graphql: PaymentInformation.payments}
+    entry: graphql/model/PaymentInformation.kt#fun payments(
+    feature: F21
+    note: >-
+      owner or employee; PaymentConnection (WHERE paymentInformationId = this information): page, COUNT, probe, each
+      only when selected; the payments' information only by Payment.paymentInformation when selected
+    accesses:
+      - {class: PaymentInformation, mode: read, op: select, shape: list, rows: "all informations with the method",
+         when: "filter.paymentMethod set (inside each selected statement)", via: PaymentFilter.toCondition,
+         table: PaymentInformationEntity, today: local, at: graphql/model/connection/PaymentConnection.kt#paymentInformationId IN (SELECT id,
+         note: "paymentInformationId IN (SELECT id FROM PaymentInformationEntity WHERE paymentMethod = ?)"}
+      - {class: Payment, mode: read, op: select, shape: list, rows: "payments made with the information", when: nodes selected,
+         via: PaymentConnection.nodes, table: PaymentEntity, today: local, at: graphql/model/PaymentInformation.kt#PaymentConnection(}
+      - {class: Payment, mode: read, op: count, shape: one, when: totalCount selected, via: PaymentConnection.totalCount,
+         table: PaymentEntity, today: local, at: graphql/model/PaymentInformation.kt#PaymentConnection(}
+      - {class: Payment, mode: read, op: exists, shape: optional, when: hasNextPage selected, via: PaymentConnection.nodes,
+         table: PaymentEntity, today: local, at: graphql/model/PaymentInformation.kt#PaymentConnection(,
+         note: "probe: SELECT 1 ... LIMIT 1 OFFSET first + skip"}
+
+  - id: payment._entities.Payment
+    kind: query
+    trigger: {graphql: _entities(Payment)}
+    entry: graphql/federation/PaymentResolver.kt#class PaymentResolver
+    feature: F21
+    note: "its information only by Payment.paymentInformation when selected"
+    accesses:
+      - {class: Payment, mode: read, op: select, shape: batch, rows: 1, via: PaymentRepository.findAllById, table: PaymentEntity,
+         today: local, at: graphql/federation/PaymentResolver.kt#PaymentDataLoader::class}
+
+  - id: payment.Payment.paymentInformation
+    kind: query
+    trigger: {graphql: Payment.paymentInformation}
+    entry: graphql/model/Payment.kt#fun paymentInformation(
+    feature: F21
+    note: >-
+      the payment's information through PaymentInformationDataLoader: the field of every payment of a request that
+      selects it is collected into ONE batched statement, run only when selected; a missing information is an error
+    accesses:
+      - {class: PaymentInformation, mode: read, op: select, shape: batch, rows: "distinct informations of the request's payments that select it",
+         via: PaymentInformationRepository.findAllById, table: PaymentInformationEntity, today: local,
+         at: graphql/model/Payment.kt#PaymentInformationDataLoader::class,
+         note: "one statement per request for all payments (DataLoader batch)"}
+
+  - id: payment.on:discount/order/validation-succeeded
+    kind: reaction
+    trigger: {topic: discount/order/validation-succeeded}
+    entry: event/EventController.kt#fun onOrderValidationSucceeded(
+    feature: F21
+    sagaStep: {saga: Buy, role: step}
+    note: >-
+      awaited by the handler (P12): a short transaction stores the open order and the PENDING payment, then the
+      provider registration runs outside any transaction, then payment-enabled (INVOICE, CREDIT_CARD) is published
+      from the received order. PREPAYMENT publishes payment-enabled later from the provider callback. A failed
+      registration or publish removes the payment and its open order again and fails the event (redelivery)
+    transaction:
+      - at: "service/PaymentService.kt#@Transactional@1"
+        classes: [Order, OrderItem, Payment, PaymentInformation]
+        publishInside: true
+        note: "open order (Order copy, unique orderId) first, then the payment (fix P1, P4); only payment-failed (an invalid order, prob 0) is published inside"
+      - at: "service/PaymentService.kt#@Transactional@2"
+        classes: [Order, OrderItem, Payment]
+        publishInside: false
+        note: "discardPayment: only after a failed registration or publish (prob 0)"
+    accesses:
+      - {class: Order, mode: read, op: select, shape: one, strong: true, today: payload, topic: discount/order/validation-succeeded,
+         at: "event/EventController.kt#paymentRegistrationService.createPaymentForOrder(cloudEvent.data.order)",
+         note: "paymentInformationId, compensatableOrderAmount, id; the whole order is stored verbatim"}
+      - {class: OrderItem, mode: read, op: select, shape: list, rows: "items of the order", today: payload, topic: discount/order/validation-succeeded,
+         at: "service/PaymentService.kt#openOrderRepository.createOpenOrder(paymentId, order.id, order)", note: "only carried along into the open order"}
+      - {class: PaymentInformation, mode: read, op: select, shape: one, strong: true, via: PaymentInformationRepository.findById,
+         table: PaymentInformationEntity, today: local, at: service/PaymentService.kt#paymentInformationRepository.findById(order.paymentInformationId),
+         note: "must exist; its method decides the flow"}
+      - {class: Order, mode: write, op: insert, shape: one, via: OpenOrderRepository.createOpenOrder, table: OpenOrderEntity, today: copy,
+         at: service/PaymentService.kt#openOrderRepository.createOpenOrder, note: "ON CONFLICT (orderId) DO NOTHING: a redelivery ends here"}
+      - {class: OrderItem, mode: write, op: insert, shape: one, via: OpenOrderRepository.createOpenOrder, table: OpenOrderEntity, today: copy,
+         at: service/PaymentService.kt#openOrderRepository.createOpenOrder, note: "same statement (items inside orderJson)"}
+      - {class: Payment, mode: write, op: insert, shape: one, via: PaymentService.createPayment, table: PaymentEntity, today: local,
+         at: service/PaymentService.kt#conditionQueries.insert(, note: "status PENDING, id generated by the service"}
+      - {class: Order, mode: write, op: delete, shape: one, prob: 0, when: "registration or publish failed", via: OpenOrderRepository.deleteById,
+         table: OpenOrderEntity, today: copy, at: service/PaymentService.kt#openOrderRepository.deleteById(id)}
+      - {class: OrderItem, mode: write, op: delete, shape: one, prob: 0, when: "registration or publish failed", via: OpenOrderRepository.deleteById,
+         table: OpenOrderEntity, today: copy, at: service/PaymentService.kt#openOrderRepository.deleteById(id), note: "same statement"}
+      - {class: Payment, mode: write, op: delete, shape: one, prob: 0, when: "registration or publish failed", via: PaymentRepository.deleteById,
+         table: PaymentEntity, today: local, at: service/PaymentService.kt#repository.deleteById(id)}
+    calls:
+      - {to: simulation.payment.register, how: http, at: "service/PaymentRegistrationService.kt#paymentProviderClient.registerPayment(payment.payment.requiredId",
+         shape: one, effect: true,
+         purpose: "register the payment (paymentId, amount, paymentType) after the commit, awaited; a failure removes the payment and fails the event",
+         note: "the simulation calls back /payment/update-payment-status after PAYMENT_PROCESSING_TIME"}
+    publishes:
+      - {topic: payment/payment/payment-enabled, at: "service/PaymentRegistrationService.kt#PaymentEvents.PAYMENT_ENABLED",
+         payload: [Order, OrderItem], prob: 0.584, when: "method INVOICE or CREDIT_CARD", note: "{order: <the received order>}, after the registration"}
+      - {topic: payment/payment/payment-failed, at: "service/PaymentService.kt#eventPublisher.publishEvent(PaymentEvents.PAYMENT_FAILED, PaymentEventDTO(order))",
+         payload: [Order, OrderItem], prob: 0, when: "unknown payment information or invalid order",
+         note: "the order from the event payload; nothing is stored"}
+
+  - id: payment.on:user/user/created
+    kind: reaction
+    trigger: {topic: user/user/created}
+    entry: event/EventController.kt#fun onUserCreated(
+    feature: F20
+    sagaStep: {saga: Registration, role: step}
+    note: "awaited by the handler; creates the default PREPAYMENT and INVOICE informations (no User copy)"
+    transaction:
+      at: "service/PaymentInformationService.kt#@Transactional@1"
+      classes: [PaymentInformation]
+      publishInside: false
+      note: "advisory lock pg_advisory_xact_lock(hashtext('payment-user:<id>')) + exists check + insert per method (fix P4)"
+    accesses:
+      - {class: User, mode: read, op: select, shape: one, today: payload, topic: user/user/created,
+         at: "event/EventController.kt#paymentInformationService.registerUser(cloudEvent.data)", note: "user id only"}
+      - {class: PaymentInformation, mode: read, op: lock, shape: one, strong: true, via: PaymentInformationRepository.lockForTransaction,
+         table: PaymentInformationEntity, today: local, at: "service/PaymentInformationService.kt#repository.lockForTransaction(\"payment-user:",
+         note: "advisory lock on the user id, no row lock"}
+      - {class: PaymentInformation, mode: read, op: exists, shape: one, times: 2, strong: true,
+         via: PaymentInformationRepository.existsByUserIdAndPaymentMethod, table: PaymentInformationEntity, today: local,
+         at: service/PaymentInformationService.kt#repository.existsByUserIdAndPaymentMethod, note: "per method PREPAYMENT, INVOICE (idempotency)"}
+      - {class: PaymentInformation, mode: write, op: insert, shape: one, times: 2, via: PaymentInformationRepository.save,
+         table: PaymentInformationEntity, today: local, at: "service/PaymentInformationService.kt#paymentMethod = paymentMethod,",
+         when: "the method does not exist yet (always on the first delivery)"}
+
+  - id: payment.http:/payment/update-payment-status
+    kind: reaction
+    trigger: {http: /payment/update-payment-status}
+    entry: provider/PaymentProviderController.kt#fun updatePaymentStatus(
+    feature: F21
+    sagaStep: {saga: Buy, role: step}
+    note: >-
+      provider callback (status SUCCEEDED with prob 0.95, else FAILED). Per callback: INVOICE 0.442, PREPAYMENT 0.413,
+      CREDIT_CARD 0.145 (incl. retries; branchProbabilities). One transaction with the payment row locked (FOR UPDATE):
+      INVOICE and CREDIT_CARD-not-FAILED: the status is saved; CREDIT_CARD FAILED: a retry is counted (up to 3) and the
+      payment registered again after the commit, the 4th failure sets FAILED + payment-failed; PREPAYMENT: status
+      transition (once, decided by the locked row) + payment-enabled (SUCCEEDED) or payment-failed (FAILED), published
+      inside the transaction
+    transaction:
+      at: "service/PaymentService.kt#@Transactional@3"
+      classes: [Payment, PaymentInformation, Order, OrderItem]
+      publishInside: true
+      note: "the payment row is locked (SELECT ... FOR UPDATE) until the commit; the credit-card retry registration runs after it"
+    accesses:
+      - {class: Payment, mode: read, op: select, shape: one, strong: true, via: PaymentRepository.findByIdForUpdate, table: PaymentEntity, today: local,
+         at: service/PaymentService.kt#repository.findByIdForUpdate(id), note: "SELECT ... FOR UPDATE: status, numberOfRetries, paymentInformationId"}
+      - {class: PaymentInformation, mode: read, op: select, shape: one, strong: true, via: PaymentInformationRepository.findById,
+         table: PaymentInformationEntity, today: local, at: service/PaymentService.kt#paymentInformationRepository.findByIdOrThrow(payment.paymentInformationId),
+         note: "the payment method decides the branch"}
+      - {class: Payment, mode: write, op: update, shape: one, prob: 0.580, when: "INVOICE, or CREDIT_CARD with status != FAILED",
+         via: PaymentRepository.save, table: PaymentEntity, today: local, at: "service/PaymentService.kt#else -> setStatus(payment, status)",
+         note: "setStatus: status (+ payedAt if SUCCEEDED), the whole row saved"}
+      - {class: Payment, mode: write, op: update, shape: optional, prob: 0.413, when: "PREPAYMENT, or the final CREDIT_CARD failure (~1e-6)",
+         via: PaymentRepository.save, table: PaymentEntity, today: local, at: "service/PaymentService.kt#setStatus(payment, status)@2",
+         note: "transition: only if the locked row's status differs"}
+      - {class: Payment, mode: write, op: update, shape: one, prob: 0.007, when: "CREDIT_CARD and status FAILED with fewer than 3 retries",
+         via: PaymentRepository.save, table: PaymentEntity, today: local, at: service/PaymentService.kt#return repository.save(payment),
+         note: "numberOfRetries + 1 (under the row lock)"}
+      - {class: Order, mode: read, op: select, shape: one, strong: true, prob: 0.413, when: "PREPAYMENT transition (or final CREDIT_CARD failure)",
+         via: OpenOrderRepository.findById, table: OpenOrderEntity, today: copy, own: true,
+         at: "service/PaymentService.kt#openOrderRepository.findByIdOrThrow(payment.requiredId)",
+         note: "payload of payment-enabled / payment-failed; the open order by the payment's id: payment's own record of the order it received (DESIGN.md AB67)"}
+      - {class: OrderItem, mode: read, op: select, shape: one, strong: true, prob: 0.413, when: "PREPAYMENT transition (or final CREDIT_CARD failure)",
+         via: OpenOrderRepository.findById, table: OpenOrderEntity, today: copy, own: true,
+         at: "service/PaymentService.kt#openOrderRepository.findByIdOrThrow(payment.requiredId)",
+         note: "same statement"}
+    calls:
+      - {to: simulation.payment.register, how: http,
+         at: "service/PaymentRegistrationService.kt#paymentProviderClient.registerPayment(retried.requiredId",
+         shape: optional, prob: 0.007, when: "CREDIT_CARD FAILED with fewer than 3 retries", effect: true,
+         purpose: "credit-card retry: register the payment again (fix P2) after the commit; a failure fails the callback (the provider repeats it)"}
+    publishes:
+      - {topic: payment/payment/payment-enabled, at: "service/PaymentService.kt#transitionPayment(payment, status, PaymentEvents.PAYMENT_ENABLED)",
+         payload: [Order, OrderItem], prob: 0.392, when: "PREPAYMENT and SUCCEEDED (transition)", note: "0.413 x 0.95"}
+      - {topic: payment/payment/payment-failed, at: "service/PaymentService.kt#transitionPayment(payment, status, PaymentEvents.PAYMENT_FAILED)@2",
+         payload: [Order, OrderItem], prob: 0.0207, when: "PREPAYMENT and FAILED (transition)", note: "0.413 x 0.05"}
+      - {topic: payment/payment/payment-failed, at: "service/PaymentService.kt#transitionPayment(payment, status, PaymentEvents.PAYMENT_FAILED)@1",
+         payload: [Order, OrderItem], prob: 0.000001, when: "CREDIT_CARD failed for the 4th time (0.139 x 0.05^4 per order)"}
+
+  - id: payment.job:checkOpenInvoicePayments
+    kind: reaction
+    trigger: {schedule: "cron 0 */15 * * * * (every 15 minutes, every replica; @Scheduled method, one JOIN statement)"}
+    entry: service/PaymentService.kt#fun failOverdueInvoicePayments(
+    feature: F21
+    sagaStep: {saga: Buy, role: compensation}
+    note: >-
+      PaymentService.failOverdueInvoicePayments: PENDING INVOICE payments created more than 30 days ago fail and publish
+      payment-failed, in one transaction. One statement joins the PENDING payments with their payment information by
+      primary key (index (status, createdAt), FOR UPDATE OF the payments); since fix P3 a payment stays PENDING only if
+      the provider callback never arrived, so the result is ~always empty
+    transaction:
+      at: "service/PaymentService.kt#@Transactional@4"
+      classes: [Payment, PaymentInformation, Order, OrderItem]
+      publishInside: true
+      note: "the overdue payments are locked (FOR UPDATE OF t) until the commit"
+    accesses:
+      - {class: Payment, mode: read, op: select, shape: list, rows: "overdue PENDING payments (~0)", strong: true,
+         via: PaymentRepository.findAllForUpdateByStatusAndPaymentMethodCreatedBefore, table: PaymentEntity, today: local,
+         at: service/PaymentService.kt#repository.findAllForUpdateByStatusAndPaymentMethodCreatedBefore,
+         note: "status PENDING AND createdAt <= now - 30 days, FOR UPDATE OF t"}
+      - {class: PaymentInformation, mode: read, op: select, shape: list, rows: "informations of the overdue payments (~0)",
+         via: PaymentRepository.findAllForUpdateByStatusAndPaymentMethodCreatedBefore, table: PaymentInformationEntity, today: local,
+         at: service/PaymentService.kt#repository.findAllForUpdateByStatusAndPaymentMethodCreatedBefore,
+         note: "same statement: INNER JOIN by primary key, paymentMethod = INVOICE"}
+      - {class: Order, mode: read, op: select, shape: batch, rows: "overdue payments", via: OpenOrderRepository.findAllById, table: OpenOrderEntity,
+         today: copy, own: true, at: service/PaymentService.kt#openOrderRepository.findAllById(overdue}
+      - {class: OrderItem, mode: read, op: select, shape: batch, rows: "overdue payments", via: OpenOrderRepository.findAllById, table: OpenOrderEntity,
+         today: copy, own: true, at: service/PaymentService.kt#openOrderRepository.findAllById(overdue, note: "same statement"}
+      - {class: Payment, mode: write, op: update, shape: perItem, per: "overdue payments", via: PaymentRepository.save, table: PaymentEntity,
+         today: local, at: service/PaymentService.kt#repository.save(payment)@2, note: "FAILED (setStatus, under the row lock)"}
+    publishes:
+      - {topic: payment/payment/payment-failed, at: "service/PaymentService.kt#PaymentEvents.PAYMENT_FAILED, PaymentEventDTO(it.orderData)",
+         payload: [Order, OrderItem], per: "overdue payments"}
+
+  - id: payment.job:checkOpenPrepaymentPayments
+    kind: reaction
+    trigger: {schedule: "cron 0 */15 * * * * (every 15 minutes, every replica; @Scheduled method, one JOIN statement)"}
+    entry: service/PaymentService.kt#fun failOverduePrepaymentPayments(
+    feature: F21
+    sagaStep: {saga: Buy, role: compensation}
+    note: "PaymentService.failOverduePrepaymentPayments: as checkOpenInvoicePayments with PREPAYMENT and 7 days"
+    transaction:
+      at: "service/PaymentService.kt#@Transactional@5"
+      classes: [Payment, PaymentInformation, Order, OrderItem]
+      publishInside: true
+      note: "the overdue payments are locked (FOR UPDATE OF t) until the commit"
+    accesses:
+      - {class: Payment, mode: read, op: select, shape: list, rows: "overdue PENDING payments (~0)", strong: true,
+         via: PaymentRepository.findAllForUpdateByStatusAndPaymentMethodCreatedBefore, table: PaymentEntity, today: local,
+         at: service/PaymentService.kt#repository.findAllForUpdateByStatusAndPaymentMethodCreatedBefore,
+         note: "status PENDING AND createdAt <= now - 7 days, FOR UPDATE OF t"}
+      - {class: PaymentInformation, mode: read, op: select, shape: list, rows: "informations of the overdue payments (~0)",
+         via: PaymentRepository.findAllForUpdateByStatusAndPaymentMethodCreatedBefore, table: PaymentInformationEntity, today: local,
+         at: service/PaymentService.kt#repository.findAllForUpdateByStatusAndPaymentMethodCreatedBefore,
+         note: "same statement: INNER JOIN by primary key, paymentMethod = PREPAYMENT"}
+      - {class: Order, mode: read, op: select, shape: batch, rows: "overdue payments", via: OpenOrderRepository.findAllById, table: OpenOrderEntity,
+         today: copy, own: true, at: service/PaymentService.kt#openOrderRepository.findAllById(overdue}
+      - {class: OrderItem, mode: read, op: select, shape: batch, rows: "overdue payments", via: OpenOrderRepository.findAllById, table: OpenOrderEntity,
+         today: copy, own: true, at: service/PaymentService.kt#openOrderRepository.findAllById(overdue, note: "same statement"}
+      - {class: Payment, mode: write, op: update, shape: perItem, per: "overdue payments", via: PaymentRepository.save, table: PaymentEntity,
+         today: local, at: service/PaymentService.kt#repository.save(payment)@2, note: "FAILED (setStatus, under the row lock)"}
+    publishes:
+      - {topic: payment/payment/payment-failed, at: "service/PaymentService.kt#PaymentEvents.PAYMENT_FAILED, PaymentEventDTO(it.orderData)",
+         payload: [Order, OrderItem], per: "overdue payments"}

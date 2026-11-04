@@ -1,0 +1,764 @@
+{
+ "$schema": "http://json-schema.org/draft-07/schema#",
+ "definitions": {
+  "Loc": {
+   "type": "object",
+   "properties": {
+    "repo": {
+     "type": "string"
+    },
+    "path": {
+     "type": "string"
+    },
+    "line": {
+     "type": "number"
+    },
+    "label": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "repo",
+    "path"
+   ],
+   "additionalProperties": false,
+   "description": "a place in a source tree of the packet (`repo`: a key of packet.json `sources`); no line: the whole file"
+  },
+  "Tok": {
+   "anyOf": [
+    {
+     "type": "string"
+    },
+    {
+     "type": "object",
+     "properties": {
+      "part": {
+       "type": "string"
+      },
+      "label": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "part",
+      "label"
+     ],
+     "additionalProperties": false
+    },
+    {
+     "type": "object",
+     "properties": {
+      "code": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "code"
+     ],
+     "additionalProperties": false
+    },
+    {
+     "type": "object",
+     "properties": {
+      "chip": {
+       "type": "string"
+      },
+      "tone": {
+       "type": "string",
+       "enum": [
+        "muted",
+        "warn",
+        "ok"
+       ]
+      }
+     },
+     "required": [
+      "chip"
+     ],
+     "additionalProperties": false
+    }
+   ],
+   "description": "a token of a claim: text, a link to another part (its key), code, a chip"
+  },
+  "Fact": {
+   "type": "object",
+   "properties": {
+    "label": {
+     "type": "string"
+    },
+    "value": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/Tok"
+     }
+    },
+    "ev": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/Loc"
+     }
+    },
+    "volatile": {
+     "type": "boolean"
+    }
+   },
+   "required": [
+    "label",
+    "value"
+   ],
+   "additionalProperties": false,
+   "description": "volatile: not part of the fingerprint (rates, reach: they change without the claim changing)"
+  },
+  "Row": {
+   "type": "object",
+   "properties": {
+    "cells": {
+     "type": "array",
+     "items": {
+      "type": "array",
+      "items": {
+       "$ref": "#/definitions/Tok"
+      }
+     }
+    },
+    "ev": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/Loc"
+     }
+    },
+    "note": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "cells",
+    "ev"
+   ],
+   "additionalProperties": false
+  },
+  "Table": {
+   "type": "object",
+   "properties": {
+    "title": {
+     "type": "string"
+    },
+    "hint": {
+     "type": "string"
+    },
+    "columns": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    },
+    "rows": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/Row"
+     }
+    },
+    "volatile": {
+     "type": "boolean"
+    }
+   },
+   "required": [
+    "title",
+    "columns",
+    "rows"
+   ],
+   "additionalProperties": false
+  },
+  "DocRef": {
+   "type": "object",
+   "properties": {
+    "label": {
+     "type": "string"
+    },
+    "kind": {
+     "type": "string"
+    },
+    "loc": {
+     "$ref": "#/definitions/Loc"
+    },
+    "find": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    }
+   },
+   "required": [
+    "label",
+    "kind",
+    "loc"
+   ],
+   "additionalProperties": false,
+   "description": "a document to read the part against; `find`: regexes applied in order, each from the previous match on; kind: a key of VerifyParts.docKinds"
+  },
+  "Part": {
+   "type": "object",
+   "properties": {
+    "key": {
+     "type": "string",
+     "description": "`<kind>:<id>`; an operation's part is `op:<operation id>` (its causes and chain are under that key and id)"
+    },
+    "kind": {
+     "type": "string",
+     "description": "an id of VerifyParts.kinds"
+    },
+    "group": {
+     "type": "string",
+     "description": "what the list groups it under (a service, or one of VerifyParts.lateGroups)"
+    },
+    "title": {
+     "type": "string"
+    },
+    "subtitle": {
+     "type": "string"
+    },
+    "scope": {
+     "type": "string",
+     "description": "an operation's: an id of VerifyParts.scopes"
+    },
+    "flagged": {
+     "type": "number",
+     "description": "a coverage part: entries that no part covers (to check)"
+    },
+    "facts": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/Fact"
+     }
+    },
+    "tables": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/Table"
+     }
+    },
+    "code": {
+     "type": "object",
+     "properties": {
+      "label": {
+       "type": "string"
+      },
+      "text": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "label",
+      "text"
+     ],
+     "additionalProperties": false,
+     "description": "a block of text shown as code (SQL, a GraphQL document, a session's steps)"
+    },
+    "seffs": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "id": {
+        "type": "string"
+       },
+       "label": {
+        "type": "string"
+       },
+       "request": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "id",
+       "label"
+      ],
+      "additionalProperties": false
+     },
+     "description": "SEFFs of the input model to show (the generated behaviour); `request`: the SEFF is that request's"
+    },
+    "docs": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/DocRef"
+     }
+    },
+    "modelTarget": {
+     "type": "string",
+     "description": "the place in the other Model tabs (a model target)"
+    },
+    "text": {
+     "type": "string",
+     "description": "lower-case text the list's filter searches"
+    },
+    "fp": {
+     "type": "string",
+     "description": "the fingerprint of the claims (facts and tables that are not volatile, code)"
+    }
+   },
+   "required": [
+    "key",
+    "kind",
+    "group",
+    "title",
+    "facts",
+    "tables",
+    "docs",
+    "text",
+    "fp"
+   ],
+   "additionalProperties": false
+  },
+  "PartKindDef": {
+   "type": "object",
+   "properties": {
+    "id": {
+     "type": "string"
+    },
+    "label": {
+     "type": "string"
+    },
+    "plural": {
+     "type": "string"
+    },
+    "short": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "id",
+    "label",
+    "plural",
+    "short"
+   ],
+   "additionalProperties": false
+  },
+  "ScopeDef": {
+   "type": "object",
+   "properties": {
+    "label": {
+     "type": "string"
+    },
+    "about": {
+     "type": "string"
+    },
+    "inModel": {
+     "type": "boolean"
+    },
+    "badge": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "label",
+    "about"
+   ],
+   "additionalProperties": false,
+   "description": "where an operation stands in the model; `inModel`: the filter \"in the model\" keeps it; `badge`: shown beside it in the list"
+  },
+  "VerifyParts": {
+   "type": "object",
+   "properties": {
+    "contract": {
+     "type": "string",
+     "description": "the contract version the file was written for"
+    },
+    "tree": {
+     "type": "string",
+     "description": "the source tree the code evidence and the chains point into (a key of packet.json `sources`)"
+    },
+    "commit": {
+     "type": "string",
+     "description": "the commit of that tree the evidence is read at"
+    },
+    "kinds": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/PartKindDef"
+     },
+     "description": "the kinds of parts, in the order of the list"
+    },
+    "lateGroups": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     },
+     "description": "groups shown after the others (by group), in this order"
+    },
+    "scopes": {
+     "type": "object",
+     "additionalProperties": {
+      "$ref": "#/definitions/ScopeDef"
+     },
+     "description": "the scopes of the operations' parts, in the order of the filter"
+    },
+    "docKinds": {
+     "type": "object",
+     "additionalProperties": {
+      "type": "string"
+     },
+     "description": "per DocRef kind the short label of its chip (default: the kind)"
+    },
+    "leadFacts": {
+     "type": "object",
+     "additionalProperties": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "description": "per part kind the labels of the facts shown above what it causes (the rest under \"More\")"
+    },
+    "parts": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/Part"
+     }
+    }
+   },
+   "required": [
+    "contract",
+    "kinds",
+    "lateGroups",
+    "scopes",
+    "parts"
+   ],
+   "additionalProperties": false,
+   "description": "verify/parts.json"
+  },
+  "CauseKind": {
+   "type": "string",
+   "enum": [
+    "root",
+    "fetched",
+    "reaction",
+    "calledBack",
+    "calledBy",
+    "scheduled",
+    "home",
+    "read",
+    "field",
+    "write",
+    "event",
+    "callback",
+    "copy",
+    "call",
+    "code"
+   ]
+  },
+  "Cause": {
+   "type": "object",
+   "properties": {
+    "key": {
+     "type": "string",
+     "description": "unique within the operation; the row's mark is `<part key>#<key>`"
+    },
+    "kind": {
+     "$ref": "#/definitions/CauseKind"
+    },
+    "cls": {
+     "type": "string",
+     "description": "the class read or written, the reaction, callback or callee"
+    },
+    "via": {
+     "type": "string",
+     "description": "a read or write of a reference: its id"
+    },
+    "op": {
+     "type": "string"
+    },
+    "readers": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     },
+     "description": "a copy feed's readers: the operations whose sites read the copy"
+    },
+    "topic": {
+     "type": "string",
+     "description": "an event's topic; a field's (or root resolver's) request type: the row belongs to that request only"
+    },
+    "request": {
+     "type": "string"
+    },
+    "p": {
+     "type": "number",
+     "description": "expected executions per execution of the caller (an event's raise probability)"
+    },
+    "allowed": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     },
+     "description": "the model's side: the call sites (their allowed mechanisms and today's) and what the model makes of it; `own` (not a mechanism; accepts the older spelling `local`) stands for an access to the home class's own data"
+    },
+    "today": {
+     "type": "string"
+    },
+    "model": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    },
+    "consistency": {
+     "$ref": "#/definitions/Consistency",
+     "description": "(contract 1.13.0) a read's or call's curated consistency level with its rules and reason (only where the case curated one, or the level is not stale-ok); `effect` an effect call's rules (E1), in a callback row"
+    },
+    "effect": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "to": {
+        "type": "string"
+       },
+       "rules": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       "reason": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "to",
+       "rules"
+      ],
+      "additionalProperties": false
+     }
+    },
+    "ev": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/Loc"
+     },
+     "description": "the code's side: where it happens and how today's code does it"
+    },
+    "code": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    },
+    "fp": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "key",
+    "kind",
+    "allowed",
+    "model",
+    "ev",
+    "code",
+    "fp"
+   ],
+   "additionalProperties": false
+  },
+  "Consistency": {
+   "type": "object",
+   "properties": {
+    "level": {
+     "$ref": "#/definitions/ConsistencyLevel"
+    },
+    "rules": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    },
+    "reason": {
+     "type": "string"
+    },
+    "lock": {
+     "type": "boolean"
+    }
+   },
+   "required": [
+    "level"
+   ],
+   "additionalProperties": false,
+   "description": "(1.13.0) a read's or a call's curated consistency: its level, the rule ids that decide it (the case's `InputModel.consistency.rules`, e.g. S2, R1, I1) and the reason in the case's words; `lock` a statement that only locks (a strict read of the locked class)"
+  },
+  "ConsistencyLevel": {
+   "type": "string",
+   "enum": [
+    "strict",
+    "stale-ok",
+    "immutable"
+   ],
+   "description": "(1.13.0) how current a read (or a call's answer) must be, curated per read by the case: `strict` current data only (sync only; a copy only where today's code reads its own store), `stale-ok` a cache or a copy may serve it (priced by O4), `immutable` as stale-ok, but a stale answer cannot be wrong (O4 counts no staleness). Replaces the flag `strong` (contract/consistency.ts `levelOf` accepts the older spelling `strong`)."
+  },
+  "Causes": {
+   "type": "object",
+   "properties": {
+    "rows": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/Cause"
+     }
+    }
+   },
+   "required": [
+    "rows"
+   ],
+   "additionalProperties": false
+  },
+  "VerifyCauses": {
+   "type": "object",
+   "additionalProperties": {
+    "$ref": "#/definitions/Causes"
+   },
+   "description": "verify/causes.json: part key (`op:<id>`) -> what the operation causes"
+  },
+  "Chain": {
+   "type": "object",
+   "properties": {
+    "root": {
+     "type": "string"
+    },
+    "nodes": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "key": {
+        "type": "string"
+       },
+       "decl": {
+        "type": "array",
+        "items": {
+         "type": "object",
+         "properties": {
+          "path": {
+           "type": "string"
+          },
+          "line": {
+           "type": "number"
+          },
+          "end": {
+           "type": "number"
+          }
+         },
+         "required": [
+          "path",
+          "line",
+          "end"
+         ],
+         "additionalProperties": false
+        }
+       },
+       "pm": {
+        "type": "boolean"
+       },
+       "step": {
+        "type": "boolean"
+       },
+       "reached": {
+        "type": "boolean"
+       }
+      },
+      "required": [
+       "key",
+       "decl",
+       "pm",
+       "step",
+       "reached"
+      ],
+      "additionalProperties": false
+     }
+    },
+    "calls": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "from": {
+        "type": "string"
+       },
+       "to": {
+        "type": "string"
+       },
+       "path": {
+        "type": "string"
+       },
+       "line": {
+        "type": "number"
+       },
+       "col": {
+        "type": "number"
+       },
+       "len": {
+        "type": "number"
+       }
+      },
+      "required": [
+       "from",
+       "to",
+       "path",
+       "line",
+       "col",
+       "len"
+      ],
+      "additionalProperties": false
+     }
+    },
+    "unreached": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "evidence": {
+        "type": "string"
+       },
+       "function": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "evidence",
+       "function"
+      ],
+      "additionalProperties": false
+     }
+    }
+   },
+   "required": [
+    "root",
+    "nodes",
+    "calls",
+    "unreached"
+   ],
+   "additionalProperties": false,
+   "description": "per operation the code that contributes its steps: the functions on a path from the entry (`root`; a pseudo key `<lambda@path:line>` for a route or subscription block) to a step site, with their declarations, and the call sites between them; paths in VerifyParts.tree. reached: false, a step's function the walk misses."
+  },
+  "VerifyChains": {
+   "type": "object",
+   "additionalProperties": {
+    "anyOf": [
+     {
+      "$ref": "#/definitions/Chain"
+     },
+     {
+      "type": "object",
+      "properties": {
+       "error": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "error"
+      ],
+      "additionalProperties": false
+     }
+    ]
+   },
+   "description": "verify/chains.json: operation id -> its chain (or why there is none)"
+  }
+ },
+ "$id": "https://local/explorer-verify/1.14.0",
+ "title": "Explorer data packet Verify files 1.14.0"
+}

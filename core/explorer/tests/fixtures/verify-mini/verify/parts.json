@@ -1,0 +1,288 @@
+{
+ "contract": "1.10.0",
+ "tree": "code",
+ "commit": "0123456789abcdef0123",
+ "kinds": [
+  {
+   "id": "class",
+   "label": "class",
+   "plural": "Classes",
+   "short": "C"
+  },
+  {
+   "id": "op",
+   "label": "operation",
+   "plural": "Operations",
+   "short": "O"
+  },
+  {
+   "id": "note",
+   "label": "note",
+   "plural": "Notes",
+   "short": "N"
+  }
+ ],
+ "lateGroups": [
+  "notes"
+ ],
+ "scopes": {
+  "in": {
+   "label": "modelled",
+   "about": "modelled with its SEFF",
+   "inModel": true
+  },
+  "out": {
+   "label": "left out",
+   "about": "not in the model",
+   "badge": "out"
+  }
+ },
+ "docKinds": {
+  "spec": "spec"
+ },
+ "leadFacts": {
+  "op": [
+   "entry point"
+  ]
+ },
+ "parts": [
+  {
+   "key": "class:Order",
+   "kind": "class",
+   "group": "shop",
+   "title": "Order",
+   "subtitle": "orders",
+   "facts": [
+    {
+     "label": "storage",
+     "value": [
+      "table ",
+      {
+       "code": "orders"
+      }
+     ],
+     "ev": [
+      {
+       "repo": "code",
+       "path": "src/Order.kt",
+       "line": 1,
+       "label": "table"
+      }
+     ]
+    }
+   ],
+   "tables": [],
+   "docs": [
+    {
+     "label": "spec.md",
+     "kind": "spec",
+     "loc": {
+      "repo": "notes",
+      "path": "spec.md"
+     },
+     "find": [
+      "^## Order"
+     ]
+    }
+   ],
+   "modelTarget": "class:Order",
+   "text": "class:order order orders shop",
+   "fp": "f-class-order"
+  },
+  {
+   "key": "op:shop.cleanup",
+   "kind": "op",
+   "group": "shop",
+   "title": "cleanup",
+   "subtitle": "schedule",
+   "scope": "out",
+   "facts": [
+    {
+     "label": "entry point",
+     "value": [
+      {
+       "code": "OrderService.cleanup"
+      }
+     ]
+    }
+   ],
+   "tables": [],
+   "docs": [],
+   "text": "op:shop.cleanup cleanup schedule shop",
+   "fp": "f-op-cleanup"
+  },
+  {
+   "key": "op:shop.order",
+   "kind": "op",
+   "group": "shop",
+   "title": "order",
+   "subtitle": "Mutation.order",
+   "scope": "in",
+   "facts": [
+    {
+     "label": "entry point",
+     "value": [
+      {
+       "code": "OrderService.place"
+      }
+     ],
+     "ev": [
+      {
+       "repo": "code",
+       "path": "src/Order.kt",
+       "line": 4,
+       "label": "entry"
+      }
+     ]
+    },
+    {
+     "label": "kind",
+     "value": [
+      "mutation",
+      " (model: mutation)"
+     ]
+    }
+   ],
+   "tables": [
+    {
+     "title": "Accesses",
+     "hint": "per statement",
+     "columns": [
+      "class",
+      "mode"
+     ],
+     "rows": [
+      {
+       "cells": [
+        [
+         {
+          "part": "class:Order",
+          "label": "Order"
+         }
+        ],
+        [
+         {
+          "chip": "write",
+          "tone": "warn"
+         }
+        ]
+       ],
+       "ev": [
+        {
+         "repo": "code",
+         "path": "src/Stock.kt",
+         "line": 4,
+         "label": "access"
+        }
+       ],
+       "note": "through the stock"
+      },
+      {
+       "cells": [
+        [
+         "Legacy"
+        ],
+        [
+         "read"
+        ]
+       ],
+       "ev": [
+        {
+         "repo": "code",
+         "path": "vendor/Legacy.kt",
+         "line": 2
+        }
+       ]
+      }
+     ]
+    }
+   ],
+   "docs": [
+    {
+     "label": "spec.md",
+     "kind": "spec",
+     "loc": {
+      "repo": "notes",
+      "path": "spec.md"
+     },
+     "find": [
+      "^## Order"
+     ]
+    }
+   ],
+   "modelTarget": "op:shop.order",
+   "text": "op:shop.order order mutation.order shop",
+   "fp": "f-op-order"
+  },
+  {
+   "key": "op:stock.reserve",
+   "kind": "op",
+   "group": "stock",
+   "title": "reserve",
+   "subtitle": "shop/order/placed",
+   "scope": "in",
+   "facts": [
+    {
+     "label": "entry point",
+     "value": [
+      {
+       "code": "StockService.reserve"
+      }
+     ],
+     "ev": [
+      {
+       "repo": "code",
+       "path": "src/Stock.kt",
+       "line": 2,
+       "label": "entry"
+      }
+     ]
+    }
+   ],
+   "tables": [],
+   "docs": [
+    {
+     "label": "spec.md",
+     "kind": "spec",
+     "loc": {
+      "repo": "notes",
+      "path": "spec.md"
+     },
+     "find": [
+      "^## Stock"
+     ]
+    }
+   ],
+   "modelTarget": "op:stock.reserve",
+   "text": "op:stock.reserve reserve shop/order/placed stock",
+   "fp": "f-op-reserve"
+  },
+  {
+   "key": "note:readme",
+   "kind": "note",
+   "group": "notes",
+   "title": "The notes",
+   "facts": [
+    {
+     "label": "about",
+     "value": [
+      "what the shop is"
+     ]
+    }
+   ],
+   "tables": [],
+   "docs": [
+    {
+     "label": "spec.md",
+     "kind": "spec",
+     "loc": {
+      "repo": "notes",
+      "path": "spec.md"
+     }
+    }
+   ],
+   "text": "note:readme the notes  notes",
+   "fp": "f-note"
+  }
+ ]
+}

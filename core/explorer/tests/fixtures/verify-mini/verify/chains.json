@@ -1,0 +1,47 @@
+{
+ "shop.order": {
+  "root": "OrderService.place",
+  "nodes": [
+   {
+    "key": "OrderService.place",
+    "decl": [
+     {
+      "path": "src/Order.kt",
+      "line": 4,
+      "end": 7
+     }
+    ],
+    "pm": false,
+    "step": true,
+    "reached": true
+   },
+   {
+    "key": "StockService.reserve",
+    "decl": [
+     {
+      "path": "src/Stock.kt",
+      "line": 2,
+      "end": 5
+     }
+    ],
+    "pm": false,
+    "step": true,
+    "reached": true
+   }
+  ],
+  "calls": [
+   {
+    "from": "OrderService.place",
+    "to": "StockService.reserve",
+    "path": "src/Order.kt",
+    "line": 5,
+    "col": 14,
+    "len": 7
+   }
+  ],
+  "unreached": []
+ },
+ "stock.reserve": {
+  "error": "no entry"
+ }
+}

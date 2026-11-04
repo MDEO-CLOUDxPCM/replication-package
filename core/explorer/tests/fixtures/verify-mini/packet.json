@@ -1,0 +1,39 @@
+{
+ "contract": "1.10.0",
+ "id": "mini",
+ "name": "Mini shop",
+ "family": "palladio-architecture",
+ "domains": [
+  "mini"
+ ],
+ "docs": {
+  "texts": "docs/texts.json"
+ },
+ "capabilities": {
+  "model": true,
+  "modelTabs": [
+   "verify"
+  ],
+  "verify": true
+ },
+ "sources": {
+  "code": {
+   "kind": "git",
+   "label": "mini-code",
+   "path": "code",
+   "ref": "HEAD",
+   "about": "the shop at a commit"
+  },
+  "notes": {
+   "kind": "dir",
+   "label": "mini-notes",
+   "path": "notes",
+   "about": "the notes"
+  }
+ },
+ "verify": {
+  "parts": "verify/parts.json",
+  "causes": "verify/causes.json",
+  "chains": "verify/chains.json"
+ }
+}

@@ -1,0 +1,167 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* Design tokens. Chart colours follow the dataviz reference palette (validated, CVD-safe order);
+   dark values are their own steps, not a flip. */
+:root {
+  --radius: 0.6rem;
+  --background: #f9f9f7;
+  --foreground: #0b0b0b;
+  --card: #fcfcfb;
+  --card-foreground: #0b0b0b;
+  --popover: #fcfcfb;
+  --popover-foreground: #0b0b0b;
+  --primary: #1f1f1d;
+  --primary-foreground: #fafaf9;
+  --secondary: #efeee9;
+  --secondary-foreground: #1f1f1d;
+  --muted: #efeee9;
+  --muted-foreground: #5f5e5a;
+  --accent: #ebeae4;
+  --accent-foreground: #1f1f1d;
+  --destructive: #d03b3b;
+  --border: #e1e0d9;
+  --input: #dddcd4;
+  --ring: #2a78d6;
+  --chart-surface: #fcfcfb;
+  --chart-grid: #e1e0d9;
+  --chart-axis: #c3c2b7;
+  --chart-muted: #898781;
+  --text-secondary: #52514e;
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --series-3: #1baf7a;
+  --series-4: #eda100;
+  --series-5: #e87ba4;
+  --series-6: #008300;
+  --series-7: #6250d6;
+  --series-8: #e34948;
+  --status-good: #0ca30c;
+  --status-warning: #fab219;
+  --status-serious: #ec835a;
+  --status-critical: #d03b3b;
+  --select-a: #2a78d6;
+  --select-b: #eb6834;
+}
+
+.dark {
+  --background: #0d0d0d;
+  --foreground: #f0efec;
+  --card: #1a1a19;
+  --card-foreground: #f0efec;
+  --popover: #1f1f1e;
+  --popover-foreground: #f0efec;
+  --primary: #f0efec;
+  --primary-foreground: #1a1a19;
+  --secondary: #262624;
+  --secondary-foreground: #f0efec;
+  --muted: #262624;
+  --muted-foreground: #a9a89f;
+  --accent: #2c2c2a;
+  --accent-foreground: #f0efec;
+  --destructive: #e66767;
+  --border: #2c2c2a;
+  --input: #383835;
+  --ring: #3987e5;
+  --chart-surface: #1a1a19;
+  --chart-grid: #2c2c2a;
+  --chart-axis: #383835;
+  --chart-muted: #898781;
+  --text-secondary: #c3c2b7;
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --series-3: #199e70;
+  --series-4: #c98500;
+  --series-5: #d55181;
+  --series-6: #008300;
+  --series-7: #9085e9;
+  --series-8: #e66767;
+  --select-a: #3987e5;
+  --select-b: #d95926;
+}
+
+@theme inline {
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-series-1: var(--series-1);
+  --color-series-2: var(--series-2);
+  --color-series-3: var(--series-3);
+  --color-series-4: var(--series-4);
+  --color-series-5: var(--series-5);
+  --color-series-6: var(--series-6);
+  --color-series-7: var(--series-7);
+  --color-series-8: var(--series-8);
+  --color-select-a: var(--select-a);
+  --color-select-b: var(--select-b);
+  --color-good: var(--status-good);
+  --color-warning: var(--status-warning);
+  --color-critical: var(--status-critical);
+  --color-secondary-text: var(--text-secondary);
+}
+
+/* native scrollbars hidden where a styled replacement exists (menus, selects, command lists: short,
+   wheel and keys still scroll) */
+@utility scrollbar-none {
+  scrollbar-width: none;
+  &::-webkit-scrollbar { display: none; }
+}
+
+@layer base {
+  * { @apply border-border outline-ring/50; }
+  html, body, #root { height: 100%; }
+  /* the page never scrolls: every scrolling region is a styled ScrollArea */
+  html, body { overflow: hidden; }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "cv11", "ss01";
+  }
+  .tabular { font-variant-numeric: tabular-nums; }
+  /* everything clickable shows the pointer (Tailwind 4 dropped it for buttons); disabled: not-allowed */
+  button:not(:disabled), [role="button"], [role="tab"], [role="menuitem"], [role="menuitemradio"], [role="menuitemcheckbox"],
+  [role="option"], [role="switch"], [role="checkbox"], [role="radio"], summary, label[for], a[href], select { cursor: pointer; }
+  button:disabled, [aria-disabled="true"], [data-disabled] { cursor: not-allowed; }
+}
+
+/* React Flow: inherit the app's tokens */
+.react-flow {
+  --xy-background-color: transparent;
+  --xy-controls-button-background-color: var(--card);
+  --xy-controls-button-background-color-hover: var(--accent);
+  --xy-controls-button-color: var(--foreground);
+  --xy-controls-button-color-hover: var(--foreground);
+  --xy-controls-button-border-color: var(--border);
+}
+.react-flow__attribution { display: none; }
+/* nodes can be dragged (services also clicked: select / expand) */
+.react-flow__node.draggable { cursor: grab; }
+.react-flow__node.dragging { cursor: grabbing; }
+.react-flow__controls { box-shadow: none; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.react-flow__controls-button {
+  background: var(--card); border-color: var(--border); color: var(--foreground); fill: var(--foreground); border-bottom: 1px solid var(--border);
+}
+.react-flow__controls-button:hover { background: var(--accent); }
+.react-flow__controls-button svg { fill: currentColor; }

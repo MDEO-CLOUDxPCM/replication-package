@@ -1,0 +1,152 @@
+{
+ "name": "rerun_mech_on",
+ "config": "on",
+ "block": 6,
+ "rateLevel": "mid",
+ "types": [
+  "wishlistView.hot",
+  "wishlistView.cold",
+  "discount.createDiscount",
+  "discount.updateDiscount"
+ ],
+ "prep": [
+  "calibration/.venv/bin/python calibration/scripts/maintain.py --stack kotlin",
+  "calibration/.venv/bin/python requests/run.py cleanup"
+ ],
+ "durationS": 565,
+ "phases": [
+  {
+   "name": "idle",
+   "duration": 60,
+   "rates": {}
+  },
+  {
+   "name": "wishlist.createWishlist:fill",
+   "duration": 35,
+   "rates": {
+    "wishlist.createWishlist": 20.943
+   }
+  },
+  {
+   "name": "wishlistView.hot:pre",
+   "duration": 15,
+   "rates": {}
+  },
+  {
+   "name": "wishlistView.hot:warm",
+   "duration": 20,
+   "rates": {
+    "wishlistView.hot": 6.819
+   }
+  },
+  {
+   "name": "wishlistView.hot:steady",
+   "duration": 75,
+   "rates": {
+    "wishlistView.hot": 6.819
+   }
+  },
+  {
+   "name": "wishlistView.hot:drain",
+   "duration": 20,
+   "rates": {}
+  },
+  {
+   "name": "wishlistView.cold:pre",
+   "duration": 15,
+   "rates": {}
+  },
+  {
+   "name": "wishlistView.cold:warm",
+   "duration": 20,
+   "rates": {
+    "wishlistView.cold": 6.819
+   }
+  },
+  {
+   "name": "wishlistView.cold:steady",
+   "duration": 75,
+   "rates": {
+    "wishlistView.cold": 6.819
+   }
+  },
+  {
+   "name": "wishlistView.cold:drain",
+   "duration": 20,
+   "rates": {}
+  },
+  {
+   "name": "discount.createDiscount:pre",
+   "duration": 10,
+   "rates": {}
+  },
+  {
+   "name": "discount.createDiscount:warm",
+   "duration": 15,
+   "rates": {
+    "discount.createDiscount": 1.212
+   }
+  },
+  {
+   "name": "discount.createDiscount:steady",
+   "duration": 45,
+   "rates": {
+    "discount.createDiscount": 1.212
+   }
+  },
+  {
+   "name": "discount.createDiscount:drain",
+   "duration": 20,
+   "rates": {}
+  },
+  {
+   "name": "discount.updateDiscount:pre",
+   "duration": 10,
+   "rates": {}
+  },
+  {
+   "name": "discount.updateDiscount:warm",
+   "duration": 15,
+   "rates": {
+    "discount.updateDiscount": 1.212
+   }
+  },
+  {
+   "name": "discount.updateDiscount:steady",
+   "duration": 45,
+   "rates": {
+    "discount.updateDiscount": 1.212
+   }
+  },
+  {
+   "name": "discount.updateDiscount:drain",
+   "duration": 20,
+   "rates": {}
+  },
+  {
+   "name": "idle_end",
+   "duration": 30,
+   "rates": {}
+  }
+ ],
+ "burstTypes": [
+  "wishlistView.hot",
+  "wishlistView.cold",
+  "discount.createDiscount",
+  "discount.updateDiscount"
+ ],
+ "mechanisms": {
+  "localCopies": true,
+  "entityCache": true,
+  "cacheTtlS": 60,
+  "sharedCache": true
+ },
+ "warm": "warm_mech.json",
+ "burstScale": 0.5,
+ "baseTypes": {
+  "wishlistView.hot": "wishlistView",
+  "wishlistView.cold": "wishlistView",
+  "discount.createDiscount": "discount.createDiscount",
+  "discount.updateDiscount": "discount.createDiscount"
+ }
+}

@@ -1,0 +1,4043 @@
+{
+ "schema": "timing/ENVELOPE.md",
+ "version": 1,
+ "source": "v2 estimate: profile parts of approx2_on_w1,approx2_on_w2,approx2_on_w3 x parts.json v2 totals",
+ "flag": "estimate-v2",
+ "units": "CPU ms per delivered event (handlers), per publish (senders), per request (requestOverheadCpuMs); hops: wall ms p50 (n-weighted over windows)",
+ "handlers": {
+  "address.on:user/user/created": {
+   "service": "address",
+   "topic": "user/user/created",
+   "workCpuMs": 7.9533,
+   "envelopeCpuMs": 3.6422,
+   "envelopeParts": {
+    "dispatchCpuMs": 0.9883,
+    "decodeCpuMs": 0.0999,
+    "txCpuMs": 0.0,
+    "idempotencyCpuMs": 0.0,
+    "deliveryCpuMs": 2.554
+   },
+   "envelopeAppCpuMs": 1.0882,
+   "idempotencyCheck": null,
+   "countersRemainderCpuMs": null,
+   "from": "pooled",
+   "workFrom": "parts.json own + access x work fraction 0.714",
+   "types": [],
+   "flag": "estimate-v2"
+  },
+  "catalog.on:media/media/created": {
+   "service": "catalog",
+   "topic": "media/media/created",
+   "workCpuMs": 0.8192,
+   "envelopeCpuMs": 4.6479,
+   "envelopeParts": {
+    "dispatchCpuMs": 1.8207,
+    "decodeCpuMs": 0.2732,
+    "txCpuMs": 0.0,
+    "idempotencyCpuMs": 0.0,
+    "deliveryCpuMs": 2.554
+   },
+   "envelopeAppCpuMs": 2.0939,
+   "idempotencyCheck": null,
+   "countersRemainderCpuMs": null,
+   "from": "measured",
+   "workFrom": "profile x totals",
+   "types": [
+    "media.uploadMedia"
+   ],
+   "flag": "estimate-v2"
+  },
+  "catalog.on:tax/tax-rate/created": {
+   "service": "catalog",
+   "topic": "tax/tax-rate/created",
+   "workCpuMs": 1.5961,
+   "envelopeCpuMs": 4.6479,
+   "envelopeParts": {
+    "dispatchCpuMs": 1.8207,
+    "decodeCpuMs": 0.2732,
+    "txCpuMs": 0.0,
+    "idempotencyCpuMs": 0.0,
+    "deliveryCpuMs": 2.554
+   },
+   "envelopeAppCpuMs": 2.0939,
+   "idempotencyCheck": null,
+   "countersRemainderCpuMs": null,
+   "from": "container",
+   "workFrom": "parts.json own + access x work fraction 0.725",
+   "types": [],
+   "flag": "estimate-v2"
+  },
+  "discount.on:catalog/category/created": {
+   "service": "discount",
+   "topic": "catalog/category/created",
+   "workCpuMs": 0.4415,
+   "envelopeCpuMs": 3.9244,
+   "envelopeParts": {
+    "dispatchCpuMs": 1.0298,
+    "decodeCpuMs": 0.3406,
+    "txCpuMs": 0.0,
+    "idempotencyCpuMs": 0.0,
+    "deliveryCpuMs": 2.554
+   },
+   "envelopeAppCpuMs": 1.3704,
+   "idempotencyCheck": null,
+   "countersRemainderCpuMs": null,
+   "from": "measured",
+   "workFrom": "profile x totals",
+   "types": [
+    "catalog.createCategory"
+   ],
+   "flag": "estimate-v2"
+  },
+  "discount.on:catalog/product-variant/created": {
+   "service": "discount",
+   "topic": "catalog/product-variant/created",
+   "workCpuMs": 0.7401,
+   "envelopeCpuMs": 3.8366,
+   "envelopeParts": {
+    "dispatchCpuMs": 1.1404,
+    "decodeCpuMs": 0.125,
+    "txCpuMs": 0.0172,
+    "idempotencyCpuMs": 0.0,
+    "deliveryCpuMs": 2.554
+   },
+   "envelopeAppCpuMs": 1.2826,
+   "idempotencyCheck": null,
+   "countersRemainderCpuMs": null,
+   "from": "measured",
+   "workFrom": "profile x totals",
+   "types": [
+    "adminCreateProduct",
+    "adminCreateVariant"
+   ],
+   "flag": "estimate-v2"
+  },
+  "discount.on:catalog/product/created": {
+   "service": "discount",
+   "topic": "catalog/product/created",
+   "workCpuMs": 1.0015,
+   "envelopeCpuMs": 3.8338,
+   "envelopeParts": {
+    "dispatchCpuMs": 1.1423,
+    "decodeCpuMs": 0.1031,
+    "txCpuMs": 0.0344,
+    "idempotencyCpuMs": 0.0,
+    "deliveryCpuMs": 2.554
+   },
+   "envelopeAppCpuMs": 1.2798,
+   "idempotencyCheck": null,
+   "countersRemainderCpuMs": null,
+   "from": "measured",
+   "workFrom": "profile x totals",
+   "types": [
+    "adminCreateProduct"
+   ],
+   "flag": "estimate-v2"
+  },
+  "discount.on:inventory/product-item/reservation-succeeded": {
+   "service": "discount",
+   "topic": "inventory/product-item/reservation-succeeded",
+   "workCpuMs": 0.9785,
+   "envelopeCpuMs": 4.2608,
+   "envelopeParts": {
+    "dispatchCpuMs": 1.3882,
+    "decodeCpuMs": 0.2958,
+    "txCpuMs": 0.0228,
+    "idempotencyCpuMs": 0.0,
+    "deliveryCpuMs": 2.554
+   },
+   "envelopeAppCpuMs": 1.7068,
+   "idempotencyCheck": null,
+   "countersRemainderCpuMs": null,
+   "from": "measured",
+   "workFrom": "profile x totals",
+   "types": [
+    "placeOrder"
+   ],
+   "flag": "estimate-v2"
+  },
+  "discount.on:user/user/created": {
+   "service": "discount",
+   "topic": "user/user/created",
+   "workCpuMs": 2.0612,
+   "envelopeCpuMs": 3.866,
+   "envelopeParts": {
+    "dispatchCpuMs": 1.1423,
+    "decodeCpuMs": 0.1469,
+    "txCpuMs": 0.0228,
+    "idempotencyCpuMs": 0.0,
+    "deliveryCpuMs": 2.554
+   },
+   "envelopeAppCpuMs": 1.312,
+   "idempotencyCheck": null,
+   "countersRemainderCpuMs": null,
+   "from": "container",
+   "workFrom": "parts.json own + access x work fraction 0.553",
+   "types": [],
+   "flag": "estimate-v2"
+  },
+  "inventory.on:catalog/product-variant/created": {
+   "service": "inventory",
+   "topic": "catalog/product-variant/created",
+   "workCpuMs": 0.6153,
+   "envelopeCpuMs": 3.5718,
+   "envelopeParts": {
+    "dispatchCpuMs": 1.0178,
+    "decodeCpuMs": 0.0,
+    "txCpuMs": 0.0,
+    "idempotencyCpuMs": 0.0,
+    "deliveryCpuMs": 2.554
+   },
+   "envelopeAppCpuMs": 1.0178,
+   "idempotencyCheck": null,
+   "countersRemainderCpuMs": null,
+   "from": "measured",
+   "workFrom": "profile x totals",
+   "types": [
+    "adminCreateProduct",
+    "adminCreateVariant"
+   ],
+   "flag": "estimate-v2"
+  },
+  "inventory.on:discount/order/validation-failed": {
+   "service": "inventory",
+   "topic": "discount/order/validation-failed",
+   "workCpuMs": 0.3748,
+   "envelopeCpuMs": 3.5916,
+   "envelopeParts": {
+    "dispatchCpuMs": 0.9053,
+    "decodeCpuMs": 0.0836,
+    "txCpuMs": 0.0487,
+    "idempotencyCpuMs": 0.0,
+    "deliveryCpuMs": 2.554
+   },
+   "envelopeAppCpuMs": 1.0376,
+   "idempotencyCheck": null,
+   "countersRemainderCpuMs": null,
+   "from": "container",
+   "workFrom": "parts.json own + access x work fraction 0.425",
+   "types": [],
+   "flag": "estimate-v2"
+  },
+  "inventory.on:order/order/created": {
+   "service": "inventory",
+   "topic": "order/order/created",
+   "workCpuMs": 1.4132,
+   "envelopeCpuMs": 3.5916,
+   "envelopeParts": {
+    "dispatchCpuMs": 0.9053,
+    "decodeCpuMs": 0.0836,
+    "txCpuMs": 0.0487,
+    "idempotencyCpuMs": 0.0,
+    "deliveryCpuMs": 2.554
+   },
+   "envelopeAppCpuMs": 1.0376,
+   "idempotencyCheck": [
+    "ProductItem read via ProductItemStore.countOfOrder"
+   ],
+   "countersRemainderCpuMs": null,
+   "from": "measured",
+   "workFrom": "profile x totals",
+   "types": [
+    "placeOrder"
+   ],
+   "flag": "estimate-v2"
+  },
+  "inventory.on:payment/payment/payment-enabled": {
+   "service": "inventory",
+   "topic": "payment/payment/payment-enabled",
+   "workCpuMs": 0.4342,
+   "envelopeCpuMs": 3.5916,
+   "envelopeParts": {
+    "dispatchCpuMs": 0.9053,
+    "decodeCpuMs": 0.0836,
+    "txCpuMs": 0.0487,
+    "idempotencyCpuMs": 0.0,
+    "deliveryCpuMs": 2.554
+   },
+   "envelopeAppCpuMs": 1.0376,
+   "idempotencyCheck": null,
+   "countersRemainderCpuMs": null,
+   "from": "measured",
+   "workFrom": "profile x totals",
+   "types": [
+    "placeOrder"
+   ],
+   "flag": "estimate-v2"
+  },
+  "inventory.on:payment/payment/payment-failed": {
+   "service": "inventory",
+   "topic": "payment/payment/payment-failed",
+   "workCpuMs": 0.2956,
+   "envelopeCpuMs": 3.5916,
+   "envelopeParts": {
+    "dispatchCpuMs": 0.9053,
+    "decodeCpuMs": 0.0836,
+    "txCpuMs": 0.0487,
+    "idempotencyCpuMs": 0.0,
+    "deliveryCpuMs": 2.554
+   },
+   "envelopeAppCpuMs": 1.0376,
+   "idempotencyCheck": null,
+   "countersRemainderCpuMs": null,
+   "from": "container",
+   "workFrom": "parts.json own + access x work fraction 0.425",
+   "types": [],
+   "flag": "estimate-v2"
+  },
+  "inventory.on:shipment/shipment/created": {
+   "service": "inventory",
+   "topic": "shipment/shipment/created",
+   "workCpuMs": 0.4342,
+   "envelopeCpuMs": 3.5916,
+   "envelopeParts": {
+    "dispatchCpuMs": 0.9053,
+    "decodeCpuMs": 0.0836,
+    "txCpuMs": 0.0487,
+    "idempotencyCpuMs": 0.0,
+    "deliveryCpuMs": 2.554
+   },
+   "envelopeAppCpuMs": 1.0376,
+   "idempotencyCheck": null,
+   "countersRemainderCpuMs": null,
+   "from": "measured",
+   "workFrom": "profile x totals",
+   "types": [
+    "placeOrder"
+   ],
+   "flag": "estimate-v2"
+  },
+  "inventory.on:shipment/shipment/status-updated": {
+   "service": "inventory",
+   "topic": "shipment/shipment/status-updated",
+   "workCpuMs": 0.4477,
+   "envelopeCpuMs": 3.5916,
+   "envelopeParts": {
+    "dispatchCpuMs": 0.9053,
+    "decodeCpuMs": 0.0836,
+    "txCpuMs": 0.0487,
+    "idempotencyCpuMs": 0.0,
+    "deliveryCpuMs": 2.554
+   },
+   "envelopeAppCpuMs": 1.0376,
+   "idempotencyCheck": null,
+   "countersRemainderCpuMs": null,
+   "from": "measured",
+   "workFrom": "profile x totals",
+   "types": [
+    "placeOrder"
+   ],
+   "flag": "estimate-v2"
+  },
+  "invoice.on:address/user-address/archived": {
+   "service": "invoice",
+   "topic": "address/user-address/archived",
+   "workCpuMs": null,
+   "envelopeCpuMs": 3.8721,
+   "envelopeParts": {
+    "dispatchCpuMs": 1.1534,
+    "decodeCpuMs": 0.1647,
+    "txCpuMs": 0.0,
+    "idempotencyCpuMs": 0.0,
+    "deliveryCpuMs": 2.554
+   },
+   "envelopeAppCpuMs": 1.3181,
+   "idempotencyCheck": null,
+   "countersRemainderCpuMs": null,
+   "from": "container",
+   "workFrom": null,
+   "types": [],
+   "flag": "estimate-v2"
+  },
+  "invoice.on:address/user-address/created": {
+   "service": "invoice",
+   "topic": "address/user-address/created",
+   "workCpuMs": 0.8238,
+   "envelopeCpuMs": 3.8721,
+   "envelopeParts": {
+    "dispatchCpuMs": 1.1534,
+    "decodeCpuMs": 0.1647,
+    "txCpuMs": 0.0,
+    "idempotencyCpuMs": 0.0,
+    "deliveryCpuMs": 2.554
+   },
+   "envelopeAppCpuMs": 1.3181,
+   "idempotencyCheck": null,
+   "countersRemainderCpuMs": null,
+   "from": "measured",
+   "workFrom": "profile x totals",
+   "types": [
+    "address.createUserAddress"
+   ],
+   "flag": "estimate-v2"
+  },
+  "invoice.on:address/vendor-address/created": {
+   "service": "invoice",
+   "topic": "address/vendor-address/created",
+   "workCpuMs": 1.0613,
+   "envelopeCpuMs": 3.6153,
+   "envelopeParts": {
+    "dispatchCpuMs": 0.9647,
+    "decodeCpuMs": 0.0966,
+    "txCpuMs": 0.0,
+    "idempotencyCpuMs": 0.0,
+    "deliveryCpuMs": 2.554
+   },
+   "envelopeAppCpuMs": 1.0613,
+   "idempotencyCheck": null,
+   "countersRemainderCpuMs": null,
+   "from": "measured",
+   "workFrom": "profile x totals",
+   "types": [
+    "address.createVendorAddress"
+   ],
+   "flag": "estimate-v2"
+  },
+  "invoice.on:discount/order/validation-succeeded": {
+   "service": "invoice",
+   "topic": "discount/order/validation-succeeded",
+   "workCpuMs": 2.4199,
+   "envelopeCpuMs": 4.8528,
+   "envelopeParts": {
+    "dispatchCpuMs": 2.0164,
+    "decodeCpuMs": 0.2418,
+    "txCpuMs": 0.0406,
+    "idempotencyCpuMs": 0.0,
+    "deliveryCpuMs": 2.554
+   },
+   "envelopeAppCpuMs": 2.2988,
+   "idempotencyCheck": [
+    "Invoice read via InvoiceStore.findInvoiceByOrderId"
+   ],
+   "countersRemainderCpuMs": null,
+   "from": "measured",
+   "workFrom": "profile x totals",
+   "types": [
+    "placeOrder"
+   ],
+   "flag": "estimate-v2"
+  },
+  "invoice.on:user/user/created": {
+   "service": "invoice",
+   "topic": "user/user/created",
+   "workCpuMs": 2.9644,
+   "envelopeCpuMs": 3.8721,
+   "envelopeParts": {
+    "dispatchCpuMs": 1.1534,
+    "decodeCpuMs": 0.1647,
+    "txCpuMs": 0.0,
+    "idempotencyCpuMs": 0.0,
+    "deliveryCpuMs": 2.554
+   },
+   "envelopeAppCpuMs": 1.3181,
+   "idempotencyCheck": null,
+   "countersRemainderCpuMs": null,
+   "from": "container",
+   "workFrom": "parts.json own + access x work fraction 0.5",
+   "types": [],
+   "flag": "estimate-v2"
+  },
+  "notification.on:notification/notification/create": {
+   "service": "notification",
+   "topic": "notification/notification/create",
+   "workCpuMs": null,
+   "envelopeCpuMs": 3.6422,
+   "envelopeParts": {
+    "dispatchCpuMs": 0.9883,
+    "decodeCpuMs": 0.0999,
+    "txCpuMs": 0.0,
+    "idempotencyCpuMs": 0.0,
+    "deliveryCpuMs": 2.554
+   },
+   "envelopeAppCpuMs": 1.0882,
+   "idempotencyCheck": null,
+   "countersRemainderCpuMs": null,
+   "from": "pooled",
+   "workFrom": null,
+   "types": [],
+   "flag": "estimate-v2"
+  },
+  "notification.on:user/user/created": {
+   "service": "notification",
+   "topic": "user/user/created",
+   "workCpuMs": 6.5569,
+   "envelopeCpuMs": 3.6422,
+   "envelopeParts": {
+    "dispatchCpuMs": 0.9883,
+    "decodeCpuMs": 0.0999,
+    "txCpuMs": 0.0,
+    "idempotencyCpuMs": 0.0,
+    "deliveryCpuMs": 2.554
+   },
+   "envelopeAppCpuMs": 1.0882,
+   "idempotencyCheck": null,
+   "countersRemainderCpuMs": null,
+   "from": "pooled",
+   "workFrom": "parts.json own + access x work fraction 0.692",
+   "types": [],
+   "flag": "estimate-v2"
+  },
+  "order.on:address/user-address/archived": {
+   "service": "order",
+   "topic": "address/user-address/archived",
+   "workCpuMs": null,
+   "envelopeCpuMs": 3.4433,
+   "envelopeParts": {
+    "dispatchCpuMs": 0.8893,
+    "decodeCpuMs": 0.0,
+    "txCpuMs": 0.0,
+    "idempotencyCpuMs": 0.0,
+    "deliveryCpuMs": 2.554
+   },
+   "envelopeAppCpuMs": 0.8893,
+   "idempotencyCheck": null,
+   "countersRemainderCpuMs": null,
+   "from": "container",
+   "workFrom": null,
+   "types": [],
+   "flag": "estimate-v2"
+  },
+  "order.on:address/user-address/created": {
+   "service": "order",
+   "topic": "address/user-address/created",
+   "workCpuMs": 0.6038,
+   "envelopeCpuMs": 3.4596,
+   "envelopeParts": {
+    "dispatchCpuMs": 0.9056,
+    "decodeCpuMs": 0.0,
+    "txCpuMs": 0.0,
+    "idempotencyCpuMs": 0.0,
+    "deliveryCpuMs": 2.554
+   },
+   "envelopeAppCpuMs": 0.9056,
+   "idempotencyCheck": null,
+   "countersRemainderCpuMs": null,
+   "from": "measured",
+   "workFrom": "profile x totals",
+   "types": [
+    "address.createUserAddress"
+   ],
+   "flag": "estimate-v2"
+  },
+  "order.on:catalog/product-variant-version/created": {
+   "service": "order",
+   "topic": "catalog/product-variant-version/created",
+   "workCpuMs": 0.4308,
+   "envelopeCpuMs": 3.5036,
+   "envelopeParts": {
+    "dispatchCpuMs": 0.9496,
+    "decodeCpuMs": 0.0,
+    "txCpuMs": 0.0,
+    "idempotencyCpuMs": 0.0,
+    "deliveryCpuMs": 2.554
+   },
+   "envelopeAppCpuMs": 0.9496,
+   "idempotencyCheck": null,
+   "countersRemainderCpuMs": null,
+   "from": "measured",
+   "workFrom": "profile x totals",
+   "types": [
+    "adminCreateProduct",
+    "adminCreateVariant",
+    "adminNewPrice"
+   ],
+   "flag": "estimate-v2"
+  },
+  "order.on:catalog/product-variant/updated": {
+   "service": "order",
+   "topic": "catalog/product-variant/updated",
+   "workCpuMs": 0.556,
+   "envelopeCpuMs": 3.2875,
+   "envelopeParts": {
+    "dispatchCpuMs": 0.7143,
+    "decodeCpuMs": 0.0192,
+    "txCpuMs": 0.0,
+    "idempotencyCpuMs": 0.0,
+    "deliveryCpuMs": 2.554
+   },
+   "envelopeAppCpuMs": 0.7335,
+   "idempotencyCheck": null,
+   "countersRemainderCpuMs": null,
+   "from": "measured",
+   "workFrom": "profile x totals",
+   "types": [
+    "catalog.updateProductVariant"
+   ],
+   "flag": "estimate-v2"
+  },
+  "order.on:discount/coupon/created": {
+   "service": "order",
+   "topic": "discount/coupon/created",
+   "workCpuMs": 0.6291,
+   "envelopeCpuMs": 3.2617,
+   "envelopeParts": {
+    "dispatchCpuMs": 0.6684,
+    "decodeCpuMs": 0.0393,
+    "txCpuMs": 0.0,
+    "idempotencyCpuMs": 0.0,
+    "deliveryCpuMs": 2.554
+   },
+   "envelopeAppCpuMs": 0.7077,
+   "idempotencyCheck": null,
+   "countersRemainderCpuMs": null,
+   "from": "measured",
+   "workFrom": "profile x totals",
+   "types": [
+    "discount.createCoupon"
+   ],
+   "flag": "estimate-v2"
+  },
+  "order.on:shipment/shipment-method/created": {
+   "service": "order",
+   "topic": "shipment/shipment-method/created",
+   "workCpuMs": 0.4301,
+   "envelopeCpuMs": 3.3713,
+   "envelopeParts": {
+    "dispatchCpuMs": 0.8173,
+    "decodeCpuMs": 0.0,
+    "txCpuMs": 0.0,
+    "idempotencyCpuMs": 0.0,
+    "deliveryCpuMs": 2.554
+   },
+   "envelopeAppCpuMs": 0.8173,
+   "idempotencyCheck": null,
+   "countersRemainderCpuMs": null,
+   "from": "measured",
+   "workFrom": "profile x totals",
+   "types": [
+    "shipment.createShipmentMethod"
+   ],
+   "flag": "estimate-v2"
+  },
+  "order.on:shipment/shipment/creation-failed": {
+   "service": "order",
+   "topic": "shipment/shipment/creation-failed",
+   "workCpuMs": 0.2964,
+   "envelopeCpuMs": 3.4433,
+   "envelopeParts": {
+    "dispatchCpuMs": 0.8893,
+    "decodeCpuMs": 0.0,
+    "txCpuMs": 0.0,
+    "idempotencyCpuMs": 0.0,
+    "deliveryCpuMs": 2.554
+   },
+   "envelopeAppCpuMs": 0.8893,
+   "idempotencyCheck": null,
+   "countersRemainderCpuMs": null,
+   "from": "container",
+   "workFrom": "parts.json own + access x work fraction 0.431",
+   "types": [],
+   "flag": "estimate-v2"
+  },
+  "order.on:tax/tax-rate-version/created": {
+   "service": "order",
+   "topic": "tax/tax-rate-version/created",
+   "workCpuMs": 0.8738,
+   "envelopeCpuMs": 3.4278,
+   "envelopeParts": {
+    "dispatchCpuMs": 0.8738,
+    "decodeCpuMs": 0.0,
+    "txCpuMs": 0.0,
+    "idempotencyCpuMs": 0.0,
+    "deliveryCpuMs": 2.554
+   },
+   "envelopeAppCpuMs": 0.8738,
+   "idempotencyCheck": null,
+   "countersRemainderCpuMs": null,
+   "from": "measured",
+   "workFrom": "profile x totals",
+   "types": [
+    "tax.createTaxRateVersion"
+   ],
+   "flag": "estimate-v2"
+  },
+  "order.on:user/user/created": {
+   "service": "order",
+   "topic": "user/user/created",
+   "workCpuMs": 0.7479,
+   "envelopeCpuMs": 3.4433,
+   "envelopeParts": {
+    "dispatchCpuMs": 0.8893,
+    "decodeCpuMs": 0.0,
+    "txCpuMs": 0.0,
+    "idempotencyCpuMs": 0.0,
+    "deliveryCpuMs": 2.554
+   },
+   "envelopeAppCpuMs": 0.8893,
+   "idempotencyCheck": null,
+   "countersRemainderCpuMs": null,
+   "from": "container",
+   "workFrom": "parts.json own + access x work fraction 0.431",
+   "types": [],
+   "flag": "estimate-v2"
+  },
+  "payment.on:discount/order/validation-succeeded": {
+   "service": "payment",
+   "topic": "discount/order/validation-succeeded",
+   "workCpuMs": 5.0091,
+   "envelopeCpuMs": 4.635,
+   "envelopeParts": {
+    "dispatchCpuMs": 1.9218,
+    "decodeCpuMs": 0.0929,
+    "txCpuMs": 0.0663,
+    "idempotencyCpuMs": 0.0,
+    "deliveryCpuMs": 2.554
+   },
+   "envelopeAppCpuMs": 2.081,
+   "idempotencyCheck": null,
+   "countersRemainderCpuMs": null,
+   "from": "measured",
+   "workFrom": "profile x totals",
+   "types": [
+    "placeOrder"
+   ],
+   "flag": "estimate-v2"
+  },
+  "payment.on:user/user/created": {
+   "service": "payment",
+   "topic": "user/user/created",
+   "workCpuMs": 4.1841,
+   "envelopeCpuMs": 4.635,
+   "envelopeParts": {
+    "dispatchCpuMs": 1.9218,
+    "decodeCpuMs": 0.0929,
+    "txCpuMs": 0.0663,
+    "idempotencyCpuMs": 0.0,
+    "deliveryCpuMs": 2.554
+   },
+   "envelopeAppCpuMs": 2.081,
+   "idempotencyCheck": [
+    "PaymentInformation read via PaymentStore.informationExists"
+   ],
+   "countersRemainderCpuMs": null,
+   "from": "container",
+   "workFrom": "parts.json own + access x work fraction 0.742",
+   "types": [],
+   "flag": "estimate-v2"
+  },
+  "return.on:catalog/product-variant-version/created": {
+   "service": "return",
+   "topic": "catalog/product-variant-version/created",
+   "workCpuMs": 0.7394,
+   "envelopeCpuMs": 4.2389,
+   "envelopeParts": {
+    "dispatchCpuMs": 1.3732,
+    "decodeCpuMs": 0.2077,
+    "txCpuMs": 0.104,
+    "idempotencyCpuMs": 0.0,
+    "deliveryCpuMs": 2.554
+   },
+   "envelopeAppCpuMs": 1.6849,
+   "idempotencyCheck": null,
+   "countersRemainderCpuMs": null,
+   "from": "measured",
+   "workFrom": "profile x totals",
+   "types": [
+    "adminCreateProduct",
+    "adminCreateVariant",
+    "adminNewPrice"
+   ],
+   "flag": "estimate-v2"
+  },
+  "return.on:order/order/created": {
+   "service": "return",
+   "topic": "order/order/created",
+   "workCpuMs": 1.23,
+   "envelopeCpuMs": 4.0039,
+   "envelopeParts": {
+    "dispatchCpuMs": 1.2479,
+    "decodeCpuMs": 0.1425,
+    "txCpuMs": 0.0595,
+    "idempotencyCpuMs": 0.0,
+    "deliveryCpuMs": 2.554
+   },
+   "envelopeAppCpuMs": 1.4499,
+   "idempotencyCheck": null,
+   "countersRemainderCpuMs": null,
+   "from": "measured",
+   "workFrom": "profile x totals",
+   "types": [
+    "placeOrder"
+   ],
+   "flag": "estimate-v2"
+  },
+  "return.on:shipment/shipment/created": {
+   "service": "return",
+   "topic": "shipment/shipment/created",
+   "workCpuMs": 1.1035,
+   "envelopeCpuMs": 4.7554,
+   "envelopeParts": {
+    "dispatchCpuMs": 1.7671,
+    "decodeCpuMs": 0.2619,
+    "txCpuMs": 0.1724,
+    "idempotencyCpuMs": 0.0,
+    "deliveryCpuMs": 2.554
+   },
+   "envelopeAppCpuMs": 2.2014,
+   "idempotencyCheck": null,
+   "countersRemainderCpuMs": null,
+   "from": "measured",
+   "workFrom": "profile x totals",
+   "types": [
+    "placeOrder",
+    "return.createReturn"
+   ],
+   "flag": "estimate-v2"
+  },
+  "return.on:shipment/shipment/status-updated": {
+   "service": "return",
+   "topic": "shipment/shipment/status-updated",
+   "workCpuMs": 0.9075,
+   "envelopeCpuMs": 4.7554,
+   "envelopeParts": {
+    "dispatchCpuMs": 1.7671,
+    "decodeCpuMs": 0.2619,
+    "txCpuMs": 0.1724,
+    "idempotencyCpuMs": 0.0,
+    "deliveryCpuMs": 2.554
+   },
+   "envelopeAppCpuMs": 2.2014,
+   "idempotencyCheck": null,
+   "countersRemainderCpuMs": null,
+   "from": "measured",
+   "workFrom": "profile x totals",
+   "types": [
+    "placeOrder",
+    "return.createReturn"
+   ],
+   "flag": "estimate-v2"
+  },
+  "review.on:catalog/product-variant/created": {
+   "service": "review",
+   "topic": "catalog/product-variant/created",
+   "workCpuMs": 0.4865,
+   "envelopeCpuMs": 3.5365,
+   "envelopeParts": {
+    "dispatchCpuMs": 0.9076,
+    "decodeCpuMs": 0.0749,
+    "txCpuMs": 0.0,
+    "idempotencyCpuMs": 0.0,
+    "deliveryCpuMs": 2.554
+   },
+   "envelopeAppCpuMs": 0.9825,
+   "idempotencyCheck": null,
+   "countersRemainderCpuMs": null,
+   "from": "measured",
+   "workFrom": "profile x totals",
+   "types": [
+    "adminCreateProduct",
+    "adminCreateVariant"
+   ],
+   "flag": "estimate-v2"
+  },
+  "review.on:catalog/product/created": {
+   "service": "review",
+   "topic": "catalog/product/created",
+   "workCpuMs": 0.3238,
+   "envelopeCpuMs": 3.4572,
+   "envelopeParts": {
+    "dispatchCpuMs": 0.8534,
+    "decodeCpuMs": 0.0498,
+    "txCpuMs": 0.0,
+    "idempotencyCpuMs": 0.0,
+    "deliveryCpuMs": 2.554
+   },
+   "envelopeAppCpuMs": 0.9032,
+   "idempotencyCheck": null,
+   "countersRemainderCpuMs": null,
+   "from": "measured",
+   "workFrom": "profile x totals",
+   "types": [
+    "adminCreateProduct"
+   ],
+   "flag": "estimate-v2"
+  },
+  "review.on:user/user/created": {
+   "service": "review",
+   "topic": "user/user/created",
+   "workCpuMs": 3.2171,
+   "envelopeCpuMs": 3.4572,
+   "envelopeParts": {
+    "dispatchCpuMs": 0.8534,
+    "decodeCpuMs": 0.0498,
+    "txCpuMs": 0.0,
+    "idempotencyCpuMs": 0.0,
+    "deliveryCpuMs": 2.554
+   },
+   "envelopeAppCpuMs": 0.9032,
+   "idempotencyCheck": null,
+   "countersRemainderCpuMs": null,
+   "from": "container",
+   "workFrom": "parts.json own + access x work fraction 0.566",
+   "types": [],
+   "flag": "estimate-v2"
+  },
+  "shipment.on:address/user-address/created": {
+   "service": "shipment",
+   "topic": "address/user-address/created",
+   "workCpuMs": 1.0763,
+   "envelopeCpuMs": 4.1685,
+   "envelopeParts": {
+    "dispatchCpuMs": 1.3454,
+    "decodeCpuMs": 0.2691,
+    "txCpuMs": 0.0,
+    "idempotencyCpuMs": 0.0,
+    "deliveryCpuMs": 2.554
+   },
+   "envelopeAppCpuMs": 1.6145,
+   "idempotencyCheck": null,
+   "countersRemainderCpuMs": null,
+   "from": "measured",
+   "workFrom": "profile x totals",
+   "types": [
+    "address.createUserAddress"
+   ],
+   "flag": "estimate-v2"
+  },
+  "shipment.on:address/vendor-address/created": {
+   "service": "shipment",
+   "topic": "address/vendor-address/created",
+   "workCpuMs": 0.6151,
+   "envelopeCpuMs": 3.5279,
+   "envelopeParts": {
+    "dispatchCpuMs": 0.7176,
+    "decodeCpuMs": 0.2563,
+    "txCpuMs": 0.0,
+    "idempotencyCpuMs": 0.0,
+    "deliveryCpuMs": 2.554
+   },
+   "envelopeAppCpuMs": 0.9739,
+   "idempotencyCheck": null,
+   "countersRemainderCpuMs": null,
+   "from": "measured",
+   "workFrom": "profile x totals",
+   "types": [
+    "address.createVendorAddress"
+   ],
+   "flag": "estimate-v2"
+  },
+  "shipment.on:catalog/product-variant-version/created": {
+   "service": "shipment",
+   "topic": "catalog/product-variant-version/created",
+   "workCpuMs": 0.7684,
+   "envelopeCpuMs": 3.5642,
+   "envelopeParts": {
+    "dispatchCpuMs": 0.7684,
+    "decodeCpuMs": 0.2418,
+    "txCpuMs": 0.0,
+    "idempotencyCpuMs": 0.0,
+    "deliveryCpuMs": 2.554
+   },
+   "envelopeAppCpuMs": 1.0102,
+   "idempotencyCheck": null,
+   "countersRemainderCpuMs": null,
+   "from": "measured",
+   "workFrom": "profile x totals",
+   "types": [
+    "adminCreateProduct",
+    "adminCreateVariant",
+    "adminNewPrice"
+   ],
+   "flag": "estimate-v2"
+  },
+  "shipment.on:payment/payment/payment-enabled": {
+   "service": "shipment",
+   "topic": "payment/payment/payment-enabled",
+   "workCpuMs": 3.9195,
+   "envelopeCpuMs": 4.3942,
+   "envelopeParts": {
+    "dispatchCpuMs": 1.637,
+    "decodeCpuMs": 0.1672,
+    "txCpuMs": 0.036,
+    "idempotencyCpuMs": 0.0,
+    "deliveryCpuMs": 2.554
+   },
+   "envelopeAppCpuMs": 1.8402,
+   "idempotencyCheck": [
+    "Shipment read via ShipmentRepository.existsByOrderId"
+   ],
+   "countersRemainderCpuMs": null,
+   "from": "measured",
+   "workFrom": "profile x totals",
+   "types": [
+    "placeOrder"
+   ],
+   "flag": "estimate-v2"
+  },
+  "shipment.on:return/return/created": {
+   "service": "shipment",
+   "topic": "return/return/created",
+   "workCpuMs": 8.2069,
+   "envelopeCpuMs": 6.1444,
+   "envelopeParts": {
+    "dispatchCpuMs": 2.9489,
+    "decodeCpuMs": 0.3849,
+    "txCpuMs": 0.2566,
+    "idempotencyCpuMs": 0.0,
+    "deliveryCpuMs": 2.554
+   },
+   "envelopeAppCpuMs": 3.5904,
+   "idempotencyCheck": [
+    "Shipment read via ShipmentRepository.existsByReturnId"
+   ],
+   "countersRemainderCpuMs": null,
+   "from": "measured",
+   "workFrom": "profile x totals",
+   "types": [
+    "return.createReturn"
+   ],
+   "flag": "estimate-v2"
+  },
+  "shoppingcart.on:catalog/product-variant/created": {
+   "service": "shoppingcart",
+   "topic": "catalog/product-variant/created",
+   "workCpuMs": 0.5698,
+   "envelopeCpuMs": 3.4152,
+   "envelopeParts": {
+    "dispatchCpuMs": 0.8612,
+    "decodeCpuMs": 0.0,
+    "txCpuMs": 0.0,
+    "idempotencyCpuMs": 0.0,
+    "deliveryCpuMs": 2.554
+   },
+   "envelopeAppCpuMs": 0.8612,
+   "idempotencyCheck": null,
+   "countersRemainderCpuMs": null,
+   "from": "measured",
+   "workFrom": "profile x totals",
+   "types": [
+    "adminCreateProduct",
+    "adminCreateVariant"
+   ],
+   "flag": "estimate-v2"
+  },
+  "shoppingcart.on:order/order/created": {
+   "service": "shoppingcart",
+   "topic": "order/order/created",
+   "workCpuMs": 0.9279,
+   "envelopeCpuMs": 3.6727,
+   "envelopeParts": {
+    "dispatchCpuMs": 1.1187,
+    "decodeCpuMs": 0.0,
+    "txCpuMs": 0.0,
+    "idempotencyCpuMs": 0.0,
+    "deliveryCpuMs": 2.554
+   },
+   "envelopeAppCpuMs": 1.1187,
+   "idempotencyCheck": null,
+   "countersRemainderCpuMs": null,
+   "from": "measured",
+   "workFrom": "profile x totals",
+   "types": [
+    "placeOrder"
+   ],
+   "flag": "estimate-v2"
+  },
+  "shoppingcart.on:user/user/created": {
+   "service": "shoppingcart",
+   "topic": "user/user/created",
+   "workCpuMs": 1.0874,
+   "envelopeCpuMs": 3.4214,
+   "envelopeParts": {
+    "dispatchCpuMs": 0.8674,
+    "decodeCpuMs": 0.0,
+    "txCpuMs": 0.0,
+    "idempotencyCpuMs": 0.0,
+    "deliveryCpuMs": 2.554
+   },
+   "envelopeAppCpuMs": 0.8674,
+   "idempotencyCheck": null,
+   "countersRemainderCpuMs": null,
+   "from": "container",
+   "workFrom": "parts.json own + access x work fraction 0.453",
+   "types": [],
+   "flag": "estimate-v2"
+  },
+  "user.on:user/user/create": {
+   "service": "user",
+   "topic": "user/user/create",
+   "workCpuMs": 6.1735,
+   "envelopeCpuMs": 3.6422,
+   "envelopeParts": {
+    "dispatchCpuMs": 0.9883,
+    "decodeCpuMs": 0.0999,
+    "txCpuMs": 0.0,
+    "idempotencyCpuMs": 0.0,
+    "deliveryCpuMs": 2.554
+   },
+   "envelopeAppCpuMs": 1.0882,
+   "idempotencyCheck": [
+    "User write via UserRepository.createUser"
+   ],
+   "countersRemainderCpuMs": null,
+   "from": "pooled",
+   "workFrom": "parts.json own + access x work fraction 0.621",
+   "types": [],
+   "flag": "estimate-v2"
+  },
+  "wishlist.on:catalog/product-variant/created": {
+   "service": "wishlist",
+   "topic": "catalog/product-variant/created",
+   "workCpuMs": 0.9664,
+   "envelopeCpuMs": 3.8563,
+   "envelopeParts": {
+    "dispatchCpuMs": 1.3023,
+    "decodeCpuMs": 0.0,
+    "txCpuMs": 0.0,
+    "idempotencyCpuMs": 0.0,
+    "deliveryCpuMs": 2.554
+   },
+   "envelopeAppCpuMs": 1.3023,
+   "idempotencyCheck": null,
+   "countersRemainderCpuMs": null,
+   "from": "measured",
+   "workFrom": "profile x totals",
+   "types": [
+    "adminCreateProduct",
+    "adminCreateVariant"
+   ],
+   "flag": "estimate-v2"
+  },
+  "wishlist.on:user/user/created": {
+   "service": "wishlist",
+   "topic": "user/user/created",
+   "workCpuMs": 3.2023,
+   "envelopeCpuMs": 3.8563,
+   "envelopeParts": {
+    "dispatchCpuMs": 1.3023,
+    "decodeCpuMs": 0.0,
+    "txCpuMs": 0.0,
+    "idempotencyCpuMs": 0.0,
+    "deliveryCpuMs": 2.554
+   },
+   "envelopeAppCpuMs": 1.3023,
+   "idempotencyCheck": null,
+   "countersRemainderCpuMs": null,
+   "from": "container",
+   "workFrom": "parts.json own + access x work fraction 0.64",
+   "types": [],
+   "flag": "estimate-v2"
+  }
+ },
+ "senders": {
+  "address": {
+   "publishAppCpuMs": 1.8156,
+   "publishSidecarCpuMs": 0.434,
+   "publishCpuMs": 2.2496,
+   "from": "measured",
+   "n": 2,
+   "flag": "estimate-v2"
+  },
+  "catalog": {
+   "publishAppCpuMs": 0.4228,
+   "publishSidecarCpuMs": 0.434,
+   "publishCpuMs": 0.8568,
+   "from": "measured",
+   "n": 6,
+   "flag": "estimate-v2"
+  },
+  "discount": {
+   "publishAppCpuMs": 0.8194,
+   "publishSidecarCpuMs": 0.434,
+   "publishCpuMs": 1.2534,
+   "from": "measured",
+   "n": 3,
+   "flag": "estimate-v2"
+  },
+  "inventory": {
+   "publishAppCpuMs": 0.6616,
+   "publishSidecarCpuMs": 0.434,
+   "publishCpuMs": 1.0956,
+   "from": "measured",
+   "n": 1,
+   "flag": "estimate-v2"
+  },
+  "invoice": {
+   "publishAppCpuMs": 1.2505,
+   "publishSidecarCpuMs": 0.434,
+   "publishCpuMs": 1.6845,
+   "from": "measured",
+   "n": 1,
+   "flag": "estimate-v2"
+  },
+  "media": {
+   "publishAppCpuMs": 1.5787,
+   "publishSidecarCpuMs": 0.434,
+   "publishCpuMs": 2.0127,
+   "from": "measured",
+   "n": 1,
+   "flag": "estimate-v2"
+  },
+  "order": {
+   "publishAppCpuMs": 0.444,
+   "publishSidecarCpuMs": 0.434,
+   "publishCpuMs": 0.878,
+   "from": "measured",
+   "n": 1,
+   "flag": "estimate-v2"
+  },
+  "payment": {
+   "publishAppCpuMs": 1.0658,
+   "publishSidecarCpuMs": 0.434,
+   "publishCpuMs": 1.4998,
+   "from": "measured",
+   "n": 1,
+   "flag": "estimate-v2"
+  },
+  "return": {
+   "publishAppCpuMs": 2.2872,
+   "publishSidecarCpuMs": 0.434,
+   "publishCpuMs": 2.7212,
+   "from": "measured",
+   "n": 1,
+   "flag": "estimate-v2"
+  },
+  "shipment": {
+   "publishAppCpuMs": 1.0039,
+   "publishSidecarCpuMs": 0.434,
+   "publishCpuMs": 1.4379,
+   "from": "measured",
+   "n": 3,
+   "flag": "estimate-v2"
+  },
+  "tax": {
+   "publishAppCpuMs": 2.2681,
+   "publishSidecarCpuMs": 0.434,
+   "publishCpuMs": 2.7021,
+   "from": "measured",
+   "n": 2,
+   "flag": "estimate-v2"
+  },
+  "user": {
+   "publishAppCpuMs": 0.9689,
+   "publishSidecarCpuMs": 0.434,
+   "publishCpuMs": 1.4029,
+   "from": "pooled",
+   "n": 0,
+   "flag": "estimate-v2"
+  }
+ },
+ "callees": {
+  "discount": {
+   "dispatchCpuMs": 1.3663,
+   "decodeCpuMs": 0.0622,
+   "txCpuMs": 0.0207,
+   "envelopeAppCpuMs": 1.4492,
+   "types": [
+    "createOrder"
+   ],
+   "flag": "estimate-v2"
+  },
+  "inventory": {
+   "dispatchCpuMs": 1.7475,
+   "decodeCpuMs": 0.1779,
+   "txCpuMs": 0.0,
+   "envelopeAppCpuMs": 1.9254,
+   "types": [
+    "createOrder"
+   ],
+   "flag": "estimate-v2"
+  },
+  "shipment": {
+   "dispatchCpuMs": 0.7077,
+   "decodeCpuMs": 0.061,
+   "txCpuMs": 0.0,
+   "envelopeAppCpuMs": 0.7687,
+   "types": [
+    "createOrder"
+   ],
+   "flag": "estimate-v2"
+  },
+  "shoppingcart": {
+   "dispatchCpuMs": 0.8414,
+   "decodeCpuMs": 0.0129,
+   "txCpuMs": 0.0,
+   "envelopeAppCpuMs": 0.8543,
+   "types": [
+    "createOrder"
+   ],
+   "flag": "estimate-v2"
+  },
+  "simulation": {
+   "dispatchCpuMs": 0.8449,
+   "decodeCpuMs": 0.1693,
+   "txCpuMs": 0.0,
+   "envelopeAppCpuMs": 1.0142,
+   "types": [
+    "placeOrder",
+    "return.createReturn"
+   ],
+   "flag": "estimate-v2"
+  }
+ },
+ "requestOverhead": {
+  "addToWishlist": {
+   "entryOperation": "wishlist.updateWishlist",
+   "requestOverheadCpuMs": 2.9513,
+   "from": "profile",
+   "byPlanContainer": {
+    "wishlist": 2.9513
+   }
+  },
+  "address": {
+   "entryOperation": "user.currentUser",
+   "requestOverheadCpuMs": 0.5082,
+   "from": "profile",
+   "byPlanContainer": {
+    "address": 0.5719,
+    "user": 0.5082
+   }
+  },
+  "address.createUserAddress": {
+   "entryOperation": "address.createUserAddress",
+   "requestOverheadCpuMs": 1.9931,
+   "from": "profile",
+   "byPlanContainer": {
+    "address": 1.9931
+   }
+  },
+  "address.createVendorAddress": {
+   "entryOperation": "address.createVendorAddress",
+   "requestOverheadCpuMs": 1.3635,
+   "from": "profile",
+   "byPlanContainer": {
+    "address": 1.3635
+   }
+  },
+  "adminCreateProduct": {
+   "entryOperation": "catalog.createProduct",
+   "requestOverheadCpuMs": 2.2012,
+   "from": "profile",
+   "byPlanContainer": {
+    "catalog": 2.2012
+   }
+  },
+  "adminCreateVariant": {
+   "entryOperation": "catalog.createProductVariant",
+   "requestOverheadCpuMs": 1.4916,
+   "from": "profile",
+   "byPlanContainer": {
+    "catalog": 1.4916
+   }
+  },
+  "adminNewPrice": {
+   "entryOperation": "catalog.createProductVariantVersion",
+   "requestOverheadCpuMs": 1.6703,
+   "from": "profile",
+   "byPlanContainer": {
+    "catalog": 1.6703
+   }
+  },
+  "adminUpdateProduct": {
+   "entryOperation": "catalog.updateProduct",
+   "requestOverheadCpuMs": 1.497,
+   "from": "profile",
+   "byPlanContainer": {
+    "catalog": 1.497
+   }
+  },
+  "catalog.createCategory": {
+   "entryOperation": "catalog.createCategory",
+   "requestOverheadCpuMs": 1.1355,
+   "from": "profile",
+   "byPlanContainer": {
+    "catalog": 1.1355
+   }
+  },
+  "catalog.updateProductVariant": {
+   "entryOperation": "catalog.updateProductVariant",
+   "requestOverheadCpuMs": 1.1133,
+   "from": "profile",
+   "byPlanContainer": {
+    "catalog": 1.1133
+   }
+  },
+  "createOrder": {
+   "entryOperation": "order.createOrder",
+   "requestOverheadCpuMs": 1.4154,
+   "from": "profile",
+   "byPlanContainer": {
+    "order": 1.4154
+   }
+  },
+  "createReview": {
+   "entryOperation": "review.createReview",
+   "requestOverheadCpuMs": 1.1694,
+   "from": "profile",
+   "byPlanContainer": {
+    "review": 1.1694
+   }
+  },
+  "createShoppingcartItem": {
+   "entryOperation": "shoppingcart.createShoppingcartItem",
+   "requestOverheadCpuMs": 0.8744,
+   "from": "profile",
+   "byPlanContainer": {
+    "shoppingcart": 0.8744
+   }
+  },
+  "discount.createCoupon": {
+   "entryOperation": "discount.createCoupon",
+   "requestOverheadCpuMs": 1.3453,
+   "from": "profile",
+   "byPlanContainer": {
+    "discount": 1.3453
+   }
+  },
+  "discount.createDiscount": {
+   "entryOperation": "discount.createDiscount",
+   "requestOverheadCpuMs": 1.9697,
+   "from": "profile",
+   "byPlanContainer": {
+    "discount": 1.9697
+   }
+  },
+  "discount.registerCoupon": {
+   "entryOperation": "discount.registerCoupon",
+   "requestOverheadCpuMs": 1.7598,
+   "from": "profile",
+   "byPlanContainer": {
+    "discount": 1.7598
+   }
+  },
+  "inventory.createProductItemBatch": {
+   "entryOperation": "inventory.createProductItemBatch",
+   "requestOverheadCpuMs": 1.0644,
+   "from": "profile",
+   "byPlanContainer": {
+    "inventory": 1.0644
+   }
+  },
+  "media.uploadMedia": {
+   "entryOperation": "media.uploadMedia",
+   "requestOverheadCpuMs": 3.3092,
+   "from": "profile",
+   "byPlanContainer": {
+    "media": 3.3092
+   }
+  },
+  "notifications": {
+   "entryOperation": "user.currentUser",
+   "requestOverheadCpuMs": 0.671,
+   "from": "profile",
+   "byPlanContainer": {
+    "notification": 2.9783,
+    "user": 0.671
+   }
+  },
+  "orderTracking": {
+   "entryOperation": "order.order",
+   "requestOverheadCpuMs": 0.6347,
+   "from": "profile",
+   "byPlanContainer": {
+    "order": 0.6347,
+    "shipment": 0.7215
+   }
+  },
+  "payment.createCreditCardPaymentInformation": {
+   "entryOperation": "payment.createCreditCardPaymentInformation",
+   "requestOverheadCpuMs": 0.519,
+   "from": "profile",
+   "byPlanContainer": {
+    "payment": 0.519
+   }
+  },
+  "paymentInformations": {
+   "entryOperation": "user.currentUser",
+   "requestOverheadCpuMs": 0.6189,
+   "from": "profile",
+   "byPlanContainer": {
+    "payment": 1.1544,
+    "user": 0.6189
+   }
+  },
+  "placeOrder": {
+   "entryOperation": "order.placeOrder",
+   "requestOverheadCpuMs": 0.8206,
+   "from": "profile",
+   "byPlanContainer": {
+    "order": 0.8206
+   }
+  },
+  "product": {
+   "entryOperation": "catalog.product",
+   "requestOverheadCpuMs": 0.7198,
+   "from": "profile",
+   "byPlanContainer": {
+    "catalog": 0.7198,
+    "review": 0.6805
+   }
+  },
+  "product.anon": {
+   "entryOperation": "catalog.product",
+   "requestOverheadCpuMs": 0.6897,
+   "from": "profile",
+   "byPlanContainer": {
+    "catalog": 0.6897,
+    "review": 0.5747
+   }
+  },
+  "products": {
+   "entryOperation": "catalog.products",
+   "requestOverheadCpuMs": 0.5871,
+   "from": "profile",
+   "byPlanContainer": {
+    "catalog": 0.5871
+   }
+  },
+  "products.anon": {
+   "entryOperation": "catalog.products",
+   "requestOverheadCpuMs": 0.5615,
+   "from": "profile",
+   "byPlanContainer": {
+    "catalog": 0.5615
+   }
+  },
+  "registration": {
+   "entryOperation": "user.on:user/user/create",
+   "requestOverheadCpuMs": null,
+   "from": null,
+   "byPlanContainer": null
+  },
+  "return.createReturn": {
+   "entryOperation": "return.createReturn",
+   "requestOverheadCpuMs": 2.6674,
+   "from": "profile",
+   "byPlanContainer": {
+    "return": 2.6674
+   }
+  },
+  "shipment.createShipmentMethod": {
+   "entryOperation": "shipment.createShipmentMethod",
+   "requestOverheadCpuMs": 0.9528,
+   "from": "profile",
+   "byPlanContainer": {
+    "shipment": 0.9528
+   }
+  },
+  "shipmentMethods": {
+   "entryOperation": "shipment.shipmentMethods",
+   "requestOverheadCpuMs": 0.825,
+   "from": "profile",
+   "byPlanContainer": {
+    "shipment": 0.825
+   }
+  },
+  "tax.createTaxRate": {
+   "entryOperation": "tax.createTaxRate",
+   "requestOverheadCpuMs": 6.6364,
+   "from": "profile",
+   "byPlanContainer": {
+    "tax": 6.6364
+   }
+  },
+  "tax.createTaxRateVersion": {
+   "entryOperation": "tax.createTaxRateVersion",
+   "requestOverheadCpuMs": 4.3723,
+   "from": "profile",
+   "byPlanContainer": {
+    "tax": 4.3723
+   }
+  },
+  "user.updateUser": {
+   "entryOperation": "user.updateUser",
+   "requestOverheadCpuMs": 0.6586,
+   "from": "profile",
+   "byPlanContainer": {
+    "user": 0.6586
+   }
+  },
+  "users": {
+   "entryOperation": "user.currentUser",
+   "requestOverheadCpuMs": 0.5098,
+   "from": "profile",
+   "byPlanContainer": {
+    "user": 0.5098
+   }
+  },
+  "wishlist.createWishlist": {
+   "entryOperation": "wishlist.createWishlist",
+   "requestOverheadCpuMs": 2.8854,
+   "from": "profile",
+   "byPlanContainer": {
+    "wishlist": 2.8854
+   }
+  },
+  "wishlistView": {
+   "entryOperation": "wishlist.wishlist",
+   "requestOverheadCpuMs": 2.4554,
+   "from": "profile",
+   "byPlanContainer": {
+    "catalog": 0.6756,
+    "wishlist": 2.4554
+   }
+  }
+ },
+ "hopsMs": {
+  "address/user-address/created -> invoice": {
+   "n": 32,
+   "appPublish": 2.157,
+   "daprPublish": 0.656,
+   "broker": 0.648,
+   "sidecarToApp": 0.699,
+   "deliveryOverhead": 1.183,
+   "handler": 5.353
+  },
+  "address/user-address/created -> order": {
+   "n": 32,
+   "appPublish": 2.157,
+   "daprPublish": 0.656,
+   "broker": 0.673,
+   "sidecarToApp": 0.687,
+   "deliveryOverhead": 1.165,
+   "handler": 5.34
+  },
+  "address/user-address/created -> shipment": {
+   "n": 32,
+   "appPublish": 2.157,
+   "daprPublish": 0.656,
+   "broker": 0.643,
+   "sidecarToApp": 0.695,
+   "deliveryOverhead": 1.131,
+   "handler": 5.467
+  },
+  "address/vendor-address/created -> invoice": {
+   "n": 48,
+   "appPublish": 1.893,
+   "daprPublish": 0.557,
+   "broker": 0.595,
+   "sidecarToApp": 0.66,
+   "deliveryOverhead": 1.099,
+   "handler": 4.883
+  },
+  "address/vendor-address/created -> shipment": {
+   "n": 48,
+   "appPublish": 1.893,
+   "daprPublish": 0.557,
+   "broker": 0.583,
+   "sidecarToApp": 0.656,
+   "deliveryOverhead": 1.081,
+   "handler": 4.823
+  },
+  "catalog/category/created -> discount": {
+   "n": 98,
+   "appPublish": 1.113,
+   "daprPublish": 0.464,
+   "broker": 0.536,
+   "sidecarToApp": 0.62,
+   "deliveryOverhead": 1.038,
+   "handler": 4.465
+  },
+  "catalog/product-variant-version/created -> order": {
+   "n": 159,
+   "appPublish": 1.214,
+   "daprPublish": 0.567,
+   "broker": 0.576,
+   "sidecarToApp": 0.62,
+   "deliveryOverhead": 1.034,
+   "handler": 5.54
+  },
+  "catalog/product-variant-version/created -> return": {
+   "n": 159,
+   "appPublish": 1.214,
+   "daprPublish": 0.567,
+   "broker": 0.574,
+   "sidecarToApp": 0.668,
+   "deliveryOverhead": 1.071,
+   "handler": 5.711
+  },
+  "catalog/product-variant-version/created -> shipment": {
+   "n": 159,
+   "appPublish": 1.214,
+   "daprPublish": 0.567,
+   "broker": 0.582,
+   "sidecarToApp": 0.605,
+   "deliveryOverhead": 1.023,
+   "handler": 5.644
+  },
+  "catalog/product-variant/created -> discount": {
+   "n": 104,
+   "appPublish": 1.4,
+   "daprPublish": 0.72,
+   "broker": 0.648,
+   "sidecarToApp": 0.564,
+   "deliveryOverhead": 0.981,
+   "handler": 6.277
+  },
+  "catalog/product-variant/created -> inventory": {
+   "n": 104,
+   "appPublish": 1.4,
+   "daprPublish": 0.72,
+   "broker": 0.642,
+   "sidecarToApp": 0.644,
+   "deliveryOverhead": 1.058,
+   "handler": 6.651
+  },
+  "catalog/product-variant/created -> review": {
+   "n": 104,
+   "appPublish": 1.4,
+   "daprPublish": 0.72,
+   "broker": 0.661,
+   "sidecarToApp": 0.589,
+   "deliveryOverhead": 1.012,
+   "handler": 6.706
+  },
+  "catalog/product-variant/created -> shoppingcart": {
+   "n": 104,
+   "appPublish": 1.4,
+   "daprPublish": 0.72,
+   "broker": 0.66,
+   "sidecarToApp": 0.634,
+   "deliveryOverhead": 1.101,
+   "handler": 6.115
+  },
+  "catalog/product-variant/created -> wishlist": {
+   "n": 104,
+   "appPublish": 1.4,
+   "daprPublish": 0.72,
+   "broker": 0.661,
+   "sidecarToApp": 0.649,
+   "deliveryOverhead": 1.078,
+   "handler": 6.786
+  },
+  "catalog/product-variant/updated -> order": {
+   "n": 251,
+   "appPublish": 1.179,
+   "daprPublish": 0.458,
+   "broker": 0.539,
+   "sidecarToApp": 0.62,
+   "deliveryOverhead": 1.053,
+   "handler": 4.48
+  },
+  "catalog/product/created -> discount": {
+   "n": 47,
+   "appPublish": 1.213,
+   "daprPublish": 0.557,
+   "broker": 0.613,
+   "sidecarToApp": 0.665,
+   "deliveryOverhead": 1.056,
+   "handler": 9.707
+  },
+  "catalog/product/created -> review": {
+   "n": 47,
+   "appPublish": 1.213,
+   "daprPublish": 0.557,
+   "broker": 0.624,
+   "sidecarToApp": 0.681,
+   "deliveryOverhead": 1.126,
+   "handler": 3.918
+  },
+  "discount/coupon/created -> order": {
+   "n": 55,
+   "appPublish": 1.243,
+   "daprPublish": 0.495,
+   "broker": 0.577,
+   "sidecarToApp": 0.668,
+   "deliveryOverhead": 1.141,
+   "handler": 4.585
+  },
+  "discount/order/validation-succeeded -> invoice": {
+   "n": 121,
+   "appPublish": 1.376,
+   "daprPublish": 0.527,
+   "broker": 0.571,
+   "sidecarToApp": 0.647,
+   "deliveryOverhead": 1.121,
+   "handler": 8.22
+  },
+  "discount/order/validation-succeeded -> payment": {
+   "n": 121,
+   "appPublish": 1.376,
+   "daprPublish": 0.527,
+   "broker": 0.56,
+   "sidecarToApp": 0.642,
+   "deliveryOverhead": 1.01,
+   "handler": 0.658
+  },
+  "inventory/product-item/reservation-succeeded -> discount": {
+   "n": 121,
+   "appPublish": 1.325,
+   "daprPublish": 0.482,
+   "broker": 0.563,
+   "sidecarToApp": 0.616,
+   "deliveryOverhead": 1.028,
+   "handler": 3.895
+  },
+  "media/media/created -> catalog": {
+   "n": 28,
+   "daprPublish": 0.544,
+   "broker": 0.643,
+   "sidecarToApp": 0.738,
+   "deliveryOverhead": 1.213,
+   "handler": 4.705
+  },
+  "order/order/created -> inventory": {
+   "n": 121,
+   "daprPublish": 0.603,
+   "broker": 0.609,
+   "sidecarToApp": 0.596,
+   "deliveryOverhead": 0.998,
+   "handler": 7.971
+  },
+  "order/order/created -> return": {
+   "n": 121,
+   "daprPublish": 0.603,
+   "broker": 0.618,
+   "sidecarToApp": 0.579,
+   "deliveryOverhead": 1.013,
+   "handler": 5.759
+  },
+  "order/order/created -> shoppingcart": {
+   "n": 121,
+   "daprPublish": 0.603,
+   "broker": 0.629,
+   "sidecarToApp": 0.65,
+   "deliveryOverhead": 1.141,
+   "handler": 5.457
+  },
+  "payment/payment/payment-enabled -> inventory": {
+   "n": 118,
+   "appPublish": 1.221,
+   "daprPublish": 0.527,
+   "broker": 0.575,
+   "sidecarToApp": 0.553,
+   "deliveryOverhead": 0.977,
+   "handler": 3.623
+  },
+  "payment/payment/payment-enabled -> shipment": {
+   "n": 118,
+   "appPublish": 1.221,
+   "daprPublish": 0.527,
+   "broker": 0.576,
+   "sidecarToApp": 0.6,
+   "deliveryOverhead": 1.079,
+   "handler": 10.72
+  },
+  "payment/payment/payment-failed -> inventory": {
+   "n": 3,
+   "appPublish": 1.102,
+   "daprPublish": 0.451,
+   "broker": 0.645,
+   "sidecarToApp": 0.452,
+   "deliveryOverhead": 0.821,
+   "handler": 5.486
+  },
+  "return/return/created -> shipment": {
+   "n": 18,
+   "appPublish": 2.178,
+   "daprPublish": 0.533,
+   "broker": 0.637,
+   "sidecarToApp": 0.724,
+   "deliveryOverhead": 1.206,
+   "handler": 14.834
+  },
+  "shipment/shipment-method/created -> order": {
+   "n": 53,
+   "appPublish": 1.275,
+   "daprPublish": 0.496,
+   "broker": 0.587,
+   "sidecarToApp": 0.694,
+   "deliveryOverhead": 1.14,
+   "handler": 4.773
+  },
+  "shipment/shipment/created -> inventory": {
+   "n": 136,
+   "appPublish": 1.175,
+   "daprPublish": 0.521,
+   "broker": 0.546,
+   "sidecarToApp": 0.522,
+   "deliveryOverhead": 0.929,
+   "handler": 4.486
+  },
+  "shipment/shipment/created -> return": {
+   "n": 136,
+   "appPublish": 1.175,
+   "daprPublish": 0.521,
+   "broker": 0.556,
+   "sidecarToApp": 0.581,
+   "deliveryOverhead": 1.006,
+   "handler": 5.621
+  },
+  "shipment/shipment/status-updated -> inventory": {
+   "n": 136,
+   "appPublish": 1.268,
+   "daprPublish": 0.549,
+   "broker": 0.572,
+   "sidecarToApp": 0.623,
+   "deliveryOverhead": 1.057,
+   "handler": 3.597
+  },
+  "shipment/shipment/status-updated -> return": {
+   "n": 136,
+   "appPublish": 1.268,
+   "daprPublish": 0.549,
+   "broker": 0.574,
+   "sidecarToApp": 0.61,
+   "deliveryOverhead": 1.048,
+   "handler": 5.028
+  },
+  "tax/tax-rate-version/created -> order": {
+   "n": 42,
+   "appPublish": 2.046,
+   "daprPublish": 0.496,
+   "broker": 0.601,
+   "sidecarToApp": 0.729,
+   "deliveryOverhead": 1.233,
+   "handler": 4.827
+  },
+  "tax/tax-rate/created -> catalog": {
+   "n": 19,
+   "appPublish": 2.193,
+   "daprPublish": 0.549,
+   "broker": 0.621,
+   "sidecarToApp": 0.713,
+   "deliveryOverhead": 1.205,
+   "handler": 4.645
+  },
+  "user/user/create -> user": {
+   "n": 179,
+   "daprPublish": 0.448,
+   "broker": 0.54,
+   "sidecarToApp": 0.725,
+   "deliveryOverhead": 1.214,
+   "handler": 9.648
+  },
+  "user/user/created -> address": {
+   "n": 16,
+   "appPublish": 2.454,
+   "daprPublish": 0.836,
+   "broker": 0.723,
+   "sidecarToApp": 0.567,
+   "deliveryOverhead": 0.957,
+   "handler": 8.896
+  },
+  "user/user/created -> discount": {
+   "n": 16,
+   "appPublish": 2.454,
+   "daprPublish": 0.836,
+   "broker": 0.756,
+   "sidecarToApp": 0.571,
+   "deliveryOverhead": 0.95,
+   "handler": 8.768
+  },
+  "user/user/created -> invoice": {
+   "n": 16,
+   "appPublish": 2.454,
+   "daprPublish": 0.836,
+   "broker": 0.724,
+   "sidecarToApp": 0.571,
+   "deliveryOverhead": 1.063,
+   "handler": 7.633
+  },
+  "user/user/created -> notification": {
+   "n": 16,
+   "appPublish": 2.454,
+   "daprPublish": 0.836,
+   "broker": 0.775,
+   "sidecarToApp": 0.63,
+   "deliveryOverhead": 1.052,
+   "handler": 8.937
+  },
+  "user/user/created -> order": {
+   "n": 16,
+   "appPublish": 2.454,
+   "daprPublish": 0.836,
+   "broker": 0.805,
+   "sidecarToApp": 0.617,
+   "deliveryOverhead": 1.103,
+   "handler": 6.667
+  },
+  "user/user/created -> payment": {
+   "n": 16,
+   "appPublish": 2.454,
+   "daprPublish": 0.836,
+   "broker": 0.694,
+   "sidecarToApp": 0.577,
+   "deliveryOverhead": 0.995,
+   "handler": 0.989
+  },
+  "user/user/created -> review": {
+   "n": 16,
+   "appPublish": 2.454,
+   "daprPublish": 0.836,
+   "broker": 0.688,
+   "sidecarToApp": 0.637,
+   "deliveryOverhead": 1.066,
+   "handler": 8.52
+  },
+  "user/user/created -> shoppingcart": {
+   "n": 16,
+   "appPublish": 2.454,
+   "daprPublish": 0.836,
+   "broker": 0.71,
+   "sidecarToApp": 0.606,
+   "deliveryOverhead": 1.081,
+   "handler": 6.954
+  },
+  "user/user/created -> wishlist": {
+   "n": 16,
+   "appPublish": 2.454,
+   "daprPublish": 0.836,
+   "broker": 0.748,
+   "sidecarToApp": 0.575,
+   "deliveryOverhead": 1.061,
+   "handler": 8.497
+  }
+ },
+ "rows": [
+  {
+   "type": "address",
+   "container": "address",
+   "D": 2.1563,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 0.231,
+    "decode": 0.0253,
+    "tx": 0.0,
+    "publish": 0.0,
+    "invoke": 0.0,
+    "work": 0.7437
+   },
+   "inboundPerReq": 0.9664,
+   "deliveriesPerReq": {},
+   "publishesPerReq": 0,
+   "entry": true,
+   "otherInboundPerReq": 0.9664,
+   "sampledMs": 4132.5
+  },
+  {
+   "type": "address",
+   "container": "user",
+   "D": 1.4501,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 0.3409,
+    "decode": 0.0213,
+    "tx": 0.0,
+    "publish": 0.0,
+    "invoke": 0.0,
+    "work": 0.6378
+   },
+   "inboundPerReq": 1.0336,
+   "deliveriesPerReq": {},
+   "publishesPerReq": 0,
+   "entry": true,
+   "otherInboundPerReq": 1.0336,
+   "sampledMs": 2842.5
+  },
+  {
+   "type": "notifications",
+   "container": "notification",
+   "D": 9.337,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 0.2889,
+    "decode": 0.0193,
+    "tx": 0.0,
+    "publish": 0.0,
+    "invoke": 0.0,
+    "work": 0.6918
+   },
+   "inboundPerReq": 0.9662,
+   "deliveriesPerReq": {},
+   "publishesPerReq": 0,
+   "entry": true,
+   "otherInboundPerReq": 0.9662,
+   "sampledMs": 4820.1
+  },
+  {
+   "type": "notifications",
+   "container": "payment",
+   "D": 0.2109,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 1.0,
+    "decode": 0.0,
+    "tx": 0.0,
+    "publish": 0.0,
+    "invoke": 0.0,
+    "work": 0.0
+   },
+   "inboundPerReq": 0.0,
+   "deliveriesPerReq": {},
+   "publishesPerReq": 0,
+   "entry": false,
+   "otherInboundPerReq": 0.0,
+   "sampledMs": 30.0
+  },
+  {
+   "type": "notifications",
+   "container": "user",
+   "D": 1.8299,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 0.3791,
+    "decode": 0.0,
+    "tx": 0.0,
+    "publish": 0.0,
+    "invoke": 0.0,
+    "work": 0.6209
+   },
+   "inboundPerReq": 1.0338,
+   "deliveriesPerReq": {},
+   "publishesPerReq": 0,
+   "entry": true,
+   "otherInboundPerReq": 1.0338,
+   "sampledMs": 845.0
+  },
+  {
+   "type": "paymentInformations",
+   "container": "payment",
+   "D": 4.1191,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 0.2488,
+    "decode": 0.0092,
+    "tx": 0.0,
+    "publish": 0.0,
+    "invoke": 0.0,
+    "work": 0.7419
+   },
+   "inboundPerReq": 0.9206,
+   "deliveriesPerReq": {},
+   "publishesPerReq": 0,
+   "entry": true,
+   "otherInboundPerReq": 0.9206,
+   "sampledMs": 3687.5
+  },
+  {
+   "type": "paymentInformations",
+   "container": "user",
+   "D": 1.5598,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 0.3977,
+    "decode": 0.0306,
+    "tx": 0.0,
+    "publish": 0.0,
+    "invoke": 0.0,
+    "work": 0.5717
+   },
+   "inboundPerReq": 1.0794,
+   "deliveriesPerReq": {},
+   "publishesPerReq": 0,
+   "entry": true,
+   "otherInboundPerReq": 1.0794,
+   "sampledMs": 1945.0
+  },
+  {
+   "type": "product.anon",
+   "container": "catalog",
+   "D": 2.4241,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 0.2571,
+    "decode": 0.01,
+    "tx": 0.0,
+    "publish": 0.0,
+    "invoke": 0.0,
+    "work": 0.7329
+   },
+   "inboundPerReq": 0.9388,
+   "deliveriesPerReq": {},
+   "publishesPerReq": 0,
+   "entry": true,
+   "otherInboundPerReq": 0.9388,
+   "sampledMs": 7932.6
+  },
+  {
+   "type": "product.anon",
+   "container": "review",
+   "D": 1.4053,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 0.4097,
+    "decode": 0.0243,
+    "tx": 0.0,
+    "publish": 0.0,
+    "invoke": 0.0,
+    "work": 0.566
+   },
+   "inboundPerReq": 1.0612,
+   "deliveriesPerReq": {},
+   "publishesPerReq": 0,
+   "entry": true,
+   "otherInboundPerReq": 1.0612,
+   "sampledMs": 4475.1
+  },
+  {
+   "type": "product",
+   "container": "catalog",
+   "D": 2.5044,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 0.2922,
+    "decode": 0.0147,
+    "tx": 0.0,
+    "publish": 0.0,
+    "invoke": 0.0,
+    "work": 0.6931
+   },
+   "inboundPerReq": 1.0678,
+   "deliveriesPerReq": {},
+   "publishesPerReq": 0,
+   "entry": true,
+   "otherInboundPerReq": 1.0678,
+   "sampledMs": 7892.6
+  },
+  {
+   "type": "product",
+   "container": "review",
+   "D": 1.5509,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 0.354,
+    "decode": 0.055,
+    "tx": 0.0,
+    "publish": 0.0,
+    "invoke": 0.0,
+    "work": 0.5911
+   },
+   "inboundPerReq": 0.9322,
+   "deliveriesPerReq": {},
+   "publishesPerReq": 0,
+   "entry": true,
+   "otherInboundPerReq": 0.9322,
+   "sampledMs": 4495.1
+  },
+  {
+   "type": "products.anon",
+   "container": "catalog",
+   "D": 2.0284,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 0.2555,
+    "decode": 0.0213,
+    "tx": 0.0,
+    "publish": 0.0,
+    "invoke": 0.0,
+    "work": 0.7233
+   },
+   "inboundPerReq": 1.0,
+   "deliveriesPerReq": {},
+   "publishesPerReq": 0,
+   "entry": true,
+   "otherInboundPerReq": 1.0,
+   "sampledMs": 7012.6
+  },
+  {
+   "type": "products",
+   "container": "catalog",
+   "D": 2.156,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 0.2583,
+    "decode": 0.014,
+    "tx": 0.0,
+    "publish": 0.0,
+    "invoke": 0.0,
+    "work": 0.7277
+   },
+   "inboundPerReq": 1.0,
+   "deliveriesPerReq": {},
+   "publishesPerReq": 0,
+   "entry": true,
+   "otherInboundPerReq": 1.0,
+   "sampledMs": 6572.6
+  },
+  {
+   "type": "shipmentMethods",
+   "container": "shipment",
+   "D": 2.2905,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 0.3428,
+    "decode": 0.0174,
+    "tx": 0.0,
+    "publish": 0.0,
+    "invoke": 0.0,
+    "work": 0.6398
+   },
+   "inboundPerReq": 1.0,
+   "deliveriesPerReq": {},
+   "publishesPerReq": 0,
+   "entry": true,
+   "otherInboundPerReq": 1.0,
+   "sampledMs": 4060.1
+  },
+  {
+   "type": "users",
+   "container": "user",
+   "D": 1.1286,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 0.43,
+    "decode": 0.0217,
+    "tx": 0.0,
+    "publish": 0.0,
+    "invoke": 0.0,
+    "work": 0.5483
+   },
+   "inboundPerReq": 1.0,
+   "deliveriesPerReq": {},
+   "publishesPerReq": 0,
+   "entry": true,
+   "otherInboundPerReq": 1.0,
+   "sampledMs": 4242.5
+  },
+  {
+   "type": "wishlistView",
+   "container": "catalog",
+   "D": 2.9899,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 0.2229,
+    "decode": 0.0248,
+    "tx": 0.0,
+    "publish": 0.0,
+    "invoke": 0.0,
+    "work": 0.7523
+   },
+   "inboundPerReq": 1.0962,
+   "deliveriesPerReq": {},
+   "publishesPerReq": 0,
+   "entry": true,
+   "otherInboundPerReq": 1.0962,
+   "sampledMs": 1422.6
+  },
+  {
+   "type": "wishlistView",
+   "container": "wishlist",
+   "D": 7.1749,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 0.2474,
+    "decode": 0.0619,
+    "tx": 0.0,
+    "publish": 0.0,
+    "invoke": 0.0,
+    "work": 0.6907
+   },
+   "inboundPerReq": 0.9038,
+   "deliveriesPerReq": {},
+   "publishesPerReq": 0,
+   "entry": true,
+   "otherInboundPerReq": 0.9038,
+   "sampledMs": 1782.6
+  },
+  {
+   "type": "addToWishlist",
+   "container": "wishlist",
+   "D": 8.2095,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 0.3258,
+    "decode": 0.0337,
+    "tx": 0.0,
+    "publish": 0.0,
+    "invoke": 0.0,
+    "work": 0.6404
+   },
+   "inboundPerReq": 1.0,
+   "deliveriesPerReq": {},
+   "publishesPerReq": 0,
+   "entry": true,
+   "otherInboundPerReq": 1.0,
+   "sampledMs": 1817.7
+  },
+  {
+   "type": "adminUpdateProduct",
+   "container": "catalog",
+   "D": 5.5879,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 0.2333,
+    "decode": 0.0346,
+    "tx": 0.0605,
+    "publish": 0.1728,
+    "invoke": 0.0,
+    "work": 0.4989
+   },
+   "inboundPerReq": 1.0,
+   "deliveriesPerReq": {},
+   "publishesPerReq": 1.0,
+   "entry": true,
+   "otherInboundPerReq": 1.0,
+   "sampledMs": 2290.1
+  },
+  {
+   "type": "adminUpdateProduct",
+   "container": "return",
+   "D": 0.25,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 0.5,
+    "decode": 0.0,
+    "tx": 0.0,
+    "publish": 0.0,
+    "invoke": 0.0,
+    "work": 0.5
+   },
+   "inboundPerReq": 0.0,
+   "deliveriesPerReq": {},
+   "publishesPerReq": 0,
+   "entry": false,
+   "otherInboundPerReq": 0.0,
+   "sampledMs": 30.0
+  },
+  {
+   "type": "catalog.updateProductVariant",
+   "container": "catalog",
+   "D": 3.2064,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 0.3326,
+    "decode": 0.0146,
+    "tx": 0.0088,
+    "publish": 0.1342,
+    "invoke": 0.0,
+    "work": 0.5098
+   },
+   "inboundPerReq": 1.0,
+   "deliveriesPerReq": {},
+   "publishesPerReq": 1.0,
+   "entry": true,
+   "otherInboundPerReq": 1.0,
+   "sampledMs": 6340.1
+  },
+  {
+   "type": "catalog.updateProductVariant",
+   "container": "order",
+   "D": 1.2895,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 0.5539,
+    "decode": 0.0149,
+    "tx": 0.0,
+    "publish": 0.0,
+    "invoke": 0.0,
+    "work": 0.4312
+   },
+   "inboundPerReq": 1.0,
+   "deliveriesPerReq": {
+    "catalog/product-variant/updated": 1.0
+   },
+   "publishesPerReq": 0,
+   "entry": false,
+   "otherInboundPerReq": 0.0,
+   "sampledMs": 2447.7
+  },
+  {
+   "type": "createOrder",
+   "container": "discount",
+   "D": 5.7551,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 0.2374,
+    "decode": 0.0108,
+    "tx": 0.0036,
+    "publish": 0.0,
+    "invoke": 0.0,
+    "work": 0.7482
+   },
+   "inboundPerReq": 1.0,
+   "deliveriesPerReq": {},
+   "publishesPerReq": 0,
+   "entry": false,
+   "otherInboundPerReq": 1.0,
+   "sampledMs": 5252.6
+  },
+  {
+   "type": "createOrder",
+   "container": "inventory",
+   "D": 4.5615,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 0.3831,
+    "decode": 0.039,
+    "tx": 0.0,
+    "publish": 0.0,
+    "invoke": 0.0,
+    "work": 0.5779
+   },
+   "inboundPerReq": 1.0,
+   "deliveriesPerReq": {},
+   "publishesPerReq": 0,
+   "entry": false,
+   "otherInboundPerReq": 1.0,
+   "sampledMs": 2602.5
+  },
+  {
+   "type": "createOrder",
+   "container": "order",
+   "D": 5.6366,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 0.2452,
+    "decode": 0.0059,
+    "tx": 0.0,
+    "publish": 0.1615,
+    "invoke": 0.0,
+    "work": 0.5874
+   },
+   "inboundPerReq": 1.0,
+   "deliveriesPerReq": {},
+   "publishesPerReq": 0,
+   "entry": true,
+   "otherInboundPerReq": 1.0,
+   "sampledMs": 7357.7
+  },
+  {
+   "type": "createOrder",
+   "container": "shipment",
+   "D": 2.1723,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 0.3258,
+    "decode": 0.0281,
+    "tx": 0.0,
+    "publish": 0.0,
+    "invoke": 0.0,
+    "work": 0.6461
+   },
+   "inboundPerReq": 1.0,
+   "deliveriesPerReq": {},
+   "publishesPerReq": 0,
+   "entry": false,
+   "otherInboundPerReq": 1.0,
+   "sampledMs": 2900.2
+  },
+  {
+   "type": "createOrder",
+   "container": "shoppingcart",
+   "D": 2.3489,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 0.3582,
+    "decode": 0.0055,
+    "tx": 0.0,
+    "publish": 0.0,
+    "invoke": 0.0,
+    "work": 0.6362
+   },
+   "inboundPerReq": 1.0,
+   "deliveriesPerReq": {},
+   "publishesPerReq": 0,
+   "entry": false,
+   "otherInboundPerReq": 1.0,
+   "sampledMs": 2622.6
+  },
+  {
+   "type": "createReview",
+   "container": "review",
+   "D": 4.6552,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 0.2512,
+    "decode": 0.0,
+    "tx": 0.0,
+    "publish": 0.0,
+    "invoke": 0.0,
+    "work": 0.7488
+   },
+   "inboundPerReq": 1.0,
+   "deliveriesPerReq": {},
+   "publishesPerReq": 0,
+   "entry": true,
+   "otherInboundPerReq": 1.0,
+   "sampledMs": 2270.3
+  },
+  {
+   "type": "createShoppingcartItem",
+   "container": "shoppingcart",
+   "D": 2.7205,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 0.3134,
+    "decode": 0.008,
+    "tx": 0.0027,
+    "publish": 0.0,
+    "invoke": 0.0,
+    "work": 0.676
+   },
+   "inboundPerReq": 1.0,
+   "deliveriesPerReq": {},
+   "publishesPerReq": 0,
+   "entry": true,
+   "otherInboundPerReq": 1.0,
+   "sampledMs": 7252.6
+  },
+  {
+   "type": "orderTracking",
+   "container": "order",
+   "D": 1.9968,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 0.2576,
+    "decode": 0.0401,
+    "tx": 0.0,
+    "publish": 0.0,
+    "invoke": 0.0,
+    "work": 0.7023
+   },
+   "inboundPerReq": 0.9366,
+   "deliveriesPerReq": {},
+   "publishesPerReq": 0,
+   "entry": true,
+   "otherInboundPerReq": 0.9366,
+   "sampledMs": 2567.7
+  },
+  {
+   "type": "orderTracking",
+   "container": "shipment",
+   "D": 1.9878,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 0.3626,
+    "decode": 0.0234,
+    "tx": 0.0,
+    "publish": 0.0,
+    "invoke": 0.0,
+    "work": 0.614
+   },
+   "inboundPerReq": 1.0634,
+   "deliveriesPerReq": {},
+   "publishesPerReq": 0,
+   "entry": true,
+   "otherInboundPerReq": 1.0634,
+   "sampledMs": 2467.7
+  },
+  {
+   "type": "placeOrder",
+   "container": "discount",
+   "D": 3.5046,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 0.3961,
+    "decode": 0.0844,
+    "tx": 0.0065,
+    "publish": 0.2338,
+    "invoke": 0.0,
+    "work": 0.2792
+   },
+   "inboundPerReq": 1.0,
+   "deliveriesPerReq": {
+    "inventory/product-item/reservation-succeeded": 1.0
+   },
+   "publishesPerReq": 1.0,
+   "entry": false,
+   "otherInboundPerReq": 0.0,
+   "sampledMs": 3102.6
+  },
+  {
+   "type": "placeOrder",
+   "container": "inventory",
+   "D": 7.802,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 0.4594,
+    "decode": 0.0424,
+    "tx": 0.0247,
+    "publish": 0.0848,
+    "invoke": 0.0,
+    "work": 0.3887
+   },
+   "inboundPerReq": 3.9592,
+   "deliveriesPerReq": {
+    "order/order/created": 1.0,
+    "payment/payment/payment-enabled": 0.9796,
+    "payment/payment/payment-failed": 0.0204,
+    "shipment/shipment/created": 0.9796,
+    "shipment/shipment/status-updated": 0.9796
+   },
+   "publishesPerReq": 1.0,
+   "entry": false,
+   "otherInboundPerReq": 0.0,
+   "sampledMs": 5152.5
+  },
+  {
+   "type": "placeOrder",
+   "container": "invoice",
+   "D": 5.9692,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 0.3378,
+    "decode": 0.0405,
+    "tx": 0.0068,
+    "publish": 0.2095,
+    "invoke": 0.0,
+    "work": 0.4054
+   },
+   "inboundPerReq": 1.0,
+   "deliveriesPerReq": {
+    "discount/order/validation-succeeded": 1.0
+   },
+   "publishesPerReq": 1.0,
+   "entry": false,
+   "otherInboundPerReq": 0.0,
+   "sampledMs": 3457.6
+  },
+  {
+   "type": "placeOrder",
+   "container": "order",
+   "D": 3.1944,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 0.2448,
+    "decode": 0.0121,
+    "tx": 0.0,
+    "publish": 0.139,
+    "invoke": 0.0,
+    "work": 0.6042
+   },
+   "inboundPerReq": 1.0,
+   "deliveriesPerReq": {},
+   "publishesPerReq": 1.0,
+   "entry": true,
+   "otherInboundPerReq": 1.0,
+   "sampledMs": 2837.7
+  },
+  {
+   "type": "placeOrder",
+   "container": "payment",
+   "D": 10.2583,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 0.3766,
+    "decode": 0.0182,
+    "tx": 0.013,
+    "publish": 0.1039,
+    "invoke": 0.0,
+    "work": 0.4883
+   },
+   "inboundPerReq": 2.0102,
+   "deliveriesPerReq": {
+    "discount/order/validation-succeeded": 1.0
+   },
+   "publishesPerReq": 1.0,
+   "entry": false,
+   "otherInboundPerReq": 1.0102,
+   "sampledMs": 7252.5
+  },
+  {
+   "type": "placeOrder",
+   "container": "return",
+   "D": 7.4904,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 0.493,
+    "decode": 0.0563,
+    "tx": 0.0235,
+    "publish": 0.0,
+    "invoke": 0.0,
+    "work": 0.4272
+   },
+   "inboundPerReq": 2.9592,
+   "deliveriesPerReq": {
+    "order/order/created": 1.0,
+    "shipment/shipment/created": 0.9796,
+    "shipment/shipment/status-updated": 0.9796
+   },
+   "publishesPerReq": 0,
+   "entry": false,
+   "otherInboundPerReq": 0.0,
+   "sampledMs": 4642.6
+  },
+  {
+   "type": "placeOrder",
+   "container": "shipment",
+   "D": 9.4106,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 0.3408,
+    "decode": 0.0348,
+    "tx": 0.0075,
+    "publish": 0.209,
+    "invoke": 0.0,
+    "work": 0.408
+   },
+   "inboundPerReq": 1.9592,
+   "deliveriesPerReq": {
+    "payment/payment/payment-enabled": 0.9796
+   },
+   "publishesPerReq": 1.9592,
+   "entry": false,
+   "otherInboundPerReq": 0.9796,
+   "sampledMs": 8567.7
+  },
+  {
+   "type": "placeOrder",
+   "container": "shoppingcart",
+   "D": 2.0466,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 0.5466,
+    "decode": 0.0,
+    "tx": 0.0,
+    "publish": 0.0,
+    "invoke": 0.0,
+    "work": 0.4534
+   },
+   "inboundPerReq": 1.0,
+   "deliveriesPerReq": {
+    "order/order/created": 1.0
+   },
+   "publishesPerReq": 0,
+   "entry": false,
+   "otherInboundPerReq": 0.0,
+   "sampledMs": 1602.6
+  },
+  {
+   "type": "placeOrder",
+   "container": "simulation",
+   "D": 6.7598,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 0.2722,
+    "decode": 0.0,
+    "tx": 0.0,
+    "publish": 0.2062,
+    "invoke": 0.0,
+    "work": 0.5216
+   },
+   "inboundPerReq": 1.9898,
+   "deliveriesPerReq": {},
+   "publishesPerReq": 0,
+   "entry": false,
+   "otherInboundPerReq": 1.9898,
+   "sampledMs": 3725.0
+  },
+  {
+   "type": "return.createReturn",
+   "container": "inventory",
+   "D": 2.0985,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 0.9,
+    "decode": 0.1,
+    "tx": 0.0,
+    "publish": 0.0,
+    "invoke": 0.0,
+    "work": 0.0
+   },
+   "inboundPerReq": 2.0,
+   "deliveriesPerReq": {
+    "shipment/shipment/created": 1.0,
+    "shipment/shipment/status-updated": 1.0
+   },
+   "publishesPerReq": 0,
+   "entry": false,
+   "otherInboundPerReq": 0.0,
+   "sampledMs": 185.2
+  },
+  {
+   "type": "return.createReturn",
+   "container": "notification",
+   "D": 0.3082,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 1.0,
+    "decode": 0.0,
+    "tx": 0.0,
+    "publish": 0.0,
+    "invoke": 0.0,
+    "work": 0.0
+   },
+   "inboundPerReq": 0.0,
+   "deliveriesPerReq": {},
+   "publishesPerReq": 0,
+   "entry": false,
+   "otherInboundPerReq": 0.0,
+   "sampledMs": 12.6
+  },
+  {
+   "type": "return.createReturn",
+   "container": "order",
+   "D": 0.3333,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 0.0,
+    "decode": 0.0,
+    "tx": 0.0,
+    "publish": 0.0,
+    "invoke": 0.0,
+    "work": 1.0
+   },
+   "inboundPerReq": 0.0,
+   "deliveriesPerReq": {},
+   "publishesPerReq": 0,
+   "entry": false,
+   "otherInboundPerReq": 0.0,
+   "sampledMs": 20.0
+  },
+  {
+   "type": "return.createReturn",
+   "container": "return",
+   "D": 30.5781,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 0.2243,
+    "decode": 0.0374,
+    "tx": 0.028,
+    "publish": 0.0748,
+    "invoke": 0.0,
+    "work": 0.6355
+   },
+   "inboundPerReq": 3.0,
+   "deliveriesPerReq": {
+    "shipment/shipment/created": 1.0,
+    "shipment/shipment/status-updated": 1.0
+   },
+   "publishesPerReq": 1.0,
+   "entry": true,
+   "otherInboundPerReq": 1.0,
+   "sampledMs": 3897.7
+  },
+  {
+   "type": "return.createReturn",
+   "container": "review",
+   "D": 0.3361,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 1.0,
+    "decode": 0.0,
+    "tx": 0.0,
+    "publish": 0.0,
+    "invoke": 0.0,
+    "work": 0.0
+   },
+   "inboundPerReq": 0.0,
+   "deliveriesPerReq": {},
+   "publishesPerReq": 0,
+   "entry": false,
+   "otherInboundPerReq": 0.0,
+   "sampledMs": 12.6
+  },
+  {
+   "type": "return.createReturn",
+   "container": "shipment",
+   "D": 17.695,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 0.3333,
+    "decode": 0.0435,
+    "tx": 0.029,
+    "publish": 0.1304,
+    "invoke": 0.0,
+    "work": 0.4638
+   },
+   "inboundPerReq": 2.0,
+   "deliveriesPerReq": {
+    "return/return/created": 1.0
+   },
+   "publishesPerReq": 2.0,
+   "entry": false,
+   "otherInboundPerReq": 1.0,
+   "sampledMs": 1790.3
+  },
+  {
+   "type": "return.createReturn",
+   "container": "simulation",
+   "D": 6.2709,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 0.122,
+    "decode": 0.054,
+    "tx": 0.0,
+    "publish": 0.108,
+    "invoke": 0.0,
+    "work": 0.716
+   },
+   "inboundPerReq": 1.0,
+   "deliveriesPerReq": {},
+   "publishesPerReq": 0,
+   "entry": false,
+   "otherInboundPerReq": 1.0,
+   "sampledMs": 515.2
+  },
+  {
+   "type": "return.createReturn",
+   "container": "wishlist",
+   "D": 0.2667,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 0.0,
+    "decode": 0.0,
+    "tx": 0.0,
+    "publish": 0.0,
+    "invoke": 0.0,
+    "work": 1.0
+   },
+   "inboundPerReq": 0.0,
+   "deliveriesPerReq": {},
+   "publishesPerReq": 0,
+   "entry": false,
+   "otherInboundPerReq": 0.0,
+   "sampledMs": 10.0
+  },
+  {
+   "type": "user.updateUser",
+   "container": "user",
+   "D": 3.0604,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 0.2057,
+    "decode": 0.0095,
+    "tx": 0.0,
+    "publish": 0.0,
+    "invoke": 0.0,
+    "work": 0.7849
+   },
+   "inboundPerReq": 1.0,
+   "deliveriesPerReq": {},
+   "publishesPerReq": 0,
+   "entry": true,
+   "otherInboundPerReq": 1.0,
+   "sampledMs": 1660.1
+  },
+  {
+   "type": "wishlist.createWishlist",
+   "container": "wishlist",
+   "D": 10.9006,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 0.2647,
+    "decode": 0.0,
+    "tx": 0.0,
+    "publish": 0.0,
+    "invoke": 0.0,
+    "work": 0.7353
+   },
+   "inboundPerReq": 1.0,
+   "deliveriesPerReq": {},
+   "publishesPerReq": 0,
+   "entry": true,
+   "otherInboundPerReq": 1.0,
+   "sampledMs": 1857.7
+  },
+  {
+   "type": "address.createUserAddress",
+   "container": "address",
+   "D": 10.5397,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 0.1891,
+    "decode": 0.0,
+    "tx": 0.0438,
+    "publish": 0.1863,
+    "invoke": 0.0,
+    "work": 0.5808
+   },
+   "inboundPerReq": 1.0,
+   "deliveriesPerReq": {},
+   "publishesPerReq": 1.0,
+   "entry": true,
+   "otherInboundPerReq": 1.0,
+   "sampledMs": 2367.8
+  },
+  {
+   "type": "address.createUserAddress",
+   "container": "invoice",
+   "D": 2.1419,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 0.5385,
+    "decode": 0.0769,
+    "tx": 0.0,
+    "publish": 0.0,
+    "invoke": 0.0,
+    "work": 0.3846
+   },
+   "inboundPerReq": 1.0,
+   "deliveriesPerReq": {
+    "address/user-address/created": 1.0
+   },
+   "publishesPerReq": 0,
+   "entry": false,
+   "otherInboundPerReq": 0.0,
+   "sampledMs": 435.1
+  },
+  {
+   "type": "address.createUserAddress",
+   "container": "order",
+   "D": 1.5094,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 0.6,
+    "decode": 0.0,
+    "tx": 0.0,
+    "publish": 0.0,
+    "invoke": 0.0,
+    "work": 0.4
+   },
+   "inboundPerReq": 1.0,
+   "deliveriesPerReq": {
+    "address/user-address/created": 1.0
+   },
+   "publishesPerReq": 0,
+   "entry": false,
+   "otherInboundPerReq": 0.0,
+   "sampledMs": 330.3
+  },
+  {
+   "type": "address.createUserAddress",
+   "container": "shipment",
+   "D": 2.6907,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 0.5,
+    "decode": 0.1,
+    "tx": 0.0,
+    "publish": 0.0,
+    "invoke": 0.0,
+    "work": 0.4
+   },
+   "inboundPerReq": 1.0,
+   "deliveriesPerReq": {
+    "address/user-address/created": 1.0
+   },
+   "publishesPerReq": 0,
+   "entry": false,
+   "otherInboundPerReq": 0.0,
+   "sampledMs": 492.8
+  },
+  {
+   "type": "address.createVendorAddress",
+   "container": "address",
+   "D": 7.0066,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 0.1854,
+    "decode": 0.0092,
+    "tx": 0.0458,
+    "publish": 0.238,
+    "invoke": 0.0,
+    "work": 0.5217
+   },
+   "inboundPerReq": 1.0,
+   "deliveriesPerReq": {},
+   "publishesPerReq": 1.0,
+   "entry": true,
+   "otherInboundPerReq": 1.0,
+   "sampledMs": 2305.2
+  },
+  {
+   "type": "address.createVendorAddress",
+   "container": "invoice",
+   "D": 2.1226,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 0.4545,
+    "decode": 0.0455,
+    "tx": 0.0,
+    "publish": 0.0,
+    "invoke": 0.0,
+    "work": 0.5
+   },
+   "inboundPerReq": 1.0,
+   "deliveriesPerReq": {
+    "address/vendor-address/created": 1.0
+   },
+   "publishesPerReq": 0,
+   "entry": false,
+   "otherInboundPerReq": 0.0,
+   "sampledMs": 485.1
+  },
+  {
+   "type": "address.createVendorAddress",
+   "container": "shipment",
+   "D": 1.5891,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 0.4516,
+    "decode": 0.1613,
+    "tx": 0.0,
+    "publish": 0.0,
+    "invoke": 0.0,
+    "work": 0.3871
+   },
+   "inboundPerReq": 1.0,
+   "deliveriesPerReq": {
+    "address/vendor-address/created": 1.0
+   },
+   "publishesPerReq": 0,
+   "entry": false,
+   "otherInboundPerReq": 0.0,
+   "sampledMs": 652.8
+  },
+  {
+   "type": "adminCreateProduct",
+   "container": "catalog",
+   "D": 9.0657,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 0.2357,
+    "decode": 0.0071,
+    "tx": 0.0071,
+    "publish": 0.0857,
+    "invoke": 0.0,
+    "work": 0.6643
+   },
+   "inboundPerReq": 1.0,
+   "deliveriesPerReq": {},
+   "publishesPerReq": 3.0,
+   "entry": true,
+   "otherInboundPerReq": 1.0,
+   "sampledMs": 2897.7
+  },
+  {
+   "type": "adminCreateProduct",
+   "container": "discount",
+   "D": 4.2943,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 0.532,
+    "decode": 0.048,
+    "tx": 0.016,
+    "publish": 0.0,
+    "invoke": 0.0,
+    "work": 0.404
+   },
+   "inboundPerReq": 2.0,
+   "deliveriesPerReq": {
+    "catalog/product-variant/created": 1.0,
+    "catalog/product/created": 1.0
+   },
+   "publishesPerReq": 0,
+   "entry": false,
+   "otherInboundPerReq": 0.0,
+   "sampledMs": 1347.8
+  },
+  {
+   "type": "adminCreateProduct",
+   "container": "inventory",
+   "D": 1.4968,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 0.6,
+    "decode": 0.0,
+    "tx": 0.0,
+    "publish": 0.0,
+    "invoke": 0.0,
+    "work": 0.4
+   },
+   "inboundPerReq": 1.0,
+   "deliveriesPerReq": {
+    "catalog/product-variant/created": 1.0
+   },
+   "publishesPerReq": 0,
+   "entry": false,
+   "otherInboundPerReq": 0.0,
+   "sampledMs": 495.2
+  },
+  {
+   "type": "adminCreateProduct",
+   "container": "order",
+   "D": 1.3649,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 0.6957,
+    "decode": 0.0,
+    "tx": 0.0,
+    "publish": 0.0,
+    "invoke": 0.0,
+    "work": 0.3043
+   },
+   "inboundPerReq": 1.0,
+   "deliveriesPerReq": {
+    "catalog/product-variant-version/created": 1.0
+   },
+   "publishesPerReq": 0,
+   "entry": false,
+   "otherInboundPerReq": 0.0,
+   "sampledMs": 430.3
+  },
+  {
+   "type": "adminCreateProduct",
+   "container": "return",
+   "D": 2.2851,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 0.3636,
+    "decode": 0.0909,
+    "tx": 0.0455,
+    "publish": 0.0,
+    "invoke": 0.0,
+    "work": 0.5
+   },
+   "inboundPerReq": 1.0,
+   "deliveriesPerReq": {
+    "catalog/product-variant-version/created": 1.0
+   },
+   "publishesPerReq": 0,
+   "entry": false,
+   "otherInboundPerReq": 0.0,
+   "sampledMs": 747.7
+  },
+  {
+   "type": "adminCreateProduct",
+   "container": "review",
+   "D": 2.4541,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 0.6955,
+    "decode": 0.0406,
+    "tx": 0.0,
+    "publish": 0.0,
+    "invoke": 0.0,
+    "work": 0.2639
+   },
+   "inboundPerReq": 2.0,
+   "deliveriesPerReq": {
+    "catalog/product-variant/created": 1.0,
+    "catalog/product/created": 1.0
+   },
+   "publishesPerReq": 0,
+   "entry": false,
+   "otherInboundPerReq": 0.0,
+   "sampledMs": 925.2
+  },
+  {
+   "type": "adminCreateProduct",
+   "container": "shipment",
+   "D": 1.655,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 0.4643,
+    "decode": 0.0714,
+    "tx": 0.0,
+    "publish": 0.0,
+    "invoke": 0.0,
+    "work": 0.4643
+   },
+   "inboundPerReq": 1.0,
+   "deliveriesPerReq": {
+    "catalog/product-variant-version/created": 1.0
+   },
+   "publishesPerReq": 0,
+   "entry": false,
+   "otherInboundPerReq": 0.0,
+   "sampledMs": 555.4
+  },
+  {
+   "type": "adminCreateProduct",
+   "container": "shoppingcart",
+   "D": 1.4436,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 0.5923,
+    "decode": 0.0,
+    "tx": 0.0,
+    "publish": 0.0,
+    "invoke": 0.0,
+    "work": 0.4077
+   },
+   "inboundPerReq": 1.0,
+   "deliveriesPerReq": {
+    "catalog/product-variant/created": 1.0
+   },
+   "publishesPerReq": 0,
+   "entry": false,
+   "otherInboundPerReq": 0.0,
+   "sampledMs": 445.2
+  },
+  {
+   "type": "adminCreateProduct",
+   "container": "wishlist",
+   "D": 1.9316,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 0.6522,
+    "decode": 0.0,
+    "tx": 0.0,
+    "publish": 0.0,
+    "invoke": 0.0,
+    "work": 0.3478
+   },
+   "inboundPerReq": 1.0,
+   "deliveriesPerReq": {
+    "catalog/product-variant/created": 1.0
+   },
+   "publishesPerReq": 0,
+   "entry": false,
+   "otherInboundPerReq": 0.0,
+   "sampledMs": 622.6
+  },
+  {
+   "type": "adminCreateVariant",
+   "container": "catalog",
+   "D": 7.5108,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 0.1918,
+    "decode": 0.0068,
+    "tx": 0.0068,
+    "publish": 0.0959,
+    "invoke": 0.0,
+    "work": 0.6986
+   },
+   "inboundPerReq": 1.0,
+   "deliveriesPerReq": {},
+   "publishesPerReq": 2.0,
+   "entry": true,
+   "otherInboundPerReq": 1.0,
+   "sampledMs": 3430.3
+  },
+  {
+   "type": "adminCreateVariant",
+   "container": "discount",
+   "D": 2.0323,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 0.5602,
+    "decode": 0.0723,
+    "tx": 0.0,
+    "publish": 0.0,
+    "invoke": 0.0,
+    "work": 0.3675
+   },
+   "inboundPerReq": 1.0,
+   "deliveriesPerReq": {
+    "catalog/product-variant/created": 1.0
+   },
+   "publishesPerReq": 0,
+   "entry": false,
+   "otherInboundPerReq": 0.0,
+   "sampledMs": 807.8
+  },
+  {
+   "type": "adminCreateVariant",
+   "container": "inventory",
+   "D": 1.7694,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 0.6429,
+    "decode": 0.0,
+    "tx": 0.0,
+    "publish": 0.0,
+    "invoke": 0.0,
+    "work": 0.3571
+   },
+   "inboundPerReq": 1.0,
+   "deliveriesPerReq": {
+    "catalog/product-variant/created": 1.0
+   },
+   "publishesPerReq": 0,
+   "entry": false,
+   "otherInboundPerReq": 0.0,
+   "sampledMs": 672.6
+  },
+  {
+   "type": "adminCreateVariant",
+   "container": "order",
+   "D": 1.4219,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 0.6364,
+    "decode": 0.0606,
+    "tx": 0.0,
+    "publish": 0.0,
+    "invoke": 0.0,
+    "work": 0.303
+   },
+   "inboundPerReq": 1.0,
+   "deliveriesPerReq": {
+    "catalog/product-variant-version/created": 1.0
+   },
+   "publishesPerReq": 0,
+   "entry": false,
+   "otherInboundPerReq": 0.0,
+   "sampledMs": 680.3
+  },
+  {
+   "type": "adminCreateVariant",
+   "container": "return",
+   "D": 2.3766,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 0.5778,
+    "decode": 0.0667,
+    "tx": 0.0444,
+    "publish": 0.0,
+    "invoke": 0.0,
+    "work": 0.3111
+   },
+   "inboundPerReq": 1.0,
+   "deliveriesPerReq": {
+    "catalog/product-variant-version/created": 1.0
+   },
+   "publishesPerReq": 0,
+   "entry": false,
+   "otherInboundPerReq": 0.0,
+   "sampledMs": 937.7
+  },
+  {
+   "type": "adminCreateVariant",
+   "container": "review",
+   "D": 1.7108,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 0.5622,
+    "decode": 0.0584,
+    "tx": 0.0,
+    "publish": 0.0,
+    "invoke": 0.0,
+    "work": 0.3795
+   },
+   "inboundPerReq": 1.0,
+   "deliveriesPerReq": {
+    "catalog/product-variant/created": 1.0
+   },
+   "publishesPerReq": 0,
+   "entry": false,
+   "otherInboundPerReq": 0.0,
+   "sampledMs": 725.2
+  },
+  {
+   "type": "adminCreateVariant",
+   "container": "shipment",
+   "D": 1.6923,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 0.5,
+    "decode": 0.1429,
+    "tx": 0.0,
+    "publish": 0.0,
+    "invoke": 0.0,
+    "work": 0.3571
+   },
+   "inboundPerReq": 1.0,
+   "deliveriesPerReq": {
+    "catalog/product-variant-version/created": 1.0
+   },
+   "publishesPerReq": 0,
+   "entry": false,
+   "otherInboundPerReq": 0.0,
+   "sampledMs": 792.8
+  },
+  {
+   "type": "adminCreateVariant",
+   "container": "shoppingcart",
+   "D": 1.4184,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 0.6115,
+    "decode": 0.0,
+    "tx": 0.0,
+    "publish": 0.0,
+    "invoke": 0.0,
+    "work": 0.3885
+   },
+   "inboundPerReq": 1.0,
+   "deliveriesPerReq": {
+    "catalog/product-variant/created": 1.0
+   },
+   "publishesPerReq": 0,
+   "entry": false,
+   "otherInboundPerReq": 0.0,
+   "sampledMs": 585.2
+  },
+  {
+   "type": "adminCreateVariant",
+   "container": "wishlist",
+   "D": 2.6058,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 0.5161,
+    "decode": 0.0,
+    "tx": 0.0,
+    "publish": 0.0,
+    "invoke": 0.0,
+    "work": 0.4839
+   },
+   "inboundPerReq": 1.0,
+   "deliveriesPerReq": {
+    "catalog/product-variant/created": 1.0
+   },
+   "publishesPerReq": 0,
+   "entry": false,
+   "otherInboundPerReq": 0.0,
+   "sampledMs": 715.2
+  },
+  {
+   "type": "adminNewPrice",
+   "container": "catalog",
+   "D": 8.6636,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 0.1928,
+    "decode": 0.0,
+    "tx": 0.006,
+    "publish": 0.0542,
+    "invoke": 0.0,
+    "work": 0.747
+   },
+   "inboundPerReq": 1.0,
+   "deliveriesPerReq": {},
+   "publishesPerReq": 1.0,
+   "entry": true,
+   "otherInboundPerReq": 1.0,
+   "sampledMs": 3340.3
+  },
+  {
+   "type": "adminNewPrice",
+   "container": "order",
+   "D": 1.4824,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 0.6667,
+    "decode": 0.0,
+    "tx": 0.0,
+    "publish": 0.0,
+    "invoke": 0.0,
+    "work": 0.3333
+   },
+   "inboundPerReq": 1.0,
+   "deliveriesPerReq": {
+    "catalog/product-variant-version/created": 1.0
+   },
+   "publishesPerReq": 0,
+   "entry": false,
+   "otherInboundPerReq": 0.0,
+   "sampledMs": 550.3
+  },
+  {
+   "type": "adminNewPrice",
+   "container": "return",
+   "D": 3.1355,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 0.6444,
+    "decode": 0.1333,
+    "tx": 0.0222,
+    "publish": 0.0,
+    "invoke": 0.0,
+    "work": 0.2
+   },
+   "inboundPerReq": 1.0,
+   "deliveriesPerReq": {
+    "catalog/product-variant-version/created": 1.0
+   },
+   "publishesPerReq": 0,
+   "entry": false,
+   "otherInboundPerReq": 0.0,
+   "sampledMs": 1190.3
+  },
+  {
+   "type": "adminNewPrice",
+   "container": "shipment",
+   "D": 1.6663,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 0.2963,
+    "decode": 0.1852,
+    "tx": 0.0,
+    "publish": 0.0,
+    "invoke": 0.0,
+    "work": 0.5185
+   },
+   "inboundPerReq": 1.0,
+   "deliveriesPerReq": {
+    "catalog/product-variant-version/created": 1.0
+   },
+   "publishesPerReq": 0,
+   "entry": false,
+   "otherInboundPerReq": 0.0,
+   "sampledMs": 692.8
+  },
+  {
+   "type": "catalog.createCategory",
+   "container": "catalog",
+   "D": 3.8491,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 0.259,
+    "decode": 0.036,
+    "tx": 0.0,
+    "publish": 0.1079,
+    "invoke": 0.0,
+    "work": 0.5971
+   },
+   "inboundPerReq": 1.0,
+   "deliveriesPerReq": {},
+   "publishesPerReq": 1.0,
+   "entry": true,
+   "otherInboundPerReq": 1.0,
+   "sampledMs": 2747.7
+  },
+  {
+   "type": "catalog.createCategory",
+   "container": "discount",
+   "D": 1.8117,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 0.5684,
+    "decode": 0.188,
+    "tx": 0.0,
+    "publish": 0.0,
+    "invoke": 0.0,
+    "work": 0.2437
+   },
+   "inboundPerReq": 1.0,
+   "deliveriesPerReq": {
+    "catalog/category/created": 1.0
+   },
+   "publishesPerReq": 0,
+   "entry": false,
+   "otherInboundPerReq": 0.0,
+   "sampledMs": 1077.8
+  },
+  {
+   "type": "discount.createCoupon",
+   "container": "discount",
+   "D": 4.9956,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 0.2488,
+    "decode": 0.0205,
+    "tx": 0.0,
+    "publish": 0.0923,
+    "invoke": 0.0,
+    "work": 0.6384
+   },
+   "inboundPerReq": 1.0,
+   "deliveriesPerReq": {},
+   "publishesPerReq": 1.0,
+   "entry": true,
+   "otherInboundPerReq": 1.0,
+   "sampledMs": 2737.8
+  },
+  {
+   "type": "discount.createCoupon",
+   "container": "order",
+   "D": 1.3368,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 0.5,
+    "decode": 0.0294,
+    "tx": 0.0,
+    "publish": 0.0,
+    "invoke": 0.0,
+    "work": 0.4706
+   },
+   "inboundPerReq": 1.0,
+   "deliveriesPerReq": {
+    "discount/coupon/created": 1.0
+   },
+   "publishesPerReq": 0,
+   "entry": false,
+   "otherInboundPerReq": 0.0,
+   "sampledMs": 550.3
+  },
+  {
+   "type": "discount.createDiscount",
+   "container": "discount",
+   "D": 7.9232,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 0.2363,
+    "decode": 0.0123,
+    "tx": 0.0123,
+    "publish": 0.1227,
+    "invoke": 0.0,
+    "work": 0.6165
+   },
+   "inboundPerReq": 1.0,
+   "deliveriesPerReq": {},
+   "publishesPerReq": 1.0,
+   "entry": true,
+   "otherInboundPerReq": 1.0,
+   "sampledMs": 1527.8
+  },
+  {
+   "type": "discount.registerCoupon",
+   "container": "discount",
+   "D": 6.9641,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 0.2321,
+    "decode": 0.0206,
+    "tx": 0.0206,
+    "publish": 0.0,
+    "invoke": 0.0,
+    "work": 0.7267
+   },
+   "inboundPerReq": 1.0,
+   "deliveriesPerReq": {},
+   "publishesPerReq": 0,
+   "entry": true,
+   "otherInboundPerReq": 1.0,
+   "sampledMs": 1027.8
+  },
+  {
+   "type": "inventory.createProductItemBatch",
+   "container": "inventory",
+   "D": 5.2615,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 0.1798,
+    "decode": 0.0225,
+    "tx": 0.0337,
+    "publish": 0.0,
+    "invoke": 0.0,
+    "work": 0.764
+   },
+   "inboundPerReq": 1.0,
+   "deliveriesPerReq": {},
+   "publishesPerReq": 0,
+   "entry": true,
+   "otherInboundPerReq": 1.0,
+   "sampledMs": 3855.2
+  },
+  {
+   "type": "media.uploadMedia",
+   "container": "catalog",
+   "D": 2.9131,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 0.625,
+    "decode": 0.0938,
+    "tx": 0.0,
+    "publish": 0.0,
+    "invoke": 0.0,
+    "work": 0.2812
+   },
+   "inboundPerReq": 1.0,
+   "deliveriesPerReq": {
+    "media/media/created": 1.0
+   },
+   "publishesPerReq": 0,
+   "entry": false,
+   "otherInboundPerReq": 0.0,
+   "sampledMs": 837.7
+  },
+  {
+   "type": "media.uploadMedia",
+   "container": "media",
+   "D": 14.5907,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 0.2165,
+    "decode": 0.0103,
+    "tx": 0.0,
+    "publish": 0.1082,
+    "invoke": 0.0,
+    "work": 0.6649
+   },
+   "inboundPerReq": 1.0,
+   "deliveriesPerReq": {},
+   "publishesPerReq": 1.0,
+   "entry": true,
+   "otherInboundPerReq": 1.0,
+   "sampledMs": 4375.1
+  },
+  {
+   "type": "payment.createCreditCardPaymentInformation",
+   "container": "payment",
+   "D": 2.1982,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 0.2091,
+    "decode": 0.027,
+    "tx": 0.0,
+    "publish": 0.0,
+    "invoke": 0.0,
+    "work": 0.764
+   },
+   "inboundPerReq": 1.0,
+   "deliveriesPerReq": {},
+   "publishesPerReq": 0,
+   "entry": true,
+   "otherInboundPerReq": 1.0,
+   "sampledMs": 1715.2
+  },
+  {
+   "type": "shipment.createShipmentMethod",
+   "container": "order",
+   "D": 1.2474,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 0.6552,
+    "decode": 0.0,
+    "tx": 0.0,
+    "publish": 0.0,
+    "invoke": 0.0,
+    "work": 0.3448
+   },
+   "inboundPerReq": 1.0,
+   "deliveriesPerReq": {
+    "shipment/shipment-method/created": 1.0
+   },
+   "publishesPerReq": 0,
+   "entry": false,
+   "otherInboundPerReq": 0.0,
+   "sampledMs": 520.3
+  },
+  {
+   "type": "shipment.createShipmentMethod",
+   "container": "shipment",
+   "D": 3.3968,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 0.2683,
+    "decode": 0.0122,
+    "tx": 0.0122,
+    "publish": 0.1463,
+    "invoke": 0.0,
+    "work": 0.561
+   },
+   "inboundPerReq": 1.0,
+   "deliveriesPerReq": {},
+   "publishesPerReq": 1.0,
+   "entry": true,
+   "otherInboundPerReq": 1.0,
+   "sampledMs": 1622.8
+  },
+  {
+   "type": "tax.createTaxRateVersion",
+   "container": "order",
+   "D": 1.7476,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 0.5,
+    "decode": 0.0,
+    "tx": 0.0,
+    "publish": 0.0,
+    "invoke": 0.0,
+    "work": 0.5
+   },
+   "inboundPerReq": 1.0,
+   "deliveriesPerReq": {
+    "tax/tax-rate-version/created": 1.0
+   },
+   "publishesPerReq": 0,
+   "entry": false,
+   "otherInboundPerReq": 0.0,
+   "sampledMs": 340.3
+  },
+  {
+   "type": "tax.createTaxRateVersion",
+   "container": "tax",
+   "D": 19.2106,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 0.2207,
+    "decode": 0.0069,
+    "tx": 0.0,
+    "publish": 0.131,
+    "invoke": 0.0,
+    "work": 0.6414
+   },
+   "inboundPerReq": 1.0,
+   "deliveriesPerReq": {},
+   "publishesPerReq": 1.0,
+   "entry": true,
+   "otherInboundPerReq": 1.0,
+   "sampledMs": 3587.7
+  },
+  {
+   "type": "tax.createTaxRate",
+   "container": "address",
+   "D": 0.2083,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 1.0,
+    "decode": 0.0,
+    "tx": 0.0,
+    "publish": 0.0,
+    "invoke": 0.0,
+    "work": 0.0
+   },
+   "inboundPerReq": 0.0,
+   "deliveriesPerReq": {},
+   "publishesPerReq": 0,
+   "entry": false,
+   "otherInboundPerReq": 0.0,
+   "sampledMs": 5.2
+  },
+  {
+   "type": "tax.createTaxRate",
+   "container": "catalog",
+   "D": 2.2017,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 0.4615,
+    "decode": 0.1538,
+    "tx": 0.0,
+    "publish": 0.0,
+    "invoke": 0.0,
+    "work": 0.3846
+   },
+   "inboundPerReq": 1.0,
+   "deliveriesPerReq": {
+    "tax/tax-rate/created": 1.0
+   },
+   "publishesPerReq": 0,
+   "entry": false,
+   "otherInboundPerReq": 0.0,
+   "sampledMs": 217.7
+  },
+  {
+   "type": "tax.createTaxRate",
+   "container": "media",
+   "D": 0.2292,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 1.0,
+    "decode": 0.0,
+    "tx": 0.0,
+    "publish": 0.0,
+    "invoke": 0.0,
+    "work": 0.0
+   },
+   "inboundPerReq": 0.0,
+   "deliveriesPerReq": {},
+   "publishesPerReq": 0,
+   "entry": false,
+   "otherInboundPerReq": 0.0,
+   "sampledMs": 20.0
+  },
+  {
+   "type": "tax.createTaxRate",
+   "container": "order",
+   "D": 1.5959,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 0.5714,
+    "decode": 0.0,
+    "tx": 0.0,
+    "publish": 0.0,
+    "invoke": 0.0,
+    "work": 0.4286
+   },
+   "inboundPerReq": 1.0,
+   "deliveriesPerReq": {
+    "tax/tax-rate-version/created": 1.0
+   },
+   "publishesPerReq": 0,
+   "entry": false,
+   "otherInboundPerReq": 0.0,
+   "sampledMs": 160.3
+  },
+  {
+   "type": "tax.createTaxRate",
+   "container": "tax",
+   "D": 25.3878,
+   "countersRemainderMs": null,
+   "shares": {
+    "dispatch": 0.2273,
+    "decode": 0.0341,
+    "tx": 0.0227,
+    "publish": 0.1591,
+    "invoke": 0.0,
+    "work": 0.5568
+   },
+   "inboundPerReq": 1.0,
+   "deliveriesPerReq": {},
+   "publishesPerReq": 2.0,
+   "entry": true,
+   "otherInboundPerReq": 1.0,
+   "sampledMs": 2977.7
+  }
+ ]
+}

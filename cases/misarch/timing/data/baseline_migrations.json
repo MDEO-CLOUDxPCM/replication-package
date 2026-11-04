@@ -1,0 +1,111 @@
+{
+ "recorded": "2026-11-01 08:30:16",
+ "countsSha256": "5b52bcd3e3e9cf96d456ce7286d141c0025bf9f791bd45c4c16018ec1772dfda",
+ "services": {
+  "address": [
+   {
+    "version": "1.1",
+    "script": "V1_1__create_relations.sql",
+    "checksum": 2032467004
+   }
+  ],
+  "catalog": [
+   {
+    "version": "1.1",
+    "script": "V1_1__create_relations.sql",
+    "checksum": -767685930
+   }
+  ],
+  "discount": [
+   {
+    "version": "1.1",
+    "script": "V1_1__create_relations.sql",
+    "checksum": 2105296071
+   }
+  ],
+  "inventory": [
+   {
+    "version": "1.1",
+    "script": "V1_1__create_relations.sql",
+    "checksum": -1323762127
+   }
+  ],
+  "invoice": [
+   {
+    "version": "1.1",
+    "script": "V1_1__create_relations.sql",
+    "checksum": 1155144672
+   }
+  ],
+  "notification": [
+   {
+    "version": "1.1",
+    "script": "V1_1__create_relations.sql",
+    "checksum": 1548690490
+   }
+  ],
+  "order": [
+   {
+    "version": "1.1",
+    "script": "V1_1__create_relations.sql",
+    "checksum": 1633638278
+   }
+  ],
+  "payment": [
+   {
+    "version": "1.1",
+    "script": "V1_1__create_relations.sql",
+    "checksum": 563006749
+   }
+  ],
+  "return": [
+   {
+    "version": "1.1",
+    "script": "V1_1__create_relations.sql",
+    "checksum": -654145125
+   }
+  ],
+  "review": [
+   {
+    "version": "1.1",
+    "script": "V1_1__create_relations.sql",
+    "checksum": 1754077562
+   }
+  ],
+  "shipment": [
+   {
+    "version": "1.1",
+    "script": "V1_1__create_relations.sql",
+    "checksum": 176283222
+   }
+  ],
+  "shoppingcart": [
+   {
+    "version": "1.1",
+    "script": "V1_1__create_relations.sql",
+    "checksum": -304551872
+   }
+  ],
+  "tax": [
+   {
+    "version": "1.1",
+    "script": "V1_1__create_relations.sql",
+    "checksum": 843725980
+   }
+  ],
+  "user": [
+   {
+    "version": "1.1",
+    "script": "V1_1__create_relations.sql",
+    "checksum": 101998470
+   }
+  ],
+  "wishlist": [
+   {
+    "version": "1.1",
+    "script": "V1_1__create_relations.sql",
+    "checksum": -1683156168
+   }
+  ]
+ }
+}

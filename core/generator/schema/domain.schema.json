@@ -1,0 +1,1142 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "domain.schema.json",
+  "title": "Case domain extraction",
+  "description": "The extraction format a case provides to the architecture-optimisation model generator (core/generator/derive.py): the domain model of a microservice system as built today. Classes by owning service, references, operations with their triggers, data accesses per class and mode, calls and published events; events with publishers and subscribers, today's copies and gateway (federation) joins, cross-class statements, transactions, sagas, the gateway request types with their query plans, features, class-pair coupling, and seed demands for operations the timing campaign did not measure. MiSArch's instance is cases/misarch/domain/misarch-domain.json (cases/misarch/extract/build.py + assemble.py). `required` lists what the generator reads unconditionally, optional properties are read with a default or under a guard; every object is open (additionalProperties true) because the extraction carries evidence and notes the generator does not read. core/generator/sessions.py (and the case's gen_sessions.py) does not read this file. Cross references (operation ids, class names, topics, feature codes) are not checked by the schema.",
+  "type": "object",
+  "properties": {
+    "classes": {
+      "type": "array",
+      "description": "Domain classes (derive Domain.classes, service_of; domain_section).",
+      "items": {
+        "$ref": "#/$defs/class"
+      },
+      "minItems": 1
+    },
+    "references": {
+      "type": "array",
+      "description": "References between classes (derive Domain.refs, domain_section, COMPOSITION bindings).",
+      "items": {
+        "$ref": "#/$defs/reference"
+      }
+    },
+    "operations": {
+      "type": "array",
+      "description": "All operations of today's system (derive Domain.ops and everything derived from them).",
+      "items": {
+        "$ref": "#/$defs/operation"
+      },
+      "minItems": 1
+    },
+    "events": {
+      "type": "array",
+      "description": "Topics (derive Domain.reactions, domain_section events).",
+      "items": {
+        "$ref": "#/$defs/event"
+      }
+    },
+    "copies": {
+      "type": "array",
+      "description": "Today's local copies (derive Domain.carried).",
+      "items": {
+        "$ref": "#/$defs/copy"
+      }
+    },
+    "gatewayJoins": {
+      "type": "array",
+      "description": "Federation links (derive Domain.glue).",
+      "items": {
+        "$ref": "#/$defs/gatewayJoin"
+      }
+    },
+    "joins": {
+      "type": "array",
+      "description": "Cross-class statements (derive join_classes, JOIN bindings).",
+      "items": {
+        "$ref": "#/$defs/join"
+      }
+    },
+    "transactions": {
+      "type": "array",
+      "description": "Transactions (derive tx_classes, homes, TRANSACTION bindings).",
+      "items": {
+        "$ref": "#/$defs/transaction"
+      }
+    },
+    "features": {
+      "type": "array",
+      "description": "Features (derive domain_section).",
+      "items": {
+        "$ref": "#/$defs/feature"
+      }
+    },
+    "sagas": {
+      "type": "array",
+      "description": "Sagas (derive Domain.saga_of, Workflows, Processes).",
+      "items": {
+        "$ref": "#/$defs/saga"
+      }
+    },
+    "requests": {
+      "type": "array",
+      "description": "Gateway request types with query plans (derive Domain.__init__).",
+      "items": {
+        "$ref": "#/$defs/request"
+      }
+    },
+    "msaMapping": {
+      "$ref": "#/$defs/msaMapping",
+      "description": "msa mapping and seed demands (derive Domain.seed, Domain.demand)."
+    },
+    "coupling": {
+      "type": "object",
+      "description": "Coupling analysis. Also carries (not read by the generator): atomsAll, atomsHot, atomsTxJoin, classesBellNumber.",
+      "properties": {
+        "pairs": {
+          "type": "array",
+          "description": "Class pairs (derive domain_section: Couplings).",
+          "items": {
+            "$ref": "#/$defs/couplingPair"
+          }
+        }
+      },
+      "required": [
+        "pairs"
+      ],
+      "additionalProperties": true
+    },
+    "meta": {
+      "type": "object",
+      "description": "Provenance (source repository, commit, generator). Also carries (not read by the generator): source, ref, commit, gateway, generatedBy, evidence.",
+      "additionalProperties": true
+    },
+    "stats": {
+      "type": "object",
+      "description": "Counts of the extraction (informative).",
+      "additionalProperties": true
+    },
+    "joinTables": {
+      "type": "array",
+      "description": "Join tables (informative).",
+      "items": {
+        "type": "object"
+      }
+    },
+    "callsToday": {
+      "type": "array",
+      "description": "All synchronous calls of today (informative; the generator reads operations[].calls).",
+      "items": {
+        "type": "object"
+      }
+    },
+    "persistenceMethods": {
+      "type": "array",
+      "description": "Persistence methods and their SQL (evidence).",
+      "items": {
+        "type": "object"
+      }
+    },
+    "consistency": {
+      "type": "object",
+      "description": "The levels and rule ids the strong reads' and calls' `consistency` uses, with their texts (informative).",
+      "properties": {
+        "levels": {
+          "type": "object"
+        },
+        "rules": {
+          "type": "object"
+        },
+        "source": {
+          "type": "string"
+        }
+      }
+    }
+  },
+  "required": [
+    "classes",
+    "references",
+    "operations",
+    "events",
+    "copies",
+    "gatewayJoins",
+    "joins",
+    "transactions",
+    "features",
+    "sagas",
+    "requests",
+    "msaMapping",
+    "coupling"
+  ],
+  "additionalProperties": true,
+  "$defs": {
+    "class": {
+      "type": "object",
+      "description": "A domain class (an entity with its own rows), listed by the service that owns it today. Also carries (not read by the generator): columns, attributes, evidence, note, sharedTable, discriminator.",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Class name, unique; the id every other section refers to (derive Domain.classes, one component Assembly_<name> and one schema <name>Db per class)."
+        },
+        "service": {
+          "type": "string",
+          "description": "The service that owns the class today (derive Domain.service_of: the `today` seed's cut, Domain.home's fallback, the per-service k_c and envelopes)."
+        },
+        "table": {
+          "type": "string",
+          "description": "The class's table today (derive domain_section: comment of DomainClass; storage is used when absent)."
+        },
+        "storage": {
+          "type": "string",
+          "description": "Storage technology, e.g. postgres or s3 (derive domain_section, only when `table` is missing)."
+        },
+        "rowBytes": {
+          "type": "integer",
+          "description": "Bytes per row (derive domain_section: DomainClass.rowBytes, default 0).",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "name",
+        "service"
+      ],
+      "if": {
+        "not": {
+          "required": [
+            "table"
+          ]
+        }
+      },
+      "then": {
+        "required": [
+          "storage"
+        ]
+      },
+      "additionalProperties": true
+    },
+    "reference": {
+      "type": "object",
+      "description": "A reference (association or composition) from one class to another. Also carries (not read by the generator): crossServiceToday, snapshot, evidence.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Reference id `<FromClass>.<field>`; accesses name it in `reference` (derive Domain.refs, Reference.name)."
+        },
+        "from": {
+          "type": "string",
+          "description": "The class holding the reference (derive Domain.data: a join-table access through its first class touches the links, not the rows; domain_section)."
+        },
+        "to": {
+          "type": "string",
+          "description": "Target class (derive domain_section: Reference.target)."
+        },
+        "kind": {
+          "type": "string",
+          "description": "Reference kind (derive domain_section: ReferenceKind; a composition between two classes is a COMPOSITION binding).",
+          "enum": [
+            "association",
+            "composition"
+          ]
+        },
+        "mult": {
+          "type": "string",
+          "description": "Multiplicity; 1 and 0..1 give Reference.upper 1, * gives -1 (derive domain_section).",
+          "enum": [
+            "1",
+            "0..1",
+            "*"
+          ]
+        },
+        "storage": {
+          "type": "string",
+          "description": "How the reference is held: id, fk, json, id array, or `join table <service>.<table>`; a value starting with `join table` makes accesses through it link accesses (derive Domain.data, domain_section).",
+          "examples": [
+            "id",
+            "fk",
+            "json",
+            "id array",
+            "join table order.order_item_discounts"
+          ]
+        },
+        "attr": {
+          "type": "string",
+          "description": "The column holding the reference (derive domain_section, only together with `inCopy`)."
+        },
+        "inCopy": {
+          "type": "string",
+          "description": "The copy table whose column holds the reference (derive domain_section comment)."
+        },
+        "inverse": {
+          "type": "string",
+          "description": "Id of the inverse reference (derive domain_section comment)."
+        },
+        "note": {
+          "type": "string",
+          "description": "Free text; `snapshot` in it marks a snapshot reference (derive domain_section: Reference.snapshot)."
+        }
+      },
+      "required": [
+        "id",
+        "from",
+        "to",
+        "kind",
+        "mult",
+        "storage"
+      ],
+      "if": {
+        "required": [
+          "inCopy"
+        ]
+      },
+      "then": {
+        "required": [
+          "attr"
+        ]
+      },
+      "additionalProperties": true
+    },
+    "trigger": {
+      "type": "object",
+      "description": "What starts the operation: one of a GraphQL field, a broker topic, an HTTP route or a schedule.",
+      "properties": {
+        "graphql": {
+          "type": "string",
+          "description": "`Query.x`, `Mutation.x`, `Type.field` or `_entities(Type)` (derive Domain.home: the type names the home class when it belongs to the operation's service)."
+        },
+        "topic": {
+          "type": "string",
+          "description": "Topic the reaction subscribes to (derive domain_section: an event's reactions)."
+        },
+        "http": {
+          "type": "string",
+          "description": "HTTP route of an external provider's callback; its presence makes the operation a callback target of `simulation.<service>.*` calls (derive Domain.callbacks)."
+        },
+        "schedule": {
+          "type": "string",
+          "description": "Schedule text of a periodic job (not read beyond its presence)."
+        }
+      },
+      "minProperties": 1,
+      "additionalProperties": true
+    },
+    "access": {
+      "type": "object",
+      "description": "One data access of an operation: a class (or one of its references), read or written, with its statements. Also carries (not read by the generator): assoc, alt, rows, per, times, prob, when, table, via, at, topic, dbTrigger, ownerToday, evidence, note.",
+      "properties": {
+        "class": {
+          "type": "string",
+          "description": "The accessed domain class (derive access_groups: groups per (class, mode); Domain.home)."
+        },
+        "mode": {
+          "type": "string",
+          "description": "Read or write (derive access_groups, Domain.home: the first local write names the home class).",
+          "enum": [
+            "read",
+            "write"
+          ]
+        },
+        "today": {
+          "type": "string",
+          "description": "How today's code serves it: local (own schema), copy (a local copy of another service's data), payload (comes with the event), call (the callee's work). payload and call accesses are not counted as the operation's own (derive access_groups, Domain.home).",
+          "enum": [
+            "local",
+            "copy",
+            "payload",
+            "call"
+          ]
+        },
+        "foreignToday": {
+          "type": "boolean",
+          "description": "The class belongs to another service than the operation today (derive Domain.home)."
+        },
+        "shape": {
+          "type": "string",
+          "description": "Statement shape: statements x rows (derive domain_section: Access.shape).",
+          "enum": [
+            "one",
+            "optional",
+            "list",
+            "batch",
+            "perItem"
+          ]
+        },
+        "statements": {
+          "description": "Expected statements per execution: a number, or an expression text for a data-dependent count, counted as 1 (derive statements(), default 1; <= 0 drops the access).",
+          "type": [
+            "number",
+            "string"
+          ]
+        },
+        "op": {
+          "type": "string",
+          "description": "Statement kind (derive: `exists`-only reads make a key copy; insert/upsert/delete are KEY_WRITES; a read `exists` of the contributed entity marks federation glue). `lock`: a statement that only locks (SELECT ... FOR UPDATE without a data change, an advisory lock), a strict read of the locked class; not read specially by the generator.",
+          "enum": [
+            "select",
+            "count",
+            "exists",
+            "lock",
+            "insert",
+            "update",
+            "upsert",
+            "delete"
+          ]
+        },
+        "reference": {
+          "type": "string",
+          "description": "Id of the reference the access navigates (derive access_groups parts, Domain.data, Access.via)."
+        },
+        "strong": {
+          "type": "boolean",
+          "description": "The operation needs current data (a read that decides a write or answer); a strong read carries its `consistency` level, which decides its mechanisms (derive Domain.level, access_groups). A read's flag only: a write has none, also not one whose check is inside the write (an atomic conditional update)."
+        },
+        "consistency": {
+          "$ref": "#/$defs/consistency"
+        }
+      },
+      "required": [
+        "class",
+        "mode",
+        "today",
+        "foreignToday",
+        "shape"
+      ],
+      "additionalProperties": true,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "mode": {
+                "const": "read"
+              },
+              "strong": {
+                "const": true
+              }
+            },
+            "required": [
+              "mode",
+              "strong"
+            ]
+          },
+          "then": {
+            "required": [
+              "consistency"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "mode": {
+                "const": "write"
+              }
+            },
+            "required": [
+              "mode"
+            ]
+          },
+          "then": {
+            "not": {
+              "required": [
+                "strong"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "call": {
+      "type": "object",
+      "description": "A synchronous call of the operation into another operation or an external provider. Also carries (not read by the generator): how (dapr-invoke|http), at, shape, rows, per, prob, purpose, retries, when, evidence, note.",
+      "properties": {
+        "to": {
+          "description": "Callee operation id, or the fields one invocation's query resolves in the callee (a list, in the document's order: the first is the field the caller calls, the others are resolved on earlier entries' objects, `parents`); `simulation.<service>.<x>` is an external provider whose callbacks are that service's http-triggered operations (derive Domain.targets, Domain.call_fields).",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1
+            }
+          ]
+        },
+        "parents": {
+          "type": "array",
+          "description": "Required when `to` lists more than one field: per entry of `to` the index of the earlier entry whose objects it is resolved on, null for the first (as a request plan's `parent`). The caller calls the first; each other entry is called from its parent's SEFF for this call (derive Domain.call_fields, call_service).",
+          "items": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "minItems": 2
+        },
+        "strong": {
+          "type": "boolean",
+          "description": "The caller needs current answers (a read call); a strong call carries its `consistency` level: strict is sync only (no cache option on the call site, nor on its nested fields' calls), stale-ok and immutable sync or a cache (derive Domain.targets, Domain.sync_only)."
+        },
+        "effect": {
+          "const": true,
+          "description": "An effect call: it makes a change outside the caller (a registration with an external provider) and reads nothing, so it is sync only, never cached or copied, whatever its callee; required on a call of `simulation.*`, never with `strong` (derive Domain.targets, Domain.sync_only)."
+        },
+        "consistency": {
+          "$ref": "#/$defs/consistency"
+        }
+      },
+      "required": [
+        "to"
+      ],
+      "if": {
+        "properties": {
+          "to": {
+            "type": "array",
+            "minItems": 2
+          }
+        },
+        "required": [
+          "to"
+        ]
+      },
+      "then": {
+        "required": [
+          "parents"
+        ]
+      },
+      "additionalProperties": true,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "to": {
+                "type": "string",
+                "pattern": "^simulation\\."
+              }
+            },
+            "required": [
+              "to"
+            ]
+          },
+          "then": {
+            "required": [
+              "effect"
+            ]
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "effect"
+            ]
+          },
+          "then": {
+            "not": {
+              "required": [
+                "strong"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "strong": {
+                "const": true
+              }
+            },
+            "required": [
+              "strong"
+            ]
+          },
+          "then": {
+            "required": [
+              "consistency"
+            ]
+          }
+        }
+      ]
+    },
+    "publish": {
+      "type": "object",
+      "description": "An event the operation publishes. Also carries (not read by the generator): payload, when, per, at, evidence, note.",
+      "properties": {
+        "topic": {
+          "type": "string",
+          "description": "Published topic; its reactions are the events[].subscribers that are not copy maintenance (derive Domain.targets, Raise)."
+        },
+        "prob": {
+          "type": "number",
+          "description": "Probability per execution; without it 1, or 0 for a topic containing `failed`; below 1e-4 the outcome is left out (derive publish_prob).",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "required": [
+        "topic"
+      ],
+      "additionalProperties": true
+    },
+    "operation": {
+      "type": "object",
+      "description": "An operation of today's system: a GraphQL resolver, a reaction to a topic, an HTTP callback or a job, with its trigger, data accesses, calls and publications. Also carries (not read by the generator): entry, note, sagaStep, transactions, notReached.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Operation id `<service>.<field>`, `<service>.<Type>.<field>`, `<service>._entities.<Type>`, `<service>.on:<topic>` ... (derive Domain.ops; plans, sagas, events and seed demands refer to it)."
+        },
+        "service": {
+          "type": "string",
+          "description": "The service that runs it today (derive Domain.home, Timing k_c of its container, callbacks)."
+        },
+        "kind": {
+          "type": "string",
+          "description": "Operation kind (derive domain_section: OperationKind; comments).",
+          "enum": [
+            "query",
+            "command",
+            "reaction"
+          ]
+        },
+        "feature": {
+          "type": "string",
+          "description": "Feature code (features[].code) (derive domain_section: Feature, unit groups)."
+        },
+        "trigger": {
+          "$ref": "#/$defs/trigger",
+          "description": "What starts it (derive Domain.home, Domain.callbacks, domain_section)."
+        },
+        "accesses": {
+          "type": "array",
+          "description": "Its data accesses (derive access_groups, Domain.home, Domain.glue, domain_section).",
+          "items": {
+            "$ref": "#/$defs/access"
+          }
+        },
+        "calls": {
+          "type": "array",
+          "description": "Its synchronous calls (derive Domain.targets).",
+          "items": {
+            "$ref": "#/$defs/call"
+          }
+        },
+        "publishes": {
+          "type": "array",
+          "description": "Its published events (derive Domain.targets, domain_section Raise).",
+          "items": {
+            "$ref": "#/$defs/publish"
+          }
+        },
+        "domain": {
+          "type": "boolean",
+          "description": "A domain operation (counted for a class's change units; derive counted_operations)."
+        },
+        "trivial": {
+          "type": "boolean",
+          "description": "No access, call or publication of its own (not counted; derive counted_operations)."
+        },
+        "mechanism": {
+          "type": "string",
+          "description": "`copy`: it only maintains a local copy, not a domain operation (derive counted_operations, Domain.reactions).",
+          "enum": [
+            "copy"
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "service",
+        "kind",
+        "feature",
+        "trigger",
+        "accesses",
+        "calls",
+        "publishes"
+      ],
+      "additionalProperties": true
+    },
+    "subscriber": {
+      "type": "object",
+      "description": "A subscription of an operation to the topic. Also carries (not read by the generator): service, evidence.",
+      "properties": {
+        "op": {
+          "type": "string",
+          "description": "The subscribing operation (derive Domain.reactions)."
+        },
+        "copy": {
+          "type": "boolean",
+          "description": "The subscription maintains a copy (not a domain reaction; derive Domain.reactions)."
+        }
+      },
+      "required": [
+        "op"
+      ],
+      "additionalProperties": true
+    },
+    "publisher": {
+      "type": "object",
+      "description": "A publication site of the topic. Also carries (not read by the generator): op, prob, when, evidence.",
+      "properties": {
+        "payload": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Classes carried in the payload (derive domain_section: DomainEvent.payload)."
+        }
+      },
+      "additionalProperties": true
+    },
+    "event": {
+      "type": "object",
+      "description": "A broker topic with its publishers and subscribers. Also carries (not read by the generator): role (replication|process|unsubscribed|mixed), externalPublisher, neverPublished.",
+      "properties": {
+        "topic": {
+          "type": "string",
+          "description": "Topic name `<service>/<entity>/<event>` (derive Domain.reactions, DomainEvent.name)."
+        },
+        "subscribers": {
+          "type": "array",
+          "description": "Its subscriptions (derive Domain.reactions).",
+          "items": {
+            "$ref": "#/$defs/subscriber"
+          }
+        },
+        "publishers": {
+          "type": "array",
+          "description": "Its publication sites (derive domain_section: payload classes).",
+          "items": {
+            "$ref": "#/$defs/publisher"
+          }
+        }
+      },
+      "required": [
+        "topic",
+        "subscribers",
+        "publishers"
+      ],
+      "additionalProperties": true
+    },
+    "copy": {
+      "type": "object",
+      "description": "A local copy of other services' data held by a service today (a table fed by events). Also carries (not read by the generator): service, table, columns, attributes, rowBytes, fedBy, feeders, writers, own, evidence, note.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Copy id `<service>.<table>` (derive Domain.carried, only for `process` copies)."
+        },
+        "process": {
+          "type": "boolean",
+          "description": "Event-carried state: the copy comes with the saga message that triggers its readers, no write feeds it (derive Domain.carried)."
+        },
+        "copyOf": {
+          "type": "object",
+          "description": "Copied classes -> copied attributes (derive Domain.carried: the classes).",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Attributes."
+          }
+        },
+        "readers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Operations reading the copy (derive Domain.carried)."
+        }
+      },
+      "if": {
+        "properties": {
+          "process": {
+            "const": true
+          }
+        },
+        "required": [
+          "process"
+        ]
+      },
+      "then": {
+        "required": [
+          "id",
+          "copyOf"
+        ]
+      },
+      "additionalProperties": true
+    },
+    "gatewayJoin": {
+      "type": "object",
+      "description": "A federation link: a subgraph contributing fields to (or stubbing) another service's entity, which the gateway joins. Also carries (not read by the generator): owner, subgraph, fields, resolverOps, evidence.",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "description": "contributes: the subgraph adds fields to the entity; stub: a foreign type stub (derive Domain.glue).",
+          "enum": [
+            "contributes",
+            "stub"
+          ]
+        },
+        "entityResolver": {
+          "type": "string",
+          "description": "The subgraph's `_entities` resolver (operation id) (derive Domain.glue: if it only checks the entity exists it is federation glue, not a domain operation)."
+        },
+        "entity": {
+          "type": "string",
+          "description": "The entity (class) the fields are contributed to (derive Domain.glue)."
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "contributes"
+          }
+        },
+        "required": [
+          "kind",
+          "entityResolver"
+        ]
+      },
+      "then": {
+        "required": [
+          "entity"
+        ]
+      },
+      "additionalProperties": true
+    },
+    "join": {
+      "type": "object",
+      "description": "A cross-class statement (SQL join or trigger) over several classes' tables. Also carries (not read by the generator): id, service, method, classes, tables, kinds, sql, trigger, writes, evidence.",
+      "properties": {
+        "usedBy": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Operations executing it (derive join_classes, JOIN bindings)."
+        },
+        "ownClasses": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Domain classes it binds (derive join_classes, JOIN bindings: more than one class)."
+        }
+      },
+      "additionalProperties": true
+    },
+    "transaction": {
+      "type": "object",
+      "description": "A database transaction of an operation. Also carries (not read by the generator): service, domainOp, publishInside, evidence, note.",
+      "properties": {
+        "op": {
+          "type": "string",
+          "description": "The operation (derive tx_classes, TRANSACTION bindings)."
+        },
+        "multiClass": {
+          "type": "boolean",
+          "description": "It writes more than one class (derive tx_classes: only these bind classes)."
+        },
+        "domainClassesWritten": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Domain classes written in it (derive tx_classes; `classes` when empty)."
+        },
+        "classes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Classes (tables) involved, the fallback of domainClassesWritten (derive tx_classes)."
+        }
+      },
+      "required": [
+        "op"
+      ],
+      "if": {
+        "properties": {
+          "multiClass": {
+            "const": true
+          }
+        },
+        "required": [
+          "multiClass"
+        ]
+      },
+      "then": {
+        "anyOf": [
+          {
+            "required": [
+              "domainClassesWritten"
+            ],
+            "properties": {
+              "domainClassesWritten": {
+                "minItems": 1
+              }
+            }
+          },
+          {
+            "required": [
+              "classes"
+            ]
+          }
+        ]
+      },
+      "additionalProperties": true
+    },
+    "feature": {
+      "type": "object",
+      "description": "A feature (functional area) operations belong to. Also carries (not read by the generator): msa, operations.",
+      "properties": {
+        "code": {
+          "type": "string",
+          "description": "Feature code, as in operations[].feature (derive domain_section)."
+        },
+        "name": {
+          "type": "string",
+          "description": "Feature name (derive domain_section: Feature.name)."
+        }
+      },
+      "required": [
+        "code",
+        "name"
+      ],
+      "additionalProperties": true
+    },
+    "sagaOperation": {
+      "type": "object",
+      "description": "An operation taking part in the saga. Also carries (not read by the generator): trigger.",
+      "properties": {
+        "op": {
+          "type": "string",
+          "description": "Operation id (derive Domain.saga_of, Workflow steps, Process steps/compensations)."
+        },
+        "role": {
+          "type": "string",
+          "description": "Step or compensation (derive generate Workflow, domain_section Process).",
+          "enum": [
+            "step",
+            "compensation"
+          ]
+        }
+      },
+      "required": [
+        "op",
+        "role"
+      ],
+      "additionalProperties": true
+    },
+    "saga": {
+      "type": "object",
+      "description": "An event-choreographed business process (saga). Also carries (not read by the generator): msa.",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Saga name (derive Workflow saga_<name>, Process.name; its criticality comes from the generator's PROCESS_CRITICALITY table, today Buy, Return, Registration)."
+        },
+        "trigger": {
+          "type": "string",
+          "description": "The operation that starts it (derive generate, domain_section: Process.trigger)."
+        },
+        "operations": {
+          "type": "array",
+          "description": "Its steps and compensations (derive Domain.saga_of, generate, domain_section).",
+          "items": {
+            "$ref": "#/$defs/sagaOperation"
+          }
+        }
+      },
+      "required": [
+        "name",
+        "trigger",
+        "operations"
+      ],
+      "additionalProperties": true
+    },
+    "planStep": {
+      "type": "object",
+      "description": "One resolver of a request's query plan (a tree via `parent`). Also carries (not read by the generator): type, field, from, known; for a connection field `selects` (the connection fields the document selects: nodes, totalCount, hasNextPage) and `first` (whether it gives `first`).",
+      "properties": {
+        "op": {
+          "type": "string",
+          "description": "Resolver operation id (derive Domain.__init__: the plan is used when its ops equal sessions.requests[k].operations)."
+        },
+        "via": {
+          "type": "string",
+          "description": "root: the request's entry; local: resolved inside the subgraph; gateway: a gateway join (derive Domain.__init__, call-site options).",
+          "enum": [
+            "root",
+            "local",
+            "gateway"
+          ]
+        },
+        "parent": {
+          "type": "integer",
+          "description": "Index of the step whose objects this one is resolved on; absent: the root (derive Domain.__init__).",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "op",
+        "via"
+      ],
+      "additionalProperties": true
+    },
+    "request": {
+      "type": "object",
+      "description": "A gateway request type (a GraphQL document of the load generator) and its query plan. Also carries (not read by the generator): document, evidence, measuredCpuMsPerRequest.",
+      "properties": {
+        "type": {
+          "type": "string",
+          "description": "Request type name; sessions.json requests[].roundTwoRequest refers to it (derive Domain.__init__)."
+        },
+        "plan": {
+          "type": "array",
+          "description": "The query plan, root first (derive Domain.__init__).",
+          "items": {
+            "$ref": "#/$defs/planStep"
+          },
+          "minItems": 1
+        }
+      },
+      "required": [
+        "type",
+        "plan"
+      ],
+      "additionalProperties": true
+    },
+    "seedDemand": {
+      "type": "object",
+      "description": "A seed demand of an operation from the msa model (used only where the timing campaign has no parts).",
+      "properties": {
+        "cpuMs": {
+          "type": "number",
+          "description": "CPU ms per execution (derive Domain.demand).",
+          "minimum": 0
+        },
+        "dbMs": {
+          "type": "number",
+          "description": "Database ms per execution, split evenly over the local and copy accesses (derive access_groups).",
+          "minimum": 0
+        },
+        "from": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "msa operations it comes from; it must be exactly one to be usable (derive Domain.demand).",
+          "minItems": 1
+        }
+      },
+      "required": [
+        "cpuMs",
+        "dbMs",
+        "from"
+      ],
+      "additionalProperties": true
+    },
+    "msaMapping": {
+      "type": "object",
+      "description": "The mapping onto the earlier msa model and its seed demands. Also carries (not read by the generator): source, demands, operations, entities, needs.",
+      "properties": {
+        "seedDemands": {
+          "type": "object",
+          "description": "Seed demands per operation. Also carries (not read by the generator): method.",
+          "properties": {
+            "operations": {
+              "type": "object",
+              "description": "operation id -> seed demand (derive Domain.seed).",
+              "additionalProperties": {
+                "$ref": "#/$defs/seedDemand"
+              }
+            }
+          },
+          "required": [
+            "operations"
+          ],
+          "additionalProperties": true
+        }
+      },
+      "required": [
+        "seedDemands"
+      ],
+      "additionalProperties": true
+    },
+    "couplingPair": {
+      "type": "object",
+      "description": "Coupling evidence of a class pair. Also carries (not read by the generator): bindings, coAccessRate, writtenTogetherOps.",
+      "properties": {
+        "a": {
+          "type": "string",
+          "description": "First class (derive domain_section: Coupling ends)."
+        },
+        "b": {
+          "type": "string",
+          "description": "Second class."
+        },
+        "coAccessOps": {
+          "type": "integer",
+          "description": "Operations accessing both (derive: strength + n).",
+          "minimum": 0
+        },
+        "transactions": {
+          "type": "integer",
+          "description": "Transactions writing both (derive: strength + 2n).",
+          "minimum": 0
+        },
+        "joins": {
+          "type": "integer",
+          "description": "Cross-class statements over both (derive: strength + 2n).",
+          "minimum": 0
+        },
+        "composition": {
+          "type": "boolean",
+          "description": "A composition between them (derive: strength + 1)."
+        }
+      },
+      "required": [
+        "a",
+        "b"
+      ],
+      "additionalProperties": true
+    },
+    "consistency": {
+      "type": "object",
+      "description": "The consistency level of a strong read or a strong call (MiSArch curates it in extract/curated/consistency.yaml). `level` decides the mechanisms (derive Domain.level, access_groups, F4): strict sync only (a copy only where today's code serves the strict read from a copy), stale-ok sync, cache or copy, immutable as stale-ok with no staleness in O4 (Access.level IMMUTABLE). `rules` and `reason` are not read by the generator (the model's Access comments, the explorer).",
+      "properties": {
+        "level": {
+          "type": "string",
+          "enum": [
+            "strict",
+            "stale-ok",
+            "immutable"
+          ]
+        },
+        "rules": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "level",
+        "rules",
+        "reason"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

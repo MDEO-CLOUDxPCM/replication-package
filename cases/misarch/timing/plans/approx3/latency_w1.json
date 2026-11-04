@@ -1,0 +1,789 @@
+{
+ "name": "latency_w1",
+ "config": "on",
+ "block": 5,
+ "rateLevel": "latency",
+ "types": [
+  "products",
+  "products.anon",
+  "product",
+  "product.anon",
+  "users",
+  "address",
+  "paymentInformations",
+  "shipmentMethods",
+  "notifications",
+  "wishlistView",
+  "login",
+  "orderTracking",
+  "user.updateUser",
+  "adminUpdateProduct",
+  "catalog.updateProductVariant",
+  "registration",
+  "createShoppingcartItem",
+  "createOrder",
+  "placeOrder",
+  "return.createReturn",
+  "createReview",
+  "addToWishlist",
+  "wishlist.createWishlist",
+  "address.createUserAddress",
+  "payment.createCreditCardPaymentInformation",
+  "discount.registerCoupon",
+  "adminNewPrice",
+  "adminCreateVariant",
+  "adminCreateProduct",
+  "catalog.createCategory",
+  "inventory.createProductItemBatch",
+  "media.uploadMedia",
+  "discount.createDiscount",
+  "discount.createCoupon",
+  "tax.createTaxRate",
+  "tax.createTaxRateVersion",
+  "shipment.createShipmentMethod",
+  "address.createVendorAddress"
+ ],
+ "prep": [
+  "calibration/.venv/bin/python calibration/scripts/maintain.py --stack kotlin",
+  "calibration/.venv/bin/python requests/run.py prep --n 400",
+  "calibration/.venv/bin/python requests/run.py cleanup"
+ ],
+ "durationS": 1420,
+ "phases": [
+  {
+   "name": "idle",
+   "duration": 60,
+   "rates": {}
+  },
+  {
+   "name": "products:pre",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "products:steady",
+   "duration": 25,
+   "rates": {
+    "products": 4.0
+   },
+   "deterministic": true
+  },
+  {
+   "name": "products:drain",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "products.anon:pre",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "products.anon:steady",
+   "duration": 25,
+   "rates": {
+    "products.anon": 4.0
+   },
+   "deterministic": true
+  },
+  {
+   "name": "products.anon:drain",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "product:pre",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "product:steady",
+   "duration": 25,
+   "rates": {
+    "product": 4.0
+   },
+   "deterministic": true
+  },
+  {
+   "name": "product:drain",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "product.anon:pre",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "product.anon:steady",
+   "duration": 25,
+   "rates": {
+    "product.anon": 4.0
+   },
+   "deterministic": true
+  },
+  {
+   "name": "product.anon:drain",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "users:pre",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "users:steady",
+   "duration": 25,
+   "rates": {
+    "users": 4.0
+   },
+   "deterministic": true
+  },
+  {
+   "name": "users:drain",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "address:pre",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "address:steady",
+   "duration": 25,
+   "rates": {
+    "address": 4.0
+   },
+   "deterministic": true
+  },
+  {
+   "name": "address:drain",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "paymentInformations:pre",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "paymentInformations:steady",
+   "duration": 25,
+   "rates": {
+    "paymentInformations": 4.0
+   },
+   "deterministic": true
+  },
+  {
+   "name": "paymentInformations:drain",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "shipmentMethods:pre",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "shipmentMethods:steady",
+   "duration": 25,
+   "rates": {
+    "shipmentMethods": 4.0
+   },
+   "deterministic": true
+  },
+  {
+   "name": "shipmentMethods:drain",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "notifications:pre",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "notifications:steady",
+   "duration": 25,
+   "rates": {
+    "notifications": 4.0
+   },
+   "deterministic": true
+  },
+  {
+   "name": "notifications:drain",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "wishlistView:pre",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "wishlistView:steady",
+   "duration": 25,
+   "rates": {
+    "wishlistView": 4.0
+   },
+   "deterministic": true
+  },
+  {
+   "name": "wishlistView:drain",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "login:pre",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "login:steady",
+   "duration": 25,
+   "rates": {
+    "login": 4.0
+   },
+   "deterministic": true
+  },
+  {
+   "name": "login:drain",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "orderTracking:pre",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "orderTracking:steady",
+   "duration": 25,
+   "rates": {
+    "orderTracking": 4.0
+   },
+   "deterministic": true
+  },
+  {
+   "name": "orderTracking:drain",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "user.updateUser:pre",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "user.updateUser:steady",
+   "duration": 25,
+   "rates": {
+    "user.updateUser": 4.0
+   },
+   "deterministic": true
+  },
+  {
+   "name": "user.updateUser:drain",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "adminUpdateProduct:pre",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "adminUpdateProduct:steady",
+   "duration": 25,
+   "rates": {
+    "adminUpdateProduct": 4.0
+   },
+   "deterministic": true
+  },
+  {
+   "name": "adminUpdateProduct:drain",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "catalog.updateProductVariant:pre",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "catalog.updateProductVariant:steady",
+   "duration": 25,
+   "rates": {
+    "catalog.updateProductVariant": 4.0
+   },
+   "deterministic": true
+  },
+  {
+   "name": "catalog.updateProductVariant:drain",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "registration:pre",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "registration:steady",
+   "duration": 25,
+   "rates": {
+    "registration": 4.0
+   },
+   "deterministic": true
+  },
+  {
+   "name": "registration:drain",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "createShoppingcartItem:pre",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "createShoppingcartItem:steady",
+   "duration": 25,
+   "rates": {
+    "createShoppingcartItem": 4.0
+   },
+   "deterministic": true
+  },
+  {
+   "name": "createShoppingcartItem:drain",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "createOrder:pre",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "createOrder:steady",
+   "duration": 25,
+   "rates": {
+    "createOrder": 4.0
+   },
+   "deterministic": true
+  },
+  {
+   "name": "createOrder:drain",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "placeOrder:pre",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "placeOrder:steady",
+   "duration": 25,
+   "rates": {
+    "placeOrder": 4.0
+   },
+   "deterministic": true
+  },
+  {
+   "name": "placeOrder:drain",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "return.createReturn:pre",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "return.createReturn:steady",
+   "duration": 25,
+   "rates": {
+    "return.createReturn": 4.0
+   },
+   "deterministic": true
+  },
+  {
+   "name": "return.createReturn:drain",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "createReview:pre",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "createReview:steady",
+   "duration": 25,
+   "rates": {
+    "createReview": 4.0
+   },
+   "deterministic": true
+  },
+  {
+   "name": "createReview:drain",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "addToWishlist:pre",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "addToWishlist:steady",
+   "duration": 25,
+   "rates": {
+    "addToWishlist": 4.0
+   },
+   "deterministic": true
+  },
+  {
+   "name": "addToWishlist:drain",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "wishlist.createWishlist:pre",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "wishlist.createWishlist:steady",
+   "duration": 25,
+   "rates": {
+    "wishlist.createWishlist": 4.0
+   },
+   "deterministic": true
+  },
+  {
+   "name": "wishlist.createWishlist:drain",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "address.createUserAddress:pre",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "address.createUserAddress:steady",
+   "duration": 25,
+   "rates": {
+    "address.createUserAddress": 4.0
+   },
+   "deterministic": true
+  },
+  {
+   "name": "address.createUserAddress:drain",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "payment.createCreditCardPaymentInformation:pre",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "payment.createCreditCardPaymentInformation:steady",
+   "duration": 25,
+   "rates": {
+    "payment.createCreditCardPaymentInformation": 4.0
+   },
+   "deterministic": true
+  },
+  {
+   "name": "payment.createCreditCardPaymentInformation:drain",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "discount.registerCoupon:pre",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "discount.registerCoupon:steady",
+   "duration": 25,
+   "rates": {
+    "discount.registerCoupon": 4.0
+   },
+   "deterministic": true
+  },
+  {
+   "name": "discount.registerCoupon:drain",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "adminNewPrice:pre",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "adminNewPrice:steady",
+   "duration": 25,
+   "rates": {
+    "adminNewPrice": 4.0
+   },
+   "deterministic": true
+  },
+  {
+   "name": "adminNewPrice:drain",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "adminCreateVariant:pre",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "adminCreateVariant:steady",
+   "duration": 25,
+   "rates": {
+    "adminCreateVariant": 4.0
+   },
+   "deterministic": true
+  },
+  {
+   "name": "adminCreateVariant:drain",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "adminCreateProduct:pre",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "adminCreateProduct:steady",
+   "duration": 25,
+   "rates": {
+    "adminCreateProduct": 4.0
+   },
+   "deterministic": true
+  },
+  {
+   "name": "adminCreateProduct:drain",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "catalog.createCategory:pre",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "catalog.createCategory:steady",
+   "duration": 25,
+   "rates": {
+    "catalog.createCategory": 4.0
+   },
+   "deterministic": true
+  },
+  {
+   "name": "catalog.createCategory:drain",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "inventory.createProductItemBatch:pre",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "inventory.createProductItemBatch:steady",
+   "duration": 25,
+   "rates": {
+    "inventory.createProductItemBatch": 4.0
+   },
+   "deterministic": true
+  },
+  {
+   "name": "inventory.createProductItemBatch:drain",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "media.uploadMedia:pre",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "media.uploadMedia:steady",
+   "duration": 25,
+   "rates": {
+    "media.uploadMedia": 4.0
+   },
+   "deterministic": true
+  },
+  {
+   "name": "media.uploadMedia:drain",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "discount.createDiscount:pre",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "discount.createDiscount:steady",
+   "duration": 25,
+   "rates": {
+    "discount.createDiscount": 4.0
+   },
+   "deterministic": true
+  },
+  {
+   "name": "discount.createDiscount:drain",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "discount.createCoupon:pre",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "discount.createCoupon:steady",
+   "duration": 25,
+   "rates": {
+    "discount.createCoupon": 4.0
+   },
+   "deterministic": true
+  },
+  {
+   "name": "discount.createCoupon:drain",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "tax.createTaxRate:pre",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "tax.createTaxRate:steady",
+   "duration": 25,
+   "rates": {
+    "tax.createTaxRate": 4.0
+   },
+   "deterministic": true
+  },
+  {
+   "name": "tax.createTaxRate:drain",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "tax.createTaxRateVersion:pre",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "tax.createTaxRateVersion:steady",
+   "duration": 25,
+   "rates": {
+    "tax.createTaxRateVersion": 4.0
+   },
+   "deterministic": true
+  },
+  {
+   "name": "tax.createTaxRateVersion:drain",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "shipment.createShipmentMethod:pre",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "shipment.createShipmentMethod:steady",
+   "duration": 25,
+   "rates": {
+    "shipment.createShipmentMethod": 4.0
+   },
+   "deterministic": true
+  },
+  {
+   "name": "shipment.createShipmentMethod:drain",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "address.createVendorAddress:pre",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "address.createVendorAddress:steady",
+   "duration": 25,
+   "rates": {
+    "address.createVendorAddress": 4.0
+   },
+   "deterministic": true
+  },
+  {
+   "name": "address.createVendorAddress:drain",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "idle_end",
+   "duration": 30,
+   "rates": {}
+  }
+ ],
+ "burstTypes": [
+  "products",
+  "products.anon",
+  "product",
+  "product.anon",
+  "users",
+  "address",
+  "paymentInformations",
+  "shipmentMethods",
+  "notifications",
+  "wishlistView",
+  "login",
+  "orderTracking",
+  "user.updateUser",
+  "adminUpdateProduct",
+  "catalog.updateProductVariant",
+  "registration",
+  "createShoppingcartItem",
+  "createOrder",
+  "placeOrder",
+  "return.createReturn",
+  "createReview",
+  "addToWishlist",
+  "wishlist.createWishlist",
+  "address.createUserAddress",
+  "payment.createCreditCardPaymentInformation",
+  "discount.registerCoupon",
+  "adminNewPrice",
+  "adminCreateVariant",
+  "adminCreateProduct",
+  "catalog.createCategory",
+  "inventory.createProductItemBatch",
+  "media.uploadMedia",
+  "discount.createDiscount",
+  "discount.createCoupon",
+  "tax.createTaxRate",
+  "tax.createTaxRateVersion",
+  "shipment.createShipmentMethod",
+  "address.createVendorAddress"
+ ],
+ "sampler": "0.1"
+}

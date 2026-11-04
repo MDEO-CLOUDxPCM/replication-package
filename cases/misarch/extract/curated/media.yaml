@@ -1,0 +1,59 @@
+# media (Kotlin original). Curated; schema: build.py docstring. Anchors are relative to
+# services/media/src/main/kotlin/org/misarch/media/.
+# No database: the S3 bucket `media-data` (MinIO) is the data model, one object `<id>.<ext>` per Media
+# (docs/specs/media.md §5). An S3 request counts as one statement; a ListObjectsV2 call returns at most 1000 keys
+# per page, all pages are read.
+service: media
+transactional: none (S3 has no transactions; uploadMedia deletes the object again when the publish fails)
+
+tables:
+  '@s3':
+    kind: class
+    class: Media
+    storage: s3
+    evidence: service/MediaService.kt#class MediaService
+    note: object key = "<id>.<subtype of the content type>", the content is the file itself
+
+operations:
+  - id: media.getMedias
+    kind: query
+    trigger: {graphql: Query.getMedias}
+    entry: graphql/Query.kt#fun getMedias(
+    feature: F7
+    accesses:
+      - {class: Media, mode: read, op: select, shape: list, rows: "all media keys of the bucket (1000 per ListObjectsV2 page)",
+         table: '@s3', today: local, at: "service/MediaService.kt#listKeys(\"\")",
+         note: "S3 ListObjectsV2 over the whole bucket; first/skip and totalCount are applied in memory (no extra request)"}
+    note: Media.path of each returned node is a separate resolver (media.Media.path)
+
+  - id: media.uploadMedia
+    kind: command
+    trigger: {graphql: Mutation.uploadMedia}
+    entry: graphql/Mutation.kt#fun uploadMedia(
+    feature: F7
+    accesses:
+      - {class: Media, mode: write, op: insert, shape: one, table: '@s3', today: local, at: "service/MediaService.kt#s3Client.putObject(",
+         note: "S3 PutObject of the file"}
+      - {class: Media, mode: write, op: delete, shape: optional, when: the publish fails, prob: 0.0, table: '@s3', today: local,
+         at: service/MediaService.kt#deleteObjectQuietly(key), note: "compensating DeleteObject (fix, docs/fixes/media.md)"}
+    publishes:
+      - {topic: media/media/created, at: service/MediaService.kt#MediaEvents.MEDIA_CREATED, payload: [Media],
+         note: "payload {id}; published by EventPublisher after the PutObject succeeded"}
+
+  - id: media._entities.Media
+    kind: query
+    trigger: {graphql: _entities(Media)}
+    entry: graphql/federation/MediaResolver.kt#class MediaResolver
+    feature: F7
+    trivial: true
+    note: builds the Media stub from the representation, no existence check, no S3 access
+
+  - id: media.Media.path
+    kind: query
+    trigger: {graphql: Media.path}
+    entry: graphql/model/Media.kt#suspend fun path(
+    feature: F7
+    accesses:
+      - {class: Media, mode: read, op: select, shape: one, table: '@s3', today: local, at: service/MediaService.kt#listKeys(id.toString()),
+         note: "S3 ListObjectsV2 with prefix <id>, then a local pre-signature (no request); per Media node"}
+    note: resolver field (not listed by sdl.py as a field candidate); runs once per Media in a result

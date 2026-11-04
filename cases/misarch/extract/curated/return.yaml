@@ -1,0 +1,267 @@
+# return (Kotlin original). Curated; schema: build.py docstring. Anchors are relative to
+# services/return/src/main/kotlin/org/misarch/return/ (or to services/return/ for the migration).
+service: return
+transactional: >-
+  service/ReturnService.kt#@Transactional: createReturn is one transaction with its event published inside. The
+  multi-statement event handlers (shipment/created, order/created) are @Transactional service methods
+  (service/ShipmentService.kt, service/OrderService.kt); the single-statement ones run without a transaction. All
+  are idempotent. Two BEFORE UPDATE triggers on OrderItemEntity (V1_1__create_relations.sql) read ReturnEntity,
+  OrderItemEntity, ProductVariantVersionEntity and ShipmentEntity inside the updating statement.
+
+tables:
+  OrderEntity:
+    kind: copy
+    copyOf: {Order: [id, userId]}
+    fedBy: [order/order/created]
+    process: true
+    note: "from the Buy saga's start message; used for the owner checks (createReturn, return, returns)"
+  OrderItemEntity:
+    kind: copy
+    copyOf:
+      OrderItem: [id, orderId, compensatableAmount, productVariantVersionId]
+      Shipment: [orderItems]
+    fedBy: [order/order/created, shipment/shipment/created]
+    process: true
+    own: {returnedWithId: "the Return the item is returned with (the Return-OrderItem association, owned by return)"}
+    refs:
+      - {attr: returnedWithId, of: OrderItem, field: returnedWith, inverse: returnedItems, to: Return, kind: association, mult: "0..1",
+         note: "own column, written by createReturn"}
+      - {attr: sentWithId, to: Shipment, kind: association, mult: "0..1", note: "copy of the Shipment-OrderItem association (shipment/shipment/created orderItemIds)"}
+      - {attr: orderId, to: Order, kind: association, mult: "1", note: "FK to the OrderEntity copy"}
+    note: >-
+      one row per order item, merged from two topics (upserts in either order): order/order/created fills
+      compensatableAmount and productVariantVersionId, shipment/shipment/created fills sentWithId
+  ProductVariantVersionEntity:
+    kind: copy
+    copyOf: {ProductVariantVersion: [id, canBeReturnedForDays]}
+    fedBy: [catalog/product-variant-version/created]
+  ShipmentEntity:
+    kind: copy
+    copyOf: {Shipment: [id, status]}
+    fedBy: [shipment/shipment/created, shipment/shipment/status-updated]
+    own: {deliveredAt: "processing time of the first DELIVERED status seen (derived from Shipment.status, not a Shipment attribute)"}
+    note: "order shipments only (return shipments are skipped by shipment/created; their status updates are no-ops)"
+  ReturnEntity:
+    kind: class
+    class: Return
+    refs:
+      - {attr: orderId, to: Order, kind: association, mult: "1", note: "FK to the OrderEntity copy"}
+    note: "refundedAmount is the sum of the returned items' compensatableAmount at creation (snapshot of OrderItem data)"
+
+operations:
+  - id: return.return
+    kind: query
+    trigger: {graphql: Query.return}
+    entry: "graphql/Query.kt#suspend fun `return`("
+    feature: F26
+    note: "the order copy is read for the owner check (non-employees), after the return"
+    accesses:
+      - {class: Return, mode: read, op: select, shape: one, via: ReturnRepository.findById, table: ReturnEntity, today: local,
+         at: service/ReturnService.kt#val returnEntity = repository.findByIdOrThrow(id)}
+      - {class: Order, mode: read, op: select, shape: one, via: OrderRepository.findById, table: OrderEntity, today: copy,
+         at: service/ReturnService.kt#orderRepository.findByIdOrThrow(returnEntity.orderId), note: "owner check (userId)"}
+
+  - id: return.returns
+    kind: query
+    trigger: {graphql: Query.returns}
+    entry: graphql/Query.kt#fun returns(
+    feature: F26
+    note: >-
+      one statement joins ReturnEntity with the Order copy (INNER JOIN OrderEntity o ON t.orderId = o.id); non-employees
+      are restricted to o.userId = the caller
+    accesses:
+      - {class: Return, mode: read, op: select, shape: list, rows: "returns (page: first; own returns for buyers)", via: ReturnConnection.nodes,
+         table: ReturnEntity, today: local, at: graphql/Query.kt#ReturnConnection(}
+      - {class: Order, mode: read, op: select, shape: list, rows: "orders of the returns", table: OrderEntity, today: copy,
+         at: graphql/model/connection/ReturnConnection.kt#INNER JOIN OrderEntity, note: "same statement (join)"}
+      - {class: Return, mode: read, op: count, shape: one, when: totalCount selected, via: ReturnConnection.totalCount,
+         table: ReturnEntity, today: local, at: graphql/Query.kt#ReturnConnection(}
+      - {class: Order, mode: read, op: count, shape: one, when: totalCount selected, table: OrderEntity, today: copy,
+         at: graphql/model/connection/ReturnConnection.kt#INNER JOIN OrderEntity, note: "same statement (join)"}
+
+  - id: return.createReturn
+    kind: command
+    trigger: {graphql: Mutation.createReturn}
+    entry: graphql/Mutation.kt#fun createReturn(
+    feature: F26
+    sagaStep: {saga: Return, role: step}
+    transaction:
+      at: "service/ReturnService.kt#@Transactional"
+      classes: [Return, OrderItem]
+      publishInside: true
+      note: >-
+        the return rules (same order, delivered, within the return period) are checked by ReturnService on the rows
+        read before the insert (no database triggers)
+    accesses:
+      - {class: OrderItem, mode: read, op: select, shape: batch, rows: "returned items", strong: true, via: OrderItemRepository.findAllById,
+         table: OrderItemEntity, today: copy, at: service/ReturnService.kt#orderItemRepository.findAllById,
+         note: "existence, compensatableAmount, productVariantVersionId, orderId (OrderItem's own fields); returnedWithId in the next access"}
+      - {class: OrderItem, assoc: Return, mode: read, op: select, shape: batch, rows: "returned items", strong: true, via: OrderItemRepository.findAllById,
+         table: OrderItemEntity, today: copy, at: service/ReturnService.kt#orderItemRepository.findAllById,
+         note: "same statement: returnedWithId (OrderItem.returnedWith, return's own column) for the already-returned check (DESIGN.md AB60)"}
+      - {class: Shipment, mode: read, op: select, shape: batch, rows: "returned items", strong: true, via: OrderItemRepository.findAllById,
+         table: OrderItemEntity, today: copy, at: service/ReturnService.kt#orderItemRepository.findAllById,
+         note: "same statement: sentWithId (Shipment-OrderItem association)"}
+      - {class: Order, mode: read, op: select, shape: one, strong: true, via: OrderRepository.findById, table: OrderEntity, today: copy,
+         at: service/ReturnService.kt#val order = orderRepository.findByIdOrThrow(orderId), note: "only the original buyer may return"}
+      - {class: Shipment, mode: read, op: select, shape: batch, rows: "distinct shipments of the items", strong: true,
+         via: ShipmentRepository.findAllById, table: ShipmentEntity, today: copy, at: service/ReturnService.kt#shipmentRepository.findAllById,
+         note: "deliveredAt: delivered and within the return period"}
+      - {class: ProductVariantVersion, mode: read, op: select, shape: batch, rows: "distinct variant versions of the items", strong: true,
+         via: ProductVariantVersionRepository.findAllById, table: ProductVariantVersionEntity, today: copy,
+         at: service/ReturnService.kt#productVariantVersionRepository.findAllById, note: "canBeReturnedForDays"}
+      - {class: Return, mode: write, op: insert, shape: one, via: ReturnRepository.save, table: ReturnEntity, today: local,
+         at: service/ReturnService.kt#repository.save(returnEntity)}
+      - {class: OrderItem, assoc: Return, mode: write, op: update, shape: perItem, per: "returned items", via: OrderItemRepository.saveAll,
+         table: OrderItemEntity, today: copy, at: service/ReturnService.kt#orderItemRepository.saveAll,
+         note: "full-row UPDATE setting the own column returnedWithId"}
+    publishes:
+      - {topic: return/return/created, at: service/ReturnService.kt#ReturnEvents.RETURN_CREATED, payload: [Return],
+         note: "id, orderId, orderItemIds (Return-OrderItem association), reason, refundedAmount, createdAt"}
+
+  - id: return._entities.Order
+    kind: query
+    trigger: {graphql: _entities(Order)}
+    entry: graphql/federation/OrderResolver.kt#class OrderResolver
+    feature: F26
+    trivial: true
+    note: builds the Order stub from the representation, no database access (Order has no return-owned fields)
+
+  - id: return._entities.OrderItem
+    kind: query
+    trigger: {graphql: _entities(OrderItem)}
+    entry: graphql/federation/OrderItemResolver.kt#fun resolve(
+    feature: F26
+    accesses:
+      - {class: OrderItem, assoc: Return, mode: read, op: select, shape: optional, via: OrderItemRepository.findById, table: OrderItemEntity,
+         today: copy, at: graphql/federation/OrderItemResolver.kt#orderItemRepository.findById,
+         note: "one query per representation (no DataLoader); only returnedWithId is used; unknown ids resolve to a stub"}
+
+  - id: return.OrderItem.returnedWith
+    kind: query
+    trigger: {graphql: OrderItem.returnedWith}
+    entry: graphql/model/OrderItem.kt#fun returnedWith(
+    feature: F26
+    accesses:
+      - {class: Return, mode: read, op: select, shape: batch, rows: 1, when: "item returned (returnedWithId set)", via: ReturnRepository.findAllById,
+         table: ReturnEntity, today: local, at: graphql/model/OrderItem.kt#ReturnDataLoader::class, note: DataLoader}
+
+  - id: return._entities.Return
+    kind: query
+    trigger: {graphql: _entities(Return)}
+    entry: graphql/federation/ReturnResolver.kt#class ReturnResolver
+    feature: F26
+    accesses:
+      - {class: Return, mode: read, op: select, shape: batch, rows: 1, via: ReturnRepository.findAllById, table: ReturnEntity, today: local,
+         at: graphql/federation/ReturnResolver.kt#ReturnDataLoader::class, note: DataLoader}
+
+  - id: return.Return.order
+    kind: query
+    trigger: {graphql: Return.order}
+    entry: graphql/model/Return.kt#fun order(
+    feature: F26
+    trivial: true
+    note: builds the Order stub from orderId, no database access
+
+  - id: return.Return.returnedItems
+    kind: query
+    trigger: {graphql: Return.returnedItems}
+    entry: graphql/model/Return.kt#fun returnedItems(
+    feature: F26
+    accesses:
+      - {class: OrderItem, assoc: Return, mode: read, op: select, shape: list, rows: "items of the return (page: first)", via: OrderItemConnection.nodes,
+         table: OrderItemEntity, today: copy, at: graphql/model/Return.kt#OrderItemConnection(, note: "WHERE returnedWithId = :id (no index)"}
+      - {class: OrderItem, assoc: Return, mode: read, op: count, shape: one, when: totalCount selected, via: OrderItemConnection.totalCount,
+         table: OrderItemEntity, today: copy, at: graphql/model/Return.kt#OrderItemConnection(}
+
+  - id: return._entities.User
+    kind: query
+    trigger: {graphql: _entities(User)}
+    entry: graphql/federation/UserResolver.kt#class UserResolver
+    feature: F26
+    trivial: true
+    note: builds the User stub from the representation, no database access
+
+  - id: return.User.returns
+    kind: query
+    trigger: {graphql: User.returns}
+    entry: graphql/model/User.kt#fun returns(
+    feature: F26
+    note: "one statement joins ReturnEntity with the Order copy; filter o.userId = the user"
+    accesses:
+      - {class: Return, mode: read, op: select, shape: list, rows: "returns of the user (page: first)", via: ReturnConnection.nodes,
+         table: ReturnEntity, today: local, at: graphql/model/User.kt#ReturnConnection(}
+      - {class: Order, mode: read, op: select, shape: list, rows: "orders of the returns", table: OrderEntity, today: copy,
+         at: graphql/model/connection/ReturnConnection.kt#INNER JOIN OrderEntity, note: "same statement (join on orderId, filter on userId)"}
+      - {class: Return, mode: read, op: count, shape: one, when: totalCount selected, via: ReturnConnection.totalCount,
+         table: ReturnEntity, today: local, at: graphql/model/User.kt#ReturnConnection(}
+      - {class: Order, mode: read, op: count, shape: one, when: totalCount selected, table: OrderEntity, today: copy,
+         at: graphql/model/connection/ReturnConnection.kt#INNER JOIN OrderEntity, note: "same statement (join)"}
+
+  - id: return.on:shipment/shipment/created
+    kind: reaction
+    mechanism: copy
+    trigger: {topic: shipment/shipment/created}
+    entry: event/EventController.kt#fun onShipmentCreated(
+    feature: F23
+    sagaStep: {saga: Buy, role: step}
+    transaction:
+      at: "service/ShipmentService.kt#@Transactional"
+      classes: [Shipment, OrderItem]
+      publishInside: false
+      note: "shipment row and the items' sentWithId in one transaction (an item upsert failure rolls the shipment back)"
+    note: >-
+      return shipments (orderId null) are ignored: prob of an order shipment ~0.99 (returns are ~1% of placed orders,
+      msa rates createReturn 0.005 vs placeOrder 0.483). The item upsert usually hits an existing row (order/created
+      first) and then fires the BEFORE UPDATE trigger check_return_order_match, which does nothing while returnedWithId
+      is NULL
+    accesses:
+      - {class: Shipment, mode: read, op: select, shape: one, today: payload, topic: shipment/shipment/created,
+         at: service/ShipmentService.kt#shipmentDTO.orderId == null, note: "id, orderId, status, orderItemIds"}
+      - {class: Shipment, mode: write, op: upsert, shape: one, prob: 0.99, when: "order shipment", via: ShipmentRepository.createShipment,
+         table: ShipmentEntity, today: copy, at: service/ShipmentService.kt#repository.createShipment,
+         note: "deliveredAt kept if already set (status-updated may come first)"}
+      - {class: Shipment, assoc: OrderItem, mode: write, op: upsert, shape: perItem, per: "items of the shipment", prob: 0.99, when: "order shipment",
+         via: OrderItemRepository.upsertOrderItemFromShipment, table: OrderItemEntity, today: copy,
+         at: service/ShipmentService.kt#orderItemRepository.upsertOrderItemFromShipment, note: "sets sentWithId"}
+
+  - id: return.on:shipment/shipment/status-updated
+    kind: reaction
+    mechanism: copy
+    trigger: {topic: shipment/shipment/status-updated}
+    entry: event/EventController.kt#fun onShipmentStatusUpdated(
+    feature: F23
+    sagaStep: {saga: Buy, role: step}
+    note: "only DELIVERED (simulation SHIPMENT_SUCCESS_RATE, default 0.95) writes; FAILED does nothing"
+    accesses:
+      - {class: Shipment, mode: read, op: select, shape: one, today: payload, topic: shipment/shipment/status-updated,
+         at: service/ShipmentService.kt#updateDTO.status == ShipmentStatus.DELIVERED, note: "id, status, orderId"}
+      - {class: Shipment, mode: write, op: upsert, shape: one, prob: 0.94, when: "DELIVERED and order shipment (0.95 x 0.99)",
+         via: ShipmentRepository.upsertDeliveredAt, table: ShipmentEntity, today: copy, at: service/ShipmentService.kt#repository.upsertDeliveredAt}
+      - {class: Shipment, mode: write, op: update, shape: optional, prob: 0.0095, when: "DELIVERED return shipment (0.95 x 0.01; no row, no-op)",
+         via: ShipmentRepository.updateDeliveredAt, table: ShipmentEntity, today: copy, at: service/ShipmentService.kt#repository.updateDeliveredAt}
+
+  - id: return.on:order/order/created
+    kind: reaction
+    mechanism: copy
+    trigger: {topic: order/order/created}
+    entry: event/EventController.kt#fun onOrderCreated(
+    feature: F17
+    sagaStep: {saga: Buy, role: step}
+    transaction: {at: "service/OrderService.kt#@Transactional", classes: [Order, OrderItem], publishInside: false}
+    accesses:
+      - {class: Order, mode: write, op: insert, shape: one, via: OrderRepository.createOrder, table: OrderEntity, today: copy,
+         at: service/OrderService.kt#repository.createOrder, note: "ON CONFLICT (id) DO NOTHING"}
+      - {class: OrderItem, mode: write, op: upsert, shape: perItem, per: "items of the order", via: OrderItemRepository.upsertOrderItemFromOrder,
+         table: OrderItemEntity, today: copy, at: service/OrderService.kt#orderItemRepository.upsertOrderItemFromOrder,
+         note: "compensatableAmount, productVariantVersionId; the update path fires check_return_order_match (no-op while returnedWithId is NULL)"}
+
+  - id: return.on:catalog/product-variant-version/created
+    kind: reaction
+    mechanism: copy
+    trigger: {topic: catalog/product-variant-version/created}
+    entry: event/EventController.kt#fun onProductVariantVersionCreated(
+    feature: F5
+    accesses:
+      - {class: ProductVariantVersion, mode: write, op: upsert, shape: one, via: ProductVariantVersionRepository.createProductVariantVersion,
+         table: ProductVariantVersionEntity, today: copy, at: service/ProductVariantVersionService.kt#repository.createProductVariantVersion}

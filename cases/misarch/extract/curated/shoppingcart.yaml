@@ -1,0 +1,240 @@
+# shoppingcart (Kotlin original). Curated; schema: build.py docstring. Anchors are relative to
+# services/shoppingcart/src/main/kotlin/org/misarch/shoppingcart/.
+service: shoppingcart
+transactional: >-
+  service/*Service.kt @Transactional: every mutation's service method and the order/order/created handler run in one
+  transaction; a cart change updates the cart's UserEntity row (lastUpdatedAt) or locks it first, so concurrent
+  changes of one cart are serialised. No events are published.
+
+tables:
+  ProductVariantEntity:
+    kind: copy
+    copyOf: {ProductVariant: [id]}
+    fedBy: [catalog/product-variant/created]
+    note: existence check of the cart's variants; never updated or deleted
+  UserEntity:
+    kind: class
+    class: ShoppingCart
+    note: >-
+      one cart per user (the original embedded it in the user document); the row (id = user id,
+      shoppingcartLastUpdatedAt) is created by the user/user/created handler; the existence checks (lockById, the
+      lastUpdatedAt update) ask whether the user's cart exists, so they read the cart, not a copy of User (DESIGN.md
+      AB40). Its items are rows of ShoppingCartItemEntity, read by ShoppingCart.shoppingcartItems (since the
+      relational port, DESIGN.md AB57)
+    refs:
+      - {attr: id, to: User, kind: association, mult: "1", note: "the cart's key is the user id"}
+  ShoppingCartItemEntity:
+    kind: class
+    class: ShoppingCartItem
+    note: no foreign key on productVariantId (unknown variants could enter carts in the original)
+    refs:
+      - {attr: userId, to: ShoppingCart, kind: composition, mult: "1"}
+      - {attr: productVariantId, to: ProductVariant, kind: association, mult: "1"}
+
+operations:
+  - id: shoppingcart.shoppingcartItem
+    kind: query
+    trigger: {graphql: Query.shoppingcartItem}
+    entry: graphql/Query.kt#fun shoppingcartItem(
+    feature: F10
+    accesses:
+      - {class: ShoppingCartItem, mode: read, op: select, shape: batch, rows: 1, via: ShoppingCartItemRepository.findAllById,
+         table: ShoppingCartItemEntity, today: local, at: graphql/Query.kt#ShoppingCartItemDataLoader::class,
+         note: "DataLoader; then authorizes the owner (userId of the row)"}
+
+  - id: shoppingcart.updateShoppingcart
+    kind: command
+    trigger: {graphql: Mutation.updateShoppingcart}
+    entry: graphql/Mutation.kt#fun updateShoppingcart(
+    feature: F10
+    note: >-
+      replaces the whole cart; with shoppingCartItems null only the final read runs. The answer is the cart's
+      UserEntity row; its items are read by ShoppingCart.shoppingcartItems only when selected
+    transaction:
+      at: "service/ShoppingCartService.kt#@Transactional@1"
+      classes: [ProductVariant, ShoppingCart, ShoppingCartItem]
+      publishInside: false
+      note: >-
+        the variant check, then the cart's lastUpdatedAt (the UPDATE locks the user row: a concurrent replacement
+        waits, last writer wins; no row updated: no such user), then delete all items and insert the new ones
+    accesses:
+      - {class: ProductVariant, mode: read, op: select, shape: batch, rows: "distinct product variants of the input", when: "shoppingCartItems given and not empty",
+         strong: true, via: ProductVariantService.validateProductVariantIds, table: ProductVariantEntity, today: copy,
+         at: "service/ShoppingCartService.kt#productVariantService.validateProductVariantIds(", note: "every variant must exist (ConditionQueries.findAll, id = ANY(:ids))"}
+      - {class: ShoppingCart, mode: write, op: update, shape: one, when: "shoppingCartItems given", via: UserRepository.updateShoppingcartLastUpdatedAt,
+         table: UserEntity, today: local, at: "service/ShoppingCartService.kt#userRepository.updateShoppingcartLastUpdatedAt(input.id, now)",
+         note: "lastUpdatedAt (locks the cart row); 0 rows: the user does not exist"}
+      - {class: ShoppingCartItem, mode: write, op: delete, shape: list, rows: "all items of the cart", when: "shoppingCartItems given",
+         via: ShoppingCartItemRepository.deleteByUserId, table: ShoppingCartItemEntity, today: local,
+         at: "service/ShoppingCartService.kt#itemRepository.deleteByUserId(input.id)"}
+      - {class: ShoppingCartItem, mode: write, op: insert, shape: perItem, per: "distinct (count, productVariantId) pairs of the input", when: "shoppingCartItems given",
+         via: ShoppingCartItemRepository.saveAll, table: ShoppingCartItemEntity, today: local, at: "service/ShoppingCartService.kt#itemRepository.saveAll("}
+      - {class: ShoppingCart, mode: read, op: select, shape: one, via: UserRepository.findById, table: UserEntity, today: local,
+         at: "service/ShoppingCartService.kt#userRepository.findByIdOrThrow(input.id)", note: "re-read for the answer: the UserEntity row (id, lastUpdatedAt)"}
+
+  - id: shoppingcart.createShoppingcartItem
+    kind: command
+    trigger: {graphql: Mutation.createShoppingcartItem}
+    entry: graphql/Mutation.kt#fun createShoppingcartItem(
+    feature: F10
+    note: an existing item of the user for the same variant is returned unchanged (fix C1); otherwise insert + touch
+    transaction:
+      at: "service/ShoppingCartItemService.kt#@Transactional@1"
+      classes: [ShoppingCart, ProductVariant, ShoppingCartItem]
+      publishInside: false
+      note: "cart row locked (SELECT ... FOR UPDATE, no row: no such user), variant check, lookup, insert, lastUpdatedAt"
+    accesses:
+      - {class: ShoppingCart, mode: read, op: lock, shape: one, strong: true, via: UserRepository.lockById, table: UserEntity,
+         today: local, at: "service/ShoppingCartItemService.kt#userRepository.lockById(input.id)",
+         note: "row lock serializes concurrent creations of one user; no row: the user's cart does not exist"}
+      - {class: ProductVariant, mode: read, op: select, shape: batch, rows: 1, strong: true, via: ProductVariantService.validateProductVariantIds,
+         table: ProductVariantEntity, today: copy, at: "service/ShoppingCartItemService.kt#productVariantService.validateProductVariantIds(",
+         note: "the variant must exist (ConditionQueries.findAll, id = ANY(:ids))"}
+      - {class: ShoppingCartItem, mode: read, op: select, shape: optional, strong: true,
+         via: ShoppingCartItemRepository.findFirstByUserIdAndProductVariantIdOrderByAddedAtAscIdAsc, table: ShoppingCartItemEntity, today: local,
+         at: "service/ShoppingCartItemService.kt#repository.findFirstByUserIdAndProductVariantIdOrderByAddedAtAscIdAsc(",
+         note: "existing item of the variant (LIMIT 1)"}
+      - {class: ShoppingCartItem, mode: write, op: insert, shape: one, when: "no item of the variant in the cart", via: ShoppingCartItemRepository.save,
+         table: ShoppingCartItemEntity, today: local, at: "service/ShoppingCartItemService.kt#repository.save(item)@1"}
+      - {class: ShoppingCart, mode: write, op: update, shape: one, when: "no item of the variant in the cart", via: UserRepository.updateShoppingcartLastUpdatedAt,
+         table: UserEntity, today: local, at: "service/ShoppingCartItemService.kt#userRepository.updateShoppingcartLastUpdatedAt(input.id, now)",
+         note: "lastUpdatedAt"}
+
+  - id: shoppingcart.updateShoppingcartItem
+    kind: command
+    trigger: {graphql: Mutation.updateShoppingcartItem}
+    entry: graphql/Mutation.kt#fun updateShoppingcartItem(
+    feature: F10
+    note: "the answer is the saved entity (no re-read)"
+    transaction:
+      at: "service/ShoppingCartItemService.kt#@Transactional@2"
+      classes: [ShoppingCartItem, ShoppingCart]
+      publishInside: false
+      note: "the item, the cart's lastUpdatedAt (locks the cart row), the item's new count"
+    accesses:
+      - {class: ShoppingCartItem, mode: read, op: select, shape: one, strong: true, via: ShoppingCartItemRepository.findById, table: ShoppingCartItemEntity,
+         today: local, at: "service/ShoppingCartItemService.kt#repository.findByIdOrThrow(id)", note: "findOwnItem: existence and ownership check"}
+      - {class: ShoppingCart, mode: write, op: update, shape: one, via: UserRepository.updateShoppingcartLastUpdatedAt, table: UserEntity, today: local,
+         at: "service/ShoppingCartItemService.kt#userRepository.updateShoppingcartLastUpdatedAt(item.userId, OffsetDateTime.now(clock))@1",
+         note: "lastUpdatedAt of the cart that holds the item"}
+      - {class: ShoppingCartItem, mode: write, op: update, shape: one, via: ShoppingCartItemRepository.save, table: ShoppingCartItemEntity,
+         today: local, at: "service/ShoppingCartItemService.kt#return repository.save(item)", note: "the loaded row with the new count"}
+
+  - id: shoppingcart.deleteShoppingcartItem
+    kind: command
+    trigger: {graphql: Mutation.deleteShoppingcartItem}
+    entry: graphql/Mutation.kt#fun deleteShoppingcartItem(
+    feature: F10
+    transaction:
+      at: "service/ShoppingCartItemService.kt#@Transactional@3"
+      classes: [ShoppingCart, ShoppingCartItem]
+      publishInside: false
+      note: "the item, the cart's lastUpdatedAt (locks the cart row), the item delete"
+    accesses:
+      - {class: ShoppingCartItem, mode: read, op: select, shape: one, strong: true, via: ShoppingCartItemRepository.findById, table: ShoppingCartItemEntity,
+         today: local, at: "service/ShoppingCartItemService.kt#repository.findByIdOrThrow(id)", note: "findOwnItem: existence and ownership check"}
+      - {class: ShoppingCart, mode: write, op: update, shape: one, via: UserRepository.updateShoppingcartLastUpdatedAt, table: UserEntity, today: local,
+         at: "service/ShoppingCartItemService.kt#userRepository.updateShoppingcartLastUpdatedAt(item.userId, OffsetDateTime.now(clock))@2",
+         note: "lastUpdatedAt of the cart that holds the item"}
+      - {class: ShoppingCartItem, mode: write, op: delete, shape: one, via: ShoppingCartItemRepository.delete, table: ShoppingCartItemEntity,
+         today: local, at: "service/ShoppingCartItemService.kt#repository.delete(item)"}
+
+  - id: shoppingcart.User.shoppingcart
+    kind: query
+    trigger: {graphql: User.shoppingcart}
+    entry: "graphql/model/User.kt#val shoppingcart: ShoppingCart"
+    feature: F10
+    trivial: true
+    note: >-
+      property: the cart is the UserEntity row that _entities(User) read; listed because order's createOrder
+      invocation selects it
+
+  - id: shoppingcart.ShoppingCart.shoppingcartItems
+    kind: query
+    trigger: {graphql: ShoppingCart.shoppingcartItems}
+    entry: graphql/model/ShoppingCart.kt#fun shoppingcartItems(
+    feature: F10
+    note: >-
+      ShoppingCartItemConnection (BaseConnection, userId = the cart's user, sorted by id; first default all): page
+      (nodes), COUNT (totalCount), probe (hasNextPage, only with first), each only when selected. createOrder's S20
+      selects nodes without first: the page (the whole cart)
+    accesses:
+      - {class: ShoppingCartItem, mode: read, op: select, shape: list, rows: "items of the cart (page: first, default all)", when: nodes selected,
+         via: ShoppingCartItemConnection.nodes, table: ShoppingCartItemEntity, today: local,
+         at: "graphql/model/ShoppingCart.kt#ShoppingCartItemConnection(", note: "SELECT t.* ... WHERE userId ORDER BY id LIMIT/OFFSET"}
+      - {class: ShoppingCartItem, mode: read, op: count, shape: one, when: totalCount selected, via: ShoppingCartItemConnection.totalCount,
+         table: ShoppingCartItemEntity, today: local, at: "graphql/model/ShoppingCart.kt#ShoppingCartItemConnection(", note: "SELECT COUNT(t.id)"}
+      - {class: ShoppingCartItem, mode: read, op: exists, shape: optional, when: "hasNextPage selected and first given",
+         table: ShoppingCartItemEntity, today: local, at: "graphql/model/ShoppingCart.kt#ShoppingCartItemConnection(",
+         note: "BaseConnection.hasNextPage probe: SELECT 1 ... LIMIT 1 OFFSET first + skip"}
+
+  - id: shoppingcart._entities.ShoppingCartItem
+    kind: query
+    trigger: {graphql: _entities(ShoppingCartItem)}
+    entry: graphql/federation/ShoppingCartItemResolver.kt#class ShoppingCartItemResolver
+    feature: F10
+    accesses:
+      - {class: ShoppingCartItem, mode: read, op: select, shape: batch, rows: 1, via: ShoppingCartItemRepository.findAllById,
+         table: ShoppingCartItemEntity, today: local, at: graphql/federation/ShoppingCartItemResolver.kt#ShoppingCartItemDataLoader::class,
+         note: "DataLoader; no authorization"}
+
+  - id: shoppingcart._entities.User
+    kind: query
+    trigger: {graphql: _entities(User)}
+    entry: graphql/federation/UserResolver.kt#class UserResolver
+    feature: F10
+    note: >-
+      reads the user's cart row (DataLoader); unknown user -> error; the items are read by
+      ShoppingCart.shoppingcartItems when selected. Called by order's createOrder (S20) with one representation and
+      the Authorized-User header
+    accesses:
+      - {class: ShoppingCart, mode: read, op: select, shape: batch, rows: 1, via: UserRepository.findAllById, table: UserEntity, today: local,
+         at: graphql/federation/UserResolver.kt#UserDataLoader::class, note: "the UserEntity row (id, lastUpdatedAt); no row: no such user"}
+
+  - id: shoppingcart.on:user/user/created
+    kind: reaction
+    trigger: {topic: user/user/created}
+    entry: event/EventController.kt#fun onUserCreated(
+    feature: F1
+    sagaStep: {saga: Registration, role: step}
+    note: >-
+      the insert creates the user's (empty) cart row: a Registration step that creates the cart, not a copy of User
+      (DESIGN.md AB40; msa models this subscription as replication of User)
+    accesses:
+      - {class: User, mode: read, op: select, shape: one, today: payload, topic: user/user/created,
+         at: event/EventController.kt#userService.registerUser(cloudEvent.data), note: "user id only"}
+      - {class: ShoppingCart, mode: write, op: upsert, shape: one, via: UserRepository.createUser, table: UserEntity, today: local,
+         at: service/UserService.kt#repository.createUser, note: "the empty cart (lastUpdatedAt = now); INSERT ... ON CONFLICT (id) DO NOTHING"}
+
+  - id: shoppingcart.on:catalog/product-variant/created
+    kind: reaction
+    mechanism: copy
+    trigger: {topic: catalog/product-variant/created}
+    entry: event/EventController.kt#fun onProductVariantCreated(
+    feature: F5
+    accesses:
+      - {class: ProductVariant, mode: write, op: upsert, shape: one, via: ProductVariantRepository.createProductVariant, table: ProductVariantEntity,
+         today: copy, at: service/ProductVariantService.kt#repository.createProductVariant, note: "INSERT ... ON CONFLICT (id) DO NOTHING"}
+
+  - id: shoppingcart.on:order/order/created
+    kind: reaction
+    trigger: {topic: order/order/created}
+    entry: event/EventController.kt#fun onOrderCreated(
+    feature: F10
+    sagaStep: {saga: Buy, role: step}
+    note: removes the ordered items from the cart; unknown user or item ids are a no-op; redelivery changes nothing
+    transaction:
+      at: "service/ShoppingCartService.kt#@Transactional@2"
+      classes: [ShoppingCartItem, ShoppingCart]
+      publishInside: false
+      note: "item delete + the cart's lastUpdatedAt"
+    accesses:
+      - {class: Order, mode: read, shape: one, today: payload, topic: order/order/created, at: "service/ShoppingCartService.kt#orderDTO.userId, itemIds",
+         note: "userId of the order"}
+      - {class: OrderItem, mode: read, shape: list, rows: "items of the order", today: payload, topic: order/order/created,
+         at: "service/ShoppingCartService.kt#orderDTO.orderItems.map { it.shoppingCartItemId }", note: "shoppingCartItemId"}
+      - {class: ShoppingCartItem, mode: write, op: delete, shape: batch, rows: "shoppingCartItemIds of the order items", when: "order has items",
+         via: ShoppingCartItemRepository.deleteByUserIdAndIdIn, table: ShoppingCartItemEntity, today: local,
+         at: "service/ShoppingCartService.kt#itemRepository.deleteByUserIdAndIdIn("}
+      - {class: ShoppingCart, mode: write, op: update, shape: one, when: "at least one item deleted", via: UserRepository.updateShoppingcartLastUpdatedAt,
+         table: UserEntity, today: local, at: "service/ShoppingCartService.kt#userRepository.updateShoppingcartLastUpdatedAt(orderDTO.userId", note: "lastUpdatedAt"}

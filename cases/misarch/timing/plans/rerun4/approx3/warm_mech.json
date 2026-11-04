@@ -1,0 +1,20 @@
+{
+ "name": "warm_mech",
+ "config": "any",
+ "block": "warm",
+ "rateLevel": "warm",
+ "phases": [
+  {
+   "name": "warm",
+   "duration": 240,
+   "rates": {
+    "createShoppingcartItem": 13.358,
+    "createOrder": 5.562,
+    "orderTracking.cold": 5.293,
+    "wishlistView.cold": 2.273,
+    "adminUpdateProduct": 1.0,
+    "discount.updateDiscount": 1.0
+   }
+  }
+ ]
+}

@@ -1,0 +1,115 @@
+# notification (Kotlin original). Curated; schema: build.py docstring. Anchors are relative to
+# services/notification/src/main/kotlin/org/misarch/notification/.
+service: notification
+transactional: >-
+  service/NotificationService.kt#@Transactional: updateNotification (read, owner check, write) runs in one
+  transaction; createNotification (existence check + insert) and the event handlers run without one (no event is
+  published)
+
+tables:
+  UserEntity:
+    kind: copy
+    copyOf: {User: [id]}
+    fedBy: [user/user/created]
+    note: existence check of createNotification; FK target of NotificationEntity.userId
+  NotificationEntity:
+    kind: class
+    class: Notification
+    refs:
+      - {attr: userId, to: User, kind: association, mult: "1"}
+
+operations:
+  - id: notification.notification
+    kind: query
+    trigger: {graphql: Query.notification}
+    entry: graphql/Query.kt#fun notification(
+    feature: F28
+    accesses:
+      - {class: Notification, mode: read, op: select, shape: batch, rows: 1, via: NotificationRepository.findAllById,
+         table: NotificationEntity, today: local, at: graphql/Query.kt#NotificationDataLoader::class,
+         note: "loads first, then checks owner or employee"}
+
+  - id: notification.createNotification
+    kind: command
+    trigger: {graphql: Mutation.createNotification}
+    entry: graphql/Mutation.kt#fun createNotification(
+    feature: F28
+    accesses:
+      - {class: User, mode: read, op: exists, shape: one, strong: true, via: UserRepository.existsById, table: UserEntity, today: copy,
+         at: service/NotificationService.kt#userRepository.existsById, note: "the user must exist"}
+      - {class: Notification, mode: write, op: insert, shape: one, via: NotificationRepository.save, table: NotificationEntity,
+         today: local, at: service/NotificationService.kt#repository.save(notification)}
+
+  - id: notification.updateNotification
+    kind: command
+    trigger: {graphql: Mutation.updateNotification}
+    entry: graphql/Mutation.kt#fun updateNotification(
+    feature: F28
+    transaction: {at: "service/NotificationService.kt#@Transactional", classes: [Notification], publishInside: false, note: "no event"}
+    accesses:
+      - {class: Notification, mode: read, op: select, shape: one, strong: true, via: NotificationRepository.findById,
+         table: NotificationEntity, today: local, at: service/NotificationService.kt#repository.findByIdOrThrow(input.id),
+         note: "owner check (else admin) and the read flag"}
+      - {class: Notification, mode: write, op: update, shape: one, via: NotificationRepository.save, table: NotificationEntity,
+         today: local, at: "service/NotificationService.kt#return repository.save(notification)@2", note: "always written (dateRead)"}
+
+  - id: notification._entities.Notification
+    kind: query
+    trigger: {graphql: _entities(Notification)}
+    entry: graphql/federation/NotificationResolver.kt#class NotificationResolver
+    feature: F28
+    accesses:
+      - {class: Notification, mode: read, op: select, shape: batch, rows: 1, via: NotificationRepository.findAllById,
+         table: NotificationEntity, today: local, at: graphql/federation/NotificationResolver.kt#NotificationDataLoader::class}
+
+  - id: notification.Notification.user
+    kind: query
+    trigger: {graphql: Notification.user}
+    entry: graphql/model/Notification.kt#fun user(
+    feature: F28
+    accesses:
+      - {class: User, mode: read, op: select, shape: batch, rows: 1, via: UserRepository.findAllById, table: UserEntity, today: copy,
+         at: graphql/model/Notification.kt#UserDataLoader::class, note: "returns the User stub (id) from the copy"}
+
+  - id: notification._entities.User
+    kind: query
+    trigger: {graphql: _entities(User)}
+    entry: graphql/federation/UserResolver.kt#class UserResolver
+    feature: F28
+    trivial: true
+    note: builds the User stub from the representation, no database access
+
+  - id: notification.User.notifications
+    kind: query
+    trigger: {graphql: User.notifications}
+    entry: graphql/model/User.kt#fun notifications(
+    feature: F28
+    accesses:
+      - {class: Notification, mode: read, op: select, shape: list, rows: "notifications of the user (page: first)",
+         via: NotificationConnection.nodes, table: NotificationEntity, today: local, at: graphql/model/User.kt#return NotificationConnection(}
+      - {class: Notification, mode: read, op: count, shape: one, when: totalCount selected, via: NotificationConnection.totalCount,
+         table: NotificationEntity, today: local, at: graphql/model/User.kt#return NotificationConnection(}
+
+  - id: notification.on:user/user/created
+    kind: reaction
+    mechanism: copy
+    trigger: {topic: user/user/created}
+    entry: event/EventController.kt#fun onUserCreated(
+    feature: F1
+    accesses:
+      - {class: User, mode: write, op: upsert, shape: one, via: UserRepository.createUser, table: UserEntity, today: copy,
+         at: service/UserService.kt#repository.createUser, note: "INSERT ... ON CONFLICT (id) DO NOTHING"}
+
+  - id: notification.on:notification/notification/create
+    kind: reaction
+    trigger: {topic: notification/notification/create}
+    entry: event/EventController.kt#fun onNotificationCreate(
+    feature: F28
+    accesses:
+      - {class: User, mode: read, op: exists, shape: one, strong: true, via: UserRepository.existsById, table: UserEntity, today: copy,
+         at: service/NotificationService.kt#userRepository.existsById, note: "the user must exist"}
+      - {class: Notification, mode: write, op: insert, shape: one, via: NotificationRepository.save, table: NotificationEntity,
+         today: local, at: service/NotificationService.kt#repository.save(notification)}
+    note: >-
+      no transaction (two separate statements); no service publishes notification/notification/create, so this
+      handler never runs in MiSArch

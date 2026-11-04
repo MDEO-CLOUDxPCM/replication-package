@@ -1,0 +1,27 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2023", "DOM", "DOM.Iterable", "WebWorker.ImportScripts"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "allowImportingTsExtensions": false,
+    "esModuleInterop": true,
+    "types": ["node", "vite/client"],
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["web/src/*"],
+      "@contract/*": ["contract/*"],
+      "@layout/*": ["layout/*"]
+    }
+  },
+  "include": ["contract", "layout", "dummy", "sources", "server", "web/src", "tests", "tools", "../../cases/*/explorer-packet", "vite.config.ts", "vitest.config.ts"],
+  "exclude": ["**/node_modules"]
+}

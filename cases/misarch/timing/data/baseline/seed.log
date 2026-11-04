@@ -1,0 +1,12 @@
+discount schema workaround applied, rc = skipped (fixed, KSEED_WORKAROUNDS=1 to apply)
+[   4.7s] admin user ok
+[   9.4s] taxes/shipment methods/vendor ok
+[  12.7s] 24 categories ok
+[  45.1s] 300 products / 508 variants ok
+[ 101.1s] stock 300/variant ok
+[ 103.4s] 8 discounts, 2 coupons ok
+[ 135.9s] 200 buyers ok
+[ 139.2s] review variant workaround inserted: skipped (fixed, KSEED_WORKAROUNDS=1 to apply) acked: skipped (fixed, KSEED_WORKAROUNDS=1 to apply)
+[ 149.9s] 600 reviews ok
+[ 151.2s] 80 wishlists ok; 2280 GraphQL calls, 0 retried errors
+state written to misarch-optimization/calibration/results-kotlin/seed/state.json errors: 0

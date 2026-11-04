@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "case.schema.json",
+  "title": "Case manifest",
+  "description": "cases/<case>/case.json: the names and paths (relative to the case's directory) of what a case provides to the core (docs/case-interface.md). core/tools/case.py reads it; core/tools/stage_project.py stages its mdeo directories; core/tools/check_case.py checks it.",
+  "type": "object",
+  "required": ["name", "inputs", "generator", "mdeo"],
+  "properties": {
+    "name": {"type": "string", "description": "the case's directory name under cases/"},
+    "inputs": {
+      "type": "object",
+      "required": ["domain", "sessions", "platform", "sessionModel", "parts", "envelopeEstimate", "latencyFit", "cacheHits", "budgets", "bounds"],
+      "properties": {
+        "domain": {"type": "string", "description": "the domain extraction (schema/domain.schema.json)"},
+        "sessions": {"type": "string", "description": "the session usage model (schema/sessions.schema.json)"},
+        "platform": {"type": "string", "description": "the platform parameters (schema/platform.schema.json)"},
+        "sessionModel": {"type": "string", "description": "the case's session module (imports core/generator/sessions.py; provides LOGIN, pcm, loadprofile, workload_rates; optional request_rates)"},
+        "parts": {"type": "string", "description": "the timing parts per operation and access (schema/parts.schema.json)"},
+        "envelopeEstimate": {"type": "string", "description": "the effect steps' envelope estimate, used while parts has no envelope (schema/envelope-estimate.schema.json)"},
+        "latencyFit": {"type": "string", "description": "the latency-only waits (schema/latency-fit.schema.json); placeholders while missing"},
+        "cacheHits": {"type": "string", "description": "per-site cache hit ratios and staleness (schema/cache-hits.schema.json)"},
+        "budgets": {"type": "string", "description": "today's simulated statistics per request type (core/tools/gen_domain_budgets.sh); no budgets while missing"},
+        "bounds": {"type": "string", "description": "today's objectives the ObjectiveBounds refer to (core/tools/gen_domain_budgets.sh); no bounds while missing"}
+      }
+    },
+    "generator": {
+      "type": "object",
+      "required": ["adapter"],
+      "properties": {"adapter": {"type": "string", "description": "the case's adapter module (core/generator/case-stub/adapter.py lists what it provides)"}}
+    },
+    "mdeo": {
+      "type": "object",
+      "description": "the case's MDEO files by role, staged as models/ (models, seeds) and optimize/domain/ (configs)",
+      "required": ["models", "seeds", "configs"],
+      "properties": {"models": {"type": "string"}, "seeds": {"type": "string"}, "configs": {"type": "string"}},
+      "additionalProperties": false
+    }
+  }
+}

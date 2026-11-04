@@ -1,0 +1,619 @@
+# Consistency levels of the strong reads and strong calls (DESIGN.md AB60). Curated; schema: build.py docstring.
+# Classified read-only against misarch-kotlin 7515717 (every access with mode read and `strong: true`, every call with
+# `strong: true`; the code at each access's evidence), then reviewed by the user (AB60: the createReturn split, the
+# own-write re-reads as S5, the payload reads as immutable, every other debatable case the classifier's level).
+# Since AB63 the extraction reads 201e2e7: registerCoupon's trigger increments the coupon atomically (no strict read).
+# Since the unified services (misarch-kotlin unify) the entries follow their code: reads gone with it are dropped,
+# merged statements have one entry, a SELECT ... FOR UPDATE that returns the row is its read (op select), not a lock.
+#
+# A level says which mechanisms a read may have (core/generator/derive.py, F4):
+#   strict     sync only (no decision site); a strict read that today's code serves from a copy keeps sync or copy, so
+#              today's cut stays representable (return's returnedWithId, payment's open order: the reader's own store)
+#   stale-ok   sync, cache or copy, like a read that is not strong; O4 prices a stale read with p = min(1, w x window)
+#   immutable  as stale-ok, but O4 counts no staleness (p = 0): the data a stale read returns cannot be wrong, at
+#              most missing (a row created a moment ago)
+# A site's mechanisms follow the strictest access of its (class, mode) group; O4's p = 0 only when every access of
+# the site is immutable. A read that is not strong is stale-ok and has no entry here.
+#
+# Entries, per operation id: `class` and `assoc` (as in the service's file: the access's identity; without `assoc`
+# the entry matches only accesses without one), then as few of `op`, `via`, `at`, `table`, `shape`, `when`,
+# `topic` as pick exactly one read access of the operation; `call: <operation>` names a strong call by its callee
+# (a call into nested fields by its first field). Not access indices: they move when an access is added.
+# build.py stops when a strong read or call has no entry, an entry matches nothing, an entry matches several reads
+# or one read twice, an entry matches a read or call that is not strong, or a level or rule is unknown.
+# misarch-domain.json carries each entry as the access's or call's `consistency` {level, rules, reason}.
+# Effect calls (a registration with an external provider, `effect: true`) are not reads: no entry (AB60).
+#
+# Changing a level is a one-line change here (then build.py, derive.py; DESIGN.md AB60 lists the debatable ones).
+
+levels:
+  strict: "must read current data: sync only (no decision site)"
+  stale-ok: "sync, copy (replicationLagSeconds 1 s) or cache (cacheTtlSeconds 60 s), each priced by O4"
+  immutable: "stale-ok with zero staleness (p = 0 in O4)"
+rules:
+  S1: "read-modify-write: the same execution writes the data based on what it read (lost update if stale)"
+  S2: "invariant guard not re-checked by a constraint, trigger or compare-and-set in the write"
+  S3: "state transition decided by the read state, written without compare-and-set"
+  S4: "authorization/ownership (here only together with I1: the owner column never changes, so the check is immutable)"
+  S5: "same transaction / lock: the read is under a lock or must see the transaction's own writes"
+  S6: "read-your-writes: the caller's own write moments earlier decides the result, which is frozen into a durable record"
+  E1: "an effect call (registration with an external provider), not a read: never cache/copy"
+  R1: "reference data, rarely written: a stale value is at most a slightly outdated snapshot"
+  R2: "re-validated later or atomically in the write (saga step, unique constraint, trigger, compare-and-set)"
+  R3: "served from an event-fed copy today and accepted by MiSArch"
+  I1: "monotone data: insert-only rows / write-once or never-changing columns read by key; a stale read can only miss a row created a moment ago"
+
+operations:
+  address.archiveUserAddress:
+    - {class: "UserAddress",
+       level: strict, rules: [S1, S4],
+       reason: "archiveUserAddress loads the address, checks that the caller owns it and saves the loaded row back with archivedAt set: the write is built from the row it read."}
+  address.createUserAddress:
+    - {class: "User",
+       level: immutable, rules: [I1],
+       reason: "createUserAddress only checks that the given user id exists; users are never deleted and address's copy is fed by user/user/created only, so a stale copy can at most miss a user registered a moment ago (a retryable 'not found'), never accept a wrong one."}
+  catalog.createCategoricalCategoryCharacteristic:
+    - {class: "Category",
+       level: immutable, rules: [I1],
+       reason: "Categories are insert-only (createCategory is their only writer, nothing updates or deletes them), so the check that the given category exists can only miss one created a moment ago."}
+  catalog.createNumericalCategoryCharacteristic:
+    - {class: "Category",
+       level: immutable, rules: [I1],
+       reason: "Categories are insert-only (createCategory is their only writer, nothing updates or deletes them), so the check that the given category exists can only miss one created a moment ago."}
+  catalog.createProduct:
+    - {class: "Category", op: "exists",
+       level: immutable, rules: [I1],
+       reason: "Categories are insert-only (createCategory is their only writer, nothing updates or deletes them), so the check that the given category exists can only miss one created a moment ago."}
+    - {class: "TaxRate",
+       level: immutable, rules: [I1],
+       reason: "Tax rates are never deleted (tax has create and update only; catalog's copy is fed by tax-rate/created), so the check that the version's tax rate exists can only miss a rate created a moment ago."}
+    - {class: "Media",
+       level: immutable, rules: [I1],
+       reason: "Media rows are insert-only for catalog: media deletes a stored object only when its created event could not be published, so catalog never sees it; a stale copy can only miss a media uploaded a moment ago."}
+    - {class: "ProductVariant", op: "lock",
+       level: strict, rules: [S5],
+       reason: "A statement that only locks (SELECT ... FOR UPDATE without a data change, or a transaction-scoped advisory lock on the id) serialises this transaction's write of the class: a lock is always taken on the current row, at the class's own store, never on a copy or a cache."}
+    - {class: "ProductVariantVersion", op: "select", via: "ProductVariantVersionRepository.findMaxVersionByProductVariantId",
+       level: strict, rules: [S1, S5],
+       reason: "createProduct computes the next version number as MAX(version)+1 of the variant's versions under the variant's lock and inserts it: a stale maximum would give two versions the same number. (Here always NULL: the variant is new.)"}
+    - {class: "ProductVariantVersion", op: "select", via: "CategoryCharacteristicValueRepository.findValidCategoryCharacteristics",
+       level: strict, rules: [S5],
+       reason: "The characteristic validation (one join, findValidCategoryCharacteristics) reads the version row that createProduct inserted earlier in the same transaction: only the transaction itself sees it."}
+    - {class: "ProductVariant", op: "select",
+       level: strict, rules: [S5],
+       reason: "The characteristic validation (one join, findValidCategoryCharacteristics) reads the variant row that createProduct inserted earlier in the same transaction: only the transaction itself sees it."}
+    - {class: "Product",
+       level: strict, rules: [S5],
+       reason: "The characteristic validation (one join, findValidCategoryCharacteristics) reads the product row that createProduct inserted earlier in the same transaction: only the transaction itself sees it."}
+    - {class: "Product", assoc: "Category", op: "select",
+       level: strict, rules: [S5],
+       reason: "The characteristic validation (one join, findValidCategoryCharacteristics) reads the product's category links that createProduct inserted earlier in the same transaction: only the transaction itself sees it."}
+    - {class: "Category", op: "select",
+       level: immutable, rules: [I1],
+       reason: "The join reads the categories of the product; categories are insert-only, their rows cannot be stale."}
+    - {class: "CategoryCharacteristic", op: "select",
+       level: immutable, rules: [I1],
+       reason: "Category characteristics are insert-only (created with their category or by the create...Characteristic mutations, never updated or deleted): the category a characteristic belongs to cannot change."}
+    - {class: "ProductVariantVersion", op: "exists",
+       level: strict, rules: [S5],
+       reason: "The trigger check_category_value_product_category_fn, fired by each characteristic value upsert, reads the version row inserted earlier in the same transaction: only the transaction itself sees it."}
+    - {class: "ProductVariant", op: "exists",
+       level: strict, rules: [S5],
+       reason: "The trigger check_category_value_product_category_fn, fired by each characteristic value upsert, reads the variant row inserted earlier in the same transaction: only the transaction itself sees it."}
+    - {class: "Product", assoc: "Category", op: "exists",
+       level: strict, rules: [S5],
+       reason: "The trigger check_category_value_product_category_fn, fired by each characteristic value upsert, reads the product's category links inserted earlier in the same transaction: only the transaction itself sees it."}
+    - {class: "CategoryCharacteristic", op: "exists",
+       level: immutable, rules: [I1],
+       reason: "Category characteristics are insert-only (created with their category or by the create...Characteristic mutations, never updated or deleted): the category a characteristic belongs to cannot change."}
+  catalog.createProductVariant:
+    - {class: "Product", op: "exists",
+       level: immutable, rules: [I1],
+       reason: "createProductVariant only checks that the parent product exists; products are never deleted, so the check can only miss a product created a moment ago."}
+    - {class: "TaxRate",
+       level: immutable, rules: [I1],
+       reason: "Tax rates are never deleted (tax has create and update only; catalog's copy is fed by tax-rate/created), so the check that the version's tax rate exists can only miss a rate created a moment ago."}
+    - {class: "Media",
+       level: immutable, rules: [I1],
+       reason: "Media rows are insert-only for catalog: media deletes a stored object only when its created event could not be published, so catalog never sees it; a stale copy can only miss a media uploaded a moment ago."}
+    - {class: "ProductVariant", op: "lock",
+       level: strict, rules: [S5],
+       reason: "A statement that only locks (SELECT ... FOR UPDATE without a data change, or a transaction-scoped advisory lock on the id) serialises this transaction's write of the class: a lock is always taken on the current row, at the class's own store, never on a copy or a cache."}
+    - {class: "ProductVariantVersion", op: "select", via: "ProductVariantVersionRepository.findMaxVersionByProductVariantId",
+       level: strict, rules: [S1, S5],
+       reason: "createProductVariant computes the next version number as MAX(version)+1 of the variant's versions under the variant's lock and inserts it: a stale maximum would give two versions the same number. (Here always NULL: the variant is new.)"}
+    - {class: "ProductVariantVersion", op: "select", via: "CategoryCharacteristicValueRepository.findValidCategoryCharacteristics",
+       level: strict, rules: [S5],
+       reason: "The characteristic validation (one join, findValidCategoryCharacteristics) reads the version row that createProductVariant inserted earlier in the same transaction: only the transaction itself sees it."}
+    - {class: "ProductVariant", op: "select",
+       level: strict, rules: [S5],
+       reason: "The characteristic validation (one join, findValidCategoryCharacteristics) reads the variant row that createProductVariant inserted earlier in the same transaction: only the transaction itself sees it."}
+    - {class: "Product", op: "select",
+       level: immutable, rules: [I1],
+       reason: "The join follows the variant to its product; a variant's productId and the product's id never change (updateProduct changes name, visibility and default variant only)."}
+    - {class: "Product", assoc: "Category", op: "select",
+       level: immutable, rules: [I1],
+       reason: "A product's category links are written only by createProduct and never changed afterwards, so the links read here cannot be stale."}
+    - {class: "Category",
+       level: immutable, rules: [I1],
+       reason: "The join reads the categories of the product; categories are insert-only, their rows cannot be stale."}
+    - {class: "CategoryCharacteristic", op: "select",
+       level: immutable, rules: [I1],
+       reason: "Category characteristics are insert-only (created with their category or by the create...Characteristic mutations, never updated or deleted): the category a characteristic belongs to cannot change."}
+    - {class: "ProductVariantVersion", op: "exists",
+       level: strict, rules: [S5],
+       reason: "The trigger check_category_value_product_category_fn, fired by each characteristic value upsert, reads the version row inserted earlier in the same transaction: only the transaction itself sees it."}
+    - {class: "ProductVariant", op: "exists",
+       level: strict, rules: [S5],
+       reason: "The trigger check_category_value_product_category_fn, fired by each characteristic value upsert, reads the variant row inserted earlier in the same transaction: only the transaction itself sees it."}
+    - {class: "Product", assoc: "Category", op: "exists",
+       level: immutable, rules: [I1],
+       reason: "A product's category links are written only by createProduct and never changed afterwards, so the links read here cannot be stale."}
+    - {class: "CategoryCharacteristic", op: "exists",
+       level: immutable, rules: [I1],
+       reason: "Category characteristics are insert-only (created with their category or by the create...Characteristic mutations, never updated or deleted): the category a characteristic belongs to cannot change."}
+  catalog.createProductVariantVersion:
+    - {class: "ProductVariant", op: "exists", via: "ProductVariantRepository.existsById",
+       level: immutable, rules: [I1],
+       reason: "The check that the given variant exists cannot be wrong: variants are never deleted (the strict lock and the re-read of the same row follow anyway)."}
+    - {class: "TaxRate",
+       level: immutable, rules: [I1],
+       reason: "Tax rates are never deleted (tax has create and update only; catalog's copy is fed by tax-rate/created), so the check that the version's tax rate exists can only miss a rate created a moment ago."}
+    - {class: "Media",
+       level: immutable, rules: [I1],
+       reason: "Media rows are insert-only for catalog: media deletes a stored object only when its created event could not be published, so catalog never sees it; a stale copy can only miss a media uploaded a moment ago."}
+    - {class: "ProductVariant", op: "lock",
+       level: strict, rules: [S5],
+       reason: "A statement that only locks (SELECT ... FOR UPDATE without a data change, or a transaction-scoped advisory lock on the id) serialises this transaction's write of the class: a lock is always taken on the current row, at the class's own store, never on a copy or a cache."}
+    - {class: "ProductVariantVersion", op: "select", via: "ProductVariantVersionRepository.findMaxVersionByProductVariantId",
+       level: strict, rules: [S1, S5],
+       reason: "createProductVariantVersion computes the next version number as MAX(version)+1 of the variant's versions under the variant's lock and inserts it: a stale maximum would give two versions the same number."}
+    - {class: "ProductVariantVersion", op: "select", via: "CategoryCharacteristicValueRepository.findValidCategoryCharacteristics",
+       level: strict, rules: [S5],
+       reason: "The characteristic validation (one join, findValidCategoryCharacteristics) reads the version row that createProductVariantVersion inserted earlier in the same transaction: only the transaction itself sees it."}
+    - {class: "ProductVariant", op: "select", via: "CategoryCharacteristicValueRepository.findValidCategoryCharacteristics",
+       level: immutable, rules: [I1],
+       reason: "The join only follows the existing variant's productId, which is set at creation and never changes."}
+    - {class: "Product",
+       level: immutable, rules: [I1],
+       reason: "The join follows the variant to its product; a variant's productId and the product's id never change (updateProduct changes name, visibility and default variant only)."}
+    - {class: "Product", assoc: "Category", op: "select",
+       level: immutable, rules: [I1],
+       reason: "A product's category links are written only by createProduct and never changed afterwards, so the links read here cannot be stale."}
+    - {class: "Category",
+       level: immutable, rules: [I1],
+       reason: "The join reads the categories of the product; categories are insert-only, their rows cannot be stale."}
+    - {class: "CategoryCharacteristic", op: "select",
+       level: immutable, rules: [I1],
+       reason: "Category characteristics are insert-only (created with their category or by the create...Characteristic mutations, never updated or deleted): the category a characteristic belongs to cannot change."}
+    - {class: "ProductVariantVersion", op: "exists",
+       level: strict, rules: [S5],
+       reason: "The trigger check_category_value_product_category_fn, fired by each characteristic value upsert, reads the version row inserted earlier in the same transaction: only the transaction itself sees it."}
+    - {class: "ProductVariant", op: "exists", via: "CategoryCharacteristicValueRepository.upsert",
+       level: immutable, rules: [I1],
+       reason: "The join only follows the existing variant's productId, which is set at creation and never changes."}
+    - {class: "Product", assoc: "Category", op: "exists",
+       level: immutable, rules: [I1],
+       reason: "A product's category links are written only by createProduct and never changed afterwards, so the links read here cannot be stale."}
+    - {class: "CategoryCharacteristic", op: "exists",
+       level: immutable, rules: [I1],
+       reason: "Category characteristics are insert-only (created with their category or by the create...Characteristic mutations, never updated or deleted): the category a characteristic belongs to cannot change."}
+    - {class: "ProductVariant", op: "select", via: "ProductVariantRepository.findById",
+       level: strict, rules: [S1],
+       reason: "createProductVariantVersion loads the variant and saves the whole row back with currentVersion set to the new version: a stale row would overwrite a concurrent change (e.g. its visibility) with the old value."}
+  catalog.updateProduct:
+    - {class: "Product",
+       level: strict, rules: [S1],
+       reason: "updateProduct loads the product and saves the whole row back with the changed fields: a stale row would undo a concurrent update."}
+    - {class: "ProductVariant",
+       level: immutable, rules: [I1],
+       reason: "updateProduct only checks that the new default variant belongs to the product; a variant's productId is set at creation and never changes, and variants are never deleted."}
+  catalog.updateProductVariant:
+    - {class: "ProductVariant",
+       level: strict, rules: [S1],
+       reason: "updateProductVariant loads the variant and saves the whole row back with the new visibility: a stale row would undo a concurrent change (e.g. a new currentVersion)."}
+  discount.createCoupon:
+    - {class: "Discount",
+       level: immutable, rules: [I1],
+       reason: "createCoupon only checks that the coupon's discount exists; discounts are never deleted (create and update only)."}
+    - {class: "Coupon",
+       level: stale-ok, rules: [R2],
+       reason: "The 'code must be unused' check is repeated by the UNIQUE (code) constraint of the insert, so a stale answer only changes the error message."}
+  discount.createDiscount:
+    - {class: "Category",
+       level: immutable, rules: [I1],
+       reason: "createDiscount only checks that each category the discount applies to exists in discount's copy; categorys are never deleted, so a stale copy can only miss one created a moment ago."}
+    - {class: "Product",
+       level: immutable, rules: [I1],
+       reason: "createDiscount only checks that each product the discount applies to exists in discount's copy; products are never deleted, so a stale copy can only miss one created a moment ago."}
+    - {class: "ProductVariant",
+       level: immutable, rules: [I1],
+       reason: "createDiscount only checks that each product variant the discount applies to exists in discount's copy; variants are never deleted, so a stale copy can only miss one created a moment ago."}
+  discount.findApplicableDiscounts:
+    - {class: "ProductVariant",
+       level: immutable, rules: [I1],
+       reason: "findApplicableDiscounts only checks that each given variant id exists in discount's copy; variants are never deleted, so a stale copy can only miss a variant created a moment ago."}
+    - {class: "Coupon",
+       level: immutable, rules: [I1],
+       reason: "The given coupons must exist and each names its discount; coupons are never deleted and updateCoupon never changes a coupon's discount (only code, validity and maxUsages), so what is read here cannot be stale."}
+  "discount.on:inventory/product-item/reservation-succeeded":
+    - {class: "Discount", via: "DiscountRepository.findAllById",
+       level: stale-ok, rules: [R1, R2],
+       reason: "The handler reads each discount's per-user limit (maxUsagesPerUser), admin data that changes rarely; the usage upsert's trigger check_discount_usages checks the limit again in the write, so a stale limit at most decides which result event is published."}
+    - {class: "DiscountUsage",
+       level: stale-ok, rules: [R2],
+       reason: "The user's current usages decide success or failure, but the upsert adds the count atomically (usages = usages + n) and the trigger check_discount_usages re-checks the limit in the same statement: a stale count only changes the failure event (validation-failed with an empty list instead of the failing discounts)."}
+    - {class: "Discount", via: "DiscountUsageRepository.upsertDiscountUsage",
+       level: stale-ok, rules: [R1],
+       reason: "The trigger check_discount_usages compares the new usage count (computed atomically in the statement) with the discount's maxUsagesPerUser, an admin setting that changes rarely: a stale limit could allow at most the old limit shortly after an admin lowered it."}
+  discount.registerCoupon:
+    - {class: "Coupon", via: "CouponRepository.findByCode",
+       level: stale-ok, rules: [R1],
+       reason: "registerCoupon finds the coupon by its code and checks its validity window; code and window are admin data that change rarely, so a stale coupon could at most accept a redemption shortly after an admin closed the window; the usage limit itself is checked in the write, by the trigger update_coupon_usages's atomic increment (UPDATE ... RETURNING)."}
+  discount.updateCoupon:
+    - {class: "Coupon",
+       level: strict, rules: [S1],
+       reason: "updateCoupon loads the coupon and saves its admin fields (code, validity window, maxUsages) back with the changed ones: a stale row would undo a concurrent update of the others (lost update); usages is never written (@ReadOnlyProperty, counted by the trigger update_coupon_usages)."}
+  discount.updateDiscount:
+    - {class: "Discount",
+       level: strict, rules: [S1],
+       reason: "updateDiscount loads the discount and saves the whole row back with the changed fields: a stale row would undo a concurrent update."}
+    - {class: "Category",
+       level: immutable, rules: [I1],
+       reason: "updateDiscount only checks that each category the discount applies to exists in discount's copy; categorys are never deleted, so a stale copy can only miss one created a moment ago."}
+    - {class: "Product",
+       level: immutable, rules: [I1],
+       reason: "updateDiscount only checks that each product the discount applies to exists in discount's copy; products are never deleted, so a stale copy can only miss one created a moment ago."}
+    - {class: "ProductVariant",
+       level: immutable, rules: [I1],
+       reason: "updateDiscount only checks that each product variant the discount applies to exists in discount's copy; variants are never deleted, so a stale copy can only miss one created a moment ago."}
+  inventory.createProductItemBatch:
+    - {class: "ProductVariant",
+       level: immutable, rules: [I1],
+       reason: "inventory only checks that the variant exists in its copy (ProductVariantEntity, fed by product-variant/created); variants are never deleted, so a stale copy can only miss one created a moment ago."}
+  "inventory.on:order/order/created":
+    - {class: "Order",
+       level: immutable, rules: [I1],
+       reason: "The order id comes with the event (event-carried, it never changes)."}
+    - {class: "OrderItem",
+       level: immutable, rules: [I1],
+       reason: "Variant id and count of each item come with the event; order items are insert-only, so the payload is never stale."}
+    - {class: "ProductItem",
+       level: strict, rules: [S1],
+       reason: "The handler counts the items already reserved for this order and reserves only the missing ones (idempotency): a stale count would reserve a second set of items on a redelivered event."}
+  inventory.updateProductItem:
+    - {class: "ProductVariant",
+       level: immutable, rules: [I1],
+       reason: "inventory only checks that the variant exists in its copy (ProductVariantEntity, fed by product-variant/created); variants are never deleted, so a stale copy can only miss one created a moment ago."}
+    - {class: "ProductItem",
+       level: strict, rules: [S1],
+       reason: "updateProductItem loads the item and saves the whole row back with the new variant and status (keeping its orderId): a stale row would undo a concurrent reservation or release."}
+  "invoice.on:discount/order/validation-succeeded":
+    - {class: "Order",
+       level: immutable, rules: [I1],
+       reason: "The order (user, invoice address, VAT number, amount) comes with the event: an event-carried snapshot that never changes."}
+    - {class: "OrderItem",
+       level: immutable, rules: [I1],
+       reason: "The order items rendered into the invoice come with the event; order items are insert-only."}
+    - {class: "Invoice",
+       level: stale-ok, rules: [R2],
+       reason: "The 'invoice already exists' check is repeated by the unique index on orderId: a second insert fails and rolls the transaction back with its publish, so a stale answer cannot produce a second invoice."}
+    - {class: "UserAddress",
+       level: immutable, rules: [I1],
+       reason: "The invoice address is read by its id; address contents are never edited (address has create and archive only) and invoice reads archived addresses too, so the row cannot be stale."}
+    - {class: "VendorAddress",
+       level: immutable, rules: [I1],
+       reason: "invoice takes the first complete vendor address in insertion order; vendor addresses are insert-only, so once one exists the first one never changes."}
+    - {class: "User",
+       level: stale-ok, rules: [R1, R3],
+       reason: "The customer's first and last name are printed on the invoice; a name changed by updateUser just before would appear in its old form (invoice's copy is in fact never updated today: no event announces a user update, AB40)."}
+  notification.createNotification:
+    - {class: "User",
+       level: immutable, rules: [I1],
+       reason: "createNotification only checks that the given user id exists; users are never deleted and notification's copy is fed by user/user/created only, so a stale copy can only miss a user registered a moment ago."}
+  "notification.on:notification/notification/create":
+    - {class: "User",
+       level: immutable, rules: [I1],
+       reason: "the handler only checks that the given user id exists; users are never deleted and notification's copy is fed by user/user/created only, so a stale copy can only miss a user registered a moment ago."}
+  notification.updateNotification:
+    - {class: "Notification",
+       level: strict, rules: [S1, S4],
+       reason: "updateNotification loads the notification, checks that the caller owns it (else admin) and saves the loaded row back with the read flag and dateRead: the write is built from the row it read."}
+  order.createOrder:
+    - {class: "User",
+       level: immutable, rules: [I1],
+       reason: "createOrder only checks that the given user id exists; users are never deleted and order's key's copy is fed by user/user/created only, so a stale copy can only miss a user registered a moment ago."}
+    - {class: "ShipmentMethod", op: "select",
+       level: immutable, rules: [I1, R2],
+       reason: "Every shipment method id must exist; methods are never deleted (archiving only sets archivedAt), and S23 (calculateShipmentFees) checks them again, rejecting unknown and archived ones."}
+    - {class: "Coupon", op: "select",
+       level: immutable, rules: [I1, R2],
+       reason: "Every coupon id must exist; coupons are never deleted, and S22 (findApplicableDiscounts) checks the coupons again."}
+    - {class: "UserAddress",
+       level: stale-ok, rules: [R3],
+       reason: "Both addresses must be active addresses of the buyer; an address archived just before (within the copy's lag) could still be accepted, as MiSArch accepts today with its user_addresses copy; an address's owner never changes."}
+    - {class: "ShoppingCartItem",
+       level: strict, rules: [S6],
+       reason: "createOrder maps the given cart item ids to the variant and the count it reads from the cart (S20) and freezes that count into the order: a stale cart would order the count from before the buyer's last change, or fail with 'not found' for an item the buyer just added."}
+    - {class: "ProductVariant",
+       level: stale-ok, rules: [R1, R3],
+       reason: "Only the variant's visibility is read (invisible variants are dropped); a variant hidden just before could still be ordered, a snapshot MiSArch accepts today with its product_variants copy."}
+    - {class: "ProductVariantVersion", op: "select",
+       level: stale-ok, rules: [R1, R3],
+       reason: "The variant's current version (id, retail price, tax rate) is frozen into the item; a price changed just before would be ordered at the old price, as MiSArch accepts today. Not immutable: which version is current changes."}
+    - {class: "ProductItem",
+       level: stale-ok, rules: [R2],
+       reason: "The availability check (S21, unreserved items per variant) is a pre-check: inventory reserves the items authoritatively when the order is placed (FOR UPDATE SKIP LOCKED) and fails the saga if there are too few."}
+    - {class: "TaxRate",
+       level: stale-ok, rules: [R1, R3],
+       reason: "The tax rate of the version is looked up for its current version; tax rates change rarely, a stale one gives the previous rate, as MiSArch accepts today with its tax_rates copy."}
+    - {class: "TaxRateVersion",
+       level: stale-ok, rules: [R1, R3],
+       reason: "The current tax rate version (rate) is frozen into the item; a version created just before would be missed, as MiSArch accepts today. Not immutable: which version is current changes."}
+    - {class: "Discount",
+       level: stale-ok, rules: [R1],
+       reason: "The applicable discounts (S22: validity, minimum order amount, applies-to sets) are admin data frozen into the order and not checked again later: a stale read could apply a discount that ended a moment ago."}
+    - {class: "Coupon", at: "service/CheckoutService.kt#val discounts = checkoutClient.applicableDiscounts(",
+       level: immutable, rules: [I1, R2],
+       reason: "S22 checks that the coupons exist and maps each to its discount; coupons are never deleted and their discount never changes."}
+    - {class: "CouponRedemption",
+       level: immutable, rules: [I1],
+       reason: "S22 checks that the buyer redeemed the coupon; redemptions are insert-only, so a stale read can only miss a redemption made a moment ago (the order then fails with 'coupon could not be used' and can be retried)."}
+    - {class: "DiscountUsage",
+       level: stale-ok, rules: [R2],
+       reason: "The user's remaining discount usages (S22) are checked again by discount's validation of the order (reservation-succeeded: atomic upsert and trigger check_discount_usages)."}
+    - {class: "ShipmentMethod", at: "service/CheckoutService.kt#checkoutClient.shipmentFees(",
+       level: stale-ok, rules: [R1],
+       reason: "Shipment fees and the archived flag (S23) are reference data; a fee changed or a method archived just before would give the old fee."}
+    - {class: "ProductVariantVersion", at: "service/CheckoutService.kt#checkoutClient.shipmentFees(",
+       level: immutable, rules: [I1],
+       reason: "S23 reads the weight of the given version ids from shipment's copy; versions are insert-only, a version's weight never changes."}
+    - {call: "shoppingcart._entities.User",
+       level: strict, rules: [S6],
+       reason: "createOrder looks up the cart item ids it was given in the buyer's cart and orders the counts found there: a stale cart would order a count from before the buyer's last change, or fail with 'not found' for an item just added — the buyer's own write moments earlier (read-your-writes), frozen into the order."}
+    - {call: "inventory._entities.ProductVariant",
+       level: stale-ok, rules: [R2],
+       reason: "The unreserved counts are a pre-check: inventory reserves the items authoritatively when the order is placed (FOR UPDATE SKIP LOCKED) and fails the saga if there are too few."}
+    - {call: "discount.findApplicableDiscounts",
+       level: stale-ok, rules: [R1, R2, I1],
+       reason: "Discount rules are admin data (a stale read could apply a discount that ended a moment ago), the remaining usages are checked again by discount's order validation, and coupon existence and redemptions are insert-only."}
+    - {call: "shipment.calculateShipmentFees",
+       level: stale-ok, rules: [R1, I1],
+       reason: "Shipment fees and the archived flag are reference data, the version weights are insert-only: a stale answer gives at most the previous fee."}
+  "order.on:shipment/shipment/creation-failed":
+    - {class: "Order",
+       level: immutable, rules: [I1],
+       reason: "The handler only checks that the order exists; orders are never deleted."}
+    - {class: "OrderItem",
+       level: immutable, rules: [I1],
+       reason: "The compensatable amounts of the order's items are read; order items are insert-only, their amounts never change."}
+    - {class: "OrderCompensation",
+       level: strict, rules: [S2],
+       reason: "The handler reads which items are already compensated and inserts a compensation for the others; no constraint prevents a second compensation of an item, so a stale list would refund an item twice (redelivered event)."}
+    - {class: "OrderCompensation", assoc: "OrderItem",
+       level: strict, rules: [S2],
+       reason: "Same statement as the read of the compensations, their item links: a stale list would refund an item twice."}
+  order.placeOrder:
+    - {class: "Order",
+       level: immutable, rules: [I1, S4],
+       reason: "placeOrder's one read of the order row decides the owner check (userId) and place vs reject (createdAt), both set at creation and never changed, so a stale row cannot grant the wrong caller; the status is not read, the compare-and-set UPDATE ... WHERE orderStatus = 'PENDING' decides it."}
+  payment.deletePayment:
+    - {class: "Payment",
+       level: stale-ok, rules: [R2],
+       reason: "The 'payment must exist' check only decides between the answer (the loaded row) and a not-found error; the delete in the same transaction is by id and idempotent, so a stale row can at most answer with a payment deleted a moment ago."}
+  payment.deletePaymentInformation:
+    - {class: "PaymentInformation",
+       level: immutable, rules: [I1, S4],
+       reason: "The owner check reads the payment information's userId, set at creation and never changed; the delete itself is by id, so a stale row cannot grant the wrong caller."}
+  "payment.http:/payment/update-payment-status":
+    - {class: "Payment",
+       level: strict, rules: [S1, S3, S5],
+       reason: "The callback locks the payment row (SELECT ... FOR UPDATE) and decides from its status and numberOfRetries the transition, the retry and the event, then saves the whole row back: the read must be the current, locked row."}
+    - {class: "PaymentInformation",
+       level: immutable, rules: [I1],
+       reason: "The payment method decides how the callback is processed; a payment information's method is set at creation and never changes."}
+    - {class: "Order",
+       level: strict, rules: [S5],
+       reason: "The provider's callback reads the open order (OpenOrderEntity) that payment's validation-succeeded handler inserted before it registered the payment, to build payment-enabled / payment-failed: the service's own earlier write, which only its own store is sure to hold."}
+    - {class: "OrderItem",
+       level: strict, rules: [S5],
+       reason: "Same statement as the open order's Order row: the order items payment's validation-succeeded handler inserted before it registered the payment."}
+  "payment.job:checkOpenInvoicePayments":
+    - {class: "Payment",
+       level: strict, rules: [S3, S5],
+       reason: "The job selects PENDING payments older than 30 days (locked FOR UPDATE, joined with their INVOICE information) and saves them FAILED (no compare-and-set): a stale status would fail a payment that has just succeeded."}
+  "payment.job:checkOpenPrepaymentPayments":
+    - {class: "Payment",
+       level: strict, rules: [S3, S5],
+       reason: "The job selects PENDING payments older than 7 days (locked FOR UPDATE, joined with their PREPAYMENT information) and saves them FAILED (no compare-and-set): a stale status would fail a payment that has just succeeded."}
+  "payment.on:discount/order/validation-succeeded":
+    - {class: "Order",
+       level: immutable, rules: [I1],
+       reason: "The order (payment information id, amount) comes with the event: an event-carried snapshot that never changes."}
+    - {class: "PaymentInformation",
+       level: stale-ok, rules: [R1],
+       reason: "The payment information must exist and its method decides the flow; the method never changes, but payment informations can be deleted, so a stale read could start a payment on one deleted a moment ago."}
+  "payment.on:user/user/created":
+    - {class: "PaymentInformation", op: "lock",
+       level: strict, rules: [S5],
+       reason: "A statement that only locks (SELECT ... FOR UPDATE without a data change, or a transaction-scoped advisory lock on the id) serialises this transaction's write of the class: a lock is always taken on the current row, at the class's own store, never on a copy or a cache."}
+    - {class: "PaymentInformation", op: "exists",
+       level: strict, rules: [S2, S5],
+       reason: "Under the user's advisory lock the handler checks whether the user already has the payment method and inserts it otherwise; there is no unique constraint, so a stale answer would insert a duplicate."}
+  return.createReturn:
+    - {class: "OrderItem", op: "select", via: "OrderItemRepository.findAllById",
+       level: immutable, rules: [I1],
+       reason: "OrderItem's own fields in return's copy (orderId, compensatableAmount, productVariantVersionId) are set when the order is created and never change: a stale copy can only miss an item ordered a moment ago. The already-returned check is the next access (OrderItem.returnedWith)."}
+    - {class: "OrderItem", assoc: "Return",
+       level: strict, rules: [S1],
+       reason: "createReturn reads whether each item was already returned (returnedWithId, return's own column in its OrderItem copy) and then sets it to the new return in the same transaction: a stale value lets an item be returned and refunded twice. Today the read and the write hit the same table, so the check is current."}
+    - {class: "Shipment", via: "OrderItemRepository.findAllById",
+       level: immutable, rules: [I1],
+       reason: "Which shipment sent an item (sentWithId) is written once, when it is shipped; a stale read can only say 'missing data, try again later'."}
+    - {class: "Order",
+       level: immutable, rules: [I1, S4],
+       reason: "Only the original buyer may return: the order's userId is set at creation and never changes, so a stale copy cannot grant the wrong caller."}
+    - {class: "Shipment", via: "ShipmentRepository.findAllById",
+       level: immutable, rules: [I1],
+       reason: "deliveredAt is written once, when the shipment is delivered; a stale read can only reject a return as 'not delivered' just after the delivery, never accept a wrong one."}
+    - {class: "ProductVariantVersion", via: "ProductVariantVersionRepository.findAllById",
+       level: immutable, rules: [I1],
+       reason: "canBeReturnedForDays is read by the version id of the order item; versions are insert-only."}
+  review.createReview:
+    - {class: "ProductVariant",
+       level: immutable, rules: [I1],
+       reason: "createReview loads the given variant from review's copy: it must exist, and its productId (stored with the review) is set at creation and never changes; variants are never deleted, so a stale copy can only miss a variant created a moment ago."}
+    - {class: "User",
+       level: immutable, rules: [I1],
+       reason: "createReview only checks that the given user id exists; users are never deleted and review's copy is fed by user/user/created only, so a stale copy can only miss a user registered a moment ago."}
+    - {class: "Review",
+       level: stale-ok, rules: [R2],
+       reason: "The one-review-per-user-and-variant check is repeated by the unique index (userId, productVariantId) of the insert, so a stale answer only changes when the duplicate is reported."}
+  review.deleteReview:
+    - {class: "Review",
+       level: immutable, rules: [I1, S4],
+       reason: "Only the author may delete: the review's userId is set at creation and never changes, and the delete writes the input, not values read, so a stale row cannot grant the wrong caller."}
+  review.updateReview:
+    - {class: "Review",
+       level: strict, rules: [S1, S4],
+       reason: "updateReview loads the review, checks that the caller is its author (or an employee) and saves the loaded row back with the input's fields and lastUpdatedAt: the write is built from the row it read."}
+  shipment.archiveShipmentMethod:
+    - {class: "ShipmentMethod",
+       level: strict, rules: [S1],
+       reason: "archiveShipmentMethod loads the method and saves the whole row back with archivedAt set."}
+  shipment.calculateShipmentFees:
+    - {class: "ShipmentMethod",
+       level: stale-ok, rules: [R1],
+       reason: "Fees and the archived flag of shipment methods are reference data; a method archived or re-priced just before could still be priced the old way."}
+    - {class: "ProductVariantVersion",
+       level: immutable, rules: [I1],
+       reason: "The weights are read by the given version ids from shipment's copy; versions are insert-only, a version's weight never changes."}
+  "shipment.http:/shipment/{id}/status":
+    - {class: "Shipment",
+       level: immutable, rules: [I1],
+       reason: "The provider's status is written whatever the current one ('any transition is accepted'); the loaded row only supplies orderId and returnId for the event, which never change."}
+    - {class: "Shipment", assoc: "OrderItem",
+       level: immutable, rules: [I1],
+       reason: "The shipment's item links (for the event) are insert-only."}
+  "shipment.on:payment/payment/payment-enabled":
+    - {class: "Shipment", op: "lock",
+       level: strict, rules: [S5],
+       reason: "A statement that only locks (SELECT ... FOR UPDATE without a data change, or a transaction-scoped advisory lock on the id) serialises this transaction's write of the class: a lock is always taken on the current row, at the class's own store, never on a copy or a cache."}
+    - {class: "Shipment", op: "exists",
+       level: strict, rules: [S2, S5],
+       reason: "Under the order's advisory lock the handler checks whether the order already has shipments (idempotency): a stale answer would register a second set of shipments with the provider."}
+    - {class: "Order",
+       level: immutable, rules: [I1],
+       reason: "The order id and shipment address come with the event (event-carried snapshot)."}
+    - {class: "OrderItem",
+       level: immutable, rules: [I1],
+       reason: "The order items (count, version, shipment method) come with the event; order items are insert-only."}
+    - {class: "UserAddress", op: "exists",
+       level: immutable, rules: [I1],
+       reason: "Only checks that the shipment address exists; shipment's address copy is insert-only (fed by user-address/created) and address contents never change."}
+    - {class: "ShipmentMethod",
+       level: stale-ok, rules: [R1],
+       reason: "Reads the method's external reference and fees for the provider registration: reference data (archived methods are not rejected here anyway)."}
+    - {class: "ProductVariantVersion",
+       level: immutable, rules: [I1],
+       reason: "The weights are read by the given version ids from shipment's copy; versions are insert-only, a version's weight never changes."}
+    - {class: "UserAddress", op: "select",
+       level: immutable, rules: [I1],
+       reason: "The address sent to the provider is read by its id; address contents never change."}
+  "shipment.on:return/return/created":
+    - {class: "Shipment", op: "lock",
+       level: strict, rules: [S5],
+       reason: "A statement that only locks (SELECT ... FOR UPDATE without a data change, or a transaction-scoped advisory lock on the id) serialises this transaction's write of the class: a lock is always taken on the current row, at the class's own store, never on a copy or a cache."}
+    - {class: "Shipment", op: "exists",
+       level: strict, rules: [S2, S5],
+       reason: "Under the return's advisory lock the handler checks whether the return already has a shipment (idempotency): a stale answer would register a second return shipment with the provider."}
+    - {class: "Return",
+       level: immutable, rules: [I1],
+       reason: "The return id and its item ids come with the event (event-carried snapshot)."}
+    - {class: "VendorAddress", op: "select", via: "AddressRepository.findCurrentVendorAddress",
+       level: stale-ok, rules: [R1],
+       reason: "The latest vendor address is the return destination; a vendor address added just before would not be used yet."}
+    - {class: "OrderItem",
+       level: immutable, rules: [I1],
+       reason: "Quantity and version of the returned items are read from shipment's own item copy, inserted once when the order was shipped (ON CONFLICT DO NOTHING) and never changed."}
+    - {class: "ShipmentMethod", via: "ShipmentMethodRepository.findAll",
+       level: stale-ok, rules: [R1],
+       reason: "Picks the cheapest non-archived shipment method: reference data; a method created or archived just before may be missed or still used."}
+    - {class: "ProductVariantVersion",
+       level: immutable, rules: [I1],
+       reason: "The weights are read by the given version ids from shipment's copy; versions are insert-only, a version's weight never changes."}
+    - {class: "VendorAddress", op: "exists",
+       level: immutable, rules: [I1],
+       reason: "Only checks that the vendor address exists; vendor addresses are insert-only."}
+    - {class: "ShipmentMethod", via: "ShipmentMethodRepository.findById",
+       level: stale-ok, rules: [R1],
+       reason: "Reads the chosen method's external reference and fees: reference data."}
+    - {class: "VendorAddress", op: "select", via: "AddressRepository.findById",
+       level: immutable, rules: [I1],
+       reason: "The vendor address sent to the provider is read by its id; vendor addresses are insert-only."}
+  shoppingcart.createShoppingcartItem:
+    - {class: "ProductVariant",
+       level: immutable, rules: [I1],
+       reason: "createShoppingcartItem only checks that each given variant id exists in shoppingcart's copy; variants are never deleted, so a stale copy can only miss a variant created a moment ago."}
+    - {class: "ShoppingCart", op: "lock",
+       level: strict, rules: [S5],
+       reason: "A statement that only locks (SELECT ... FOR UPDATE without a data change, or a transaction-scoped advisory lock on the id) serialises this transaction's write of the class: a lock is always taken on the current row, at the class's own store, never on a copy or a cache."}
+    - {class: "ShoppingCartItem",
+       level: strict, rules: [S2, S5],
+       reason: "Under the cart row's lock, find-or-insert looks for the user's item of this variant; no unique constraint exists, so without the current answer two adds of the same variant would create two items."}
+  shoppingcart.deleteShoppingcartItem:
+    - {class: "ShoppingCartItem",
+       level: immutable, rules: [I1, S4],
+       reason: "Existence and owner of the cart item: the item's userId never changes, and the delete writes the input, not values read, so a stale row cannot grant the wrong caller."}
+  shoppingcart.updateShoppingcart:
+    - {class: "ProductVariant",
+       level: immutable, rules: [I1],
+       reason: "updateShoppingcart only checks that each given variant id exists in shoppingcart's copy; variants are never deleted, so a stale copy can only miss a variant created a moment ago."}
+  shoppingcart.updateShoppingcartItem:
+    - {class: "ShoppingCartItem",
+       level: immutable, rules: [I1, S4],
+       reason: "Existence and owner of the cart item: the item's userId never changes, and the save writes the input's count and columns that never change (userId, productVariantId, addedAt), so a stale row cannot grant the wrong caller or undo a change."}
+  tax.createTaxRate:
+    - {class: "TaxRateVersion",
+       level: strict, rules: [S1, S5],
+       reason: "createTaxRate computes the next version number as MAX(version)+1 in its transaction and inserts it (always NULL here: the rate is new)."}
+  tax.createTaxRateVersion:
+    - {class: "TaxRate", op: "lock",
+       level: strict, rules: [S5],
+       reason: "A statement that only locks (SELECT ... FOR UPDATE without a data change, or a transaction-scoped advisory lock on the id) serialises this transaction's write of the class: a lock is always taken on the current row, at the class's own store, never on a copy or a cache."}
+    - {class: "TaxRateVersion",
+       level: strict, rules: [S1, S5],
+       reason: "createTaxRateVersion computes MAX(version)+1 under the rate's lock and inserts it: a stale maximum would give two versions the same number."}
+    - {class: "TaxRate", op: "select",
+       level: strict, rules: [S1],
+       reason: "createTaxRateVersion loads the tax rate and saves the whole row back with currentVersionId: a stale row would undo a concurrent change (e.g. updateTaxRate)."}
+  tax.updateTaxRate:
+    - {class: "TaxRate",
+       level: strict, rules: [S1],
+       reason: "updateTaxRate loads the tax rate and saves the whole row back with the changed fields: a stale row would undo a concurrent change (e.g. a new currentVersionId)."}
+  "user.on:user/user/create":
+    - {class: "User",
+       level: strict, rules: [S5],
+       reason: "The handler reads back the row it has just upserted (dateJoined for the event): it must see its own write."}
+  user.updateUser:
+    - {class: "User",
+       level: strict, rules: [S1],
+       reason: "updateUser loads the user and saves the whole row back with the changed fields: a stale row would undo a concurrent update."}
+  wishlist.createWishlist:
+    - {class: "ProductVariant",
+       level: immutable, rules: [I1],
+       reason: "createWishlist only checks that each given variant id exists in wishlist's copy; variants are never deleted, so a stale copy can only miss a variant created a moment ago."}
+    - {class: "User",
+       level: immutable, rules: [I1],
+       reason: "createWishlist only checks that the given user id exists; users are never deleted and wishlist's copy is fed by user/user/created only, so a stale copy can only miss a user registered a moment ago."}
+  wishlist.deleteWishlist:
+    - {class: "Wishlist", op: "select",
+       level: strict, rules: [S4, S5],
+       reason: "One statement reads and locks the row (SELECT * ... FOR UPDATE): the owner check is made on the locked current row, which serialises this transaction's delete with a concurrent updateWishlist; a lock is always taken on the current row, at the class's own store, never on a copy or a cache."}
+  wishlist.updateWishlist:
+    - {class: "Wishlist", op: "select",
+       level: strict, rules: [S1, S4, S5],
+       reason: "updateWishlist reads and locks the row (SELECT * ... FOR UPDATE), checks the owner and saves the loaded row back with the name and lastUpdatedAt: the write is built from the row it read, under the row's lock; a lock is always taken on the current row, at the class's own store."}
+    - {class: "ProductVariant",
+       level: immutable, rules: [I1],
+       reason: "updateWishlist only checks that each given variant id exists in wishlist's copy; variants are never deleted, so a stale copy can only miss a variant created a moment ago."}

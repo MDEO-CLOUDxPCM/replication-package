@@ -1,0 +1,241 @@
+{
+ "source": {
+  "iso": "raw/pilot_iso.json",
+  "windows": "raw/windows/pilot_w1,raw/windows/pilot_w2,raw/windows/pilot_w3"
+ },
+ "target": {
+  "mid": 0.25,
+  "low": 0.05
+ },
+ "rates": {
+  "products": {
+   "mid": 40.079,
+   "low": 8.016,
+   "busiest": "misarch-kotlin-catalog-1",
+   "utilPerRps": 0.00624
+  },
+  "products.anon": {
+   "mid": 46.035,
+   "low": 9.207,
+   "busiest": "misarch-kotlin-catalog-1",
+   "utilPerRps": 0.00543
+  },
+  "product": {
+   "mid": 40.06,
+   "low": 8.012,
+   "busiest": "misarch-kotlin-catalog-1",
+   "utilPerRps": 0.00624
+  },
+  "product.anon": {
+   "mid": 40.797,
+   "low": 8.159,
+   "busiest": "misarch-kotlin-catalog-1",
+   "utilPerRps": 0.00613
+  },
+  "users": {
+   "mid": 43.935,
+   "low": 8.787,
+   "busiest": "misarch-kotlin-user-1",
+   "utilPerRps": 0.00569
+  },
+  "address": {
+   "mid": 26.002,
+   "low": 5.2,
+   "busiest": "misarch-kotlin-address-1",
+   "utilPerRps": 0.00961
+  },
+  "paymentInformations": {
+   "mid": 16.686,
+   "low": 3.337,
+   "busiest": "misarch-kotlin-payment-1",
+   "utilPerRps": 0.01498
+  },
+  "shipmentMethods": {
+   "mid": 21.701,
+   "low": 4.34,
+   "busiest": "misarch-kotlin-shipment-1",
+   "utilPerRps": 0.01152
+  },
+  "notifications": {
+   "mid": 6.473,
+   "low": 1.295,
+   "busiest": "misarch-kotlin-notification-1",
+   "utilPerRps": 0.03862
+  },
+  "wishlistView": {
+   "mid": 6.819,
+   "low": 1.364,
+   "busiest": "misarch-kotlin-wishlist-1",
+   "utilPerRps": 0.03666
+  },
+  "login": {
+   "mid": 34.701,
+   "low": 6.94,
+   "busiest": "misarch-kotlin-keycloak-1",
+   "utilPerRps": 0.0072
+  },
+  "registration": {
+   "mid": 3.0,
+   "low": 1.59,
+   "busiest": "misarch-kotlin-user-1",
+   "utilPerRps": 0.03144
+  },
+  "createShoppingcartItem": {
+   "mid": 40.073,
+   "low": 8.015,
+   "busiest": "misarch-kotlin-shoppingcart-1",
+   "utilPerRps": 0.00624
+  },
+  "createOrder": {
+   "mid": 16.687,
+   "low": 3.337,
+   "busiest": "misarch-kotlin-order-1",
+   "utilPerRps": 0.01498
+  },
+  "placeOrder": {
+   "mid": 11.351,
+   "low": 2.27,
+   "busiest": "misarch-kotlin-payment-1",
+   "utilPerRps": 0.02202
+  },
+  "orderTracking": {
+   "mid": 15.879,
+   "low": 3.176,
+   "busiest": "misarch-kotlin-order-1",
+   "utilPerRps": 0.01574
+  },
+  "return.createReturn": {
+   "mid": 2.792,
+   "low": 0.558,
+   "busiest": "misarch-kotlin-return-1",
+   "utilPerRps": 0.08955
+  },
+  "createReview": {
+   "mid": 11.481,
+   "low": 2.296,
+   "busiest": "misarch-kotlin-review-1",
+   "utilPerRps": 0.02178
+  },
+  "addToWishlist": {
+   "mid": 7.631,
+   "low": 1.526,
+   "busiest": "misarch-kotlin-wishlist-1",
+   "utilPerRps": 0.03276
+  },
+  "wishlist.createWishlist": {
+   "mid": 6.856,
+   "low": 1.371,
+   "busiest": "misarch-kotlin-wishlist-1",
+   "utilPerRps": 0.03646
+  },
+  "user.updateUser": {
+   "mid": 7.404,
+   "low": 1.481,
+   "busiest": "misarch-kotlin-user-1",
+   "utilPerRps": 0.03377
+  },
+  "address.createUserAddress": {
+   "mid": 5.602,
+   "low": 1.12,
+   "busiest": "misarch-kotlin-address-1",
+   "utilPerRps": 0.04463
+  },
+  "payment.createCreditCardPaymentInformation": {
+   "mid": 19.413,
+   "low": 3.883,
+   "busiest": "misarch-kotlin-payment-1",
+   "utilPerRps": 0.01288
+  },
+  "discount.registerCoupon": {
+   "mid": 4.0,
+   "low": 3.63,
+   "busiest": "misarch-kotlin-discount-1",
+   "utilPerRps": 0.01377
+  },
+  "adminUpdateProduct": {
+   "mid": 6.424,
+   "low": 1.285,
+   "busiest": "misarch-kotlin-catalog-1",
+   "utilPerRps": 0.03892
+  },
+  "adminNewPrice": {
+   "mid": 8.272,
+   "low": 1.654,
+   "busiest": "misarch-kotlin-catalog-1",
+   "utilPerRps": 0.03022
+  },
+  "adminCreateVariant": {
+   "mid": 9.075,
+   "low": 1.815,
+   "busiest": "misarch-kotlin-catalog-1",
+   "utilPerRps": 0.02755
+  },
+  "adminCreateProduct": {
+   "mid": 7.264,
+   "low": 1.453,
+   "busiest": "misarch-kotlin-catalog-1",
+   "utilPerRps": 0.03442
+  },
+  "catalog.updateProductVariant": {
+   "mid": 25.485,
+   "low": 5.097,
+   "busiest": "misarch-kotlin-catalog-1",
+   "utilPerRps": 0.00981
+  },
+  "catalog.createCategory": {
+   "mid": 16.767,
+   "low": 3.353,
+   "busiest": "misarch-kotlin-catalog-1",
+   "utilPerRps": 0.01491
+  },
+  "inventory.createProductItemBatch": {
+   "mid": 17.247,
+   "low": 3.449,
+   "busiest": "misarch-kotlin-inventory-1",
+   "utilPerRps": 0.01449
+  },
+  "media.uploadMedia": {
+   "mid": 6.268,
+   "low": 1.254,
+   "busiest": "misarch-kotlin-media-1",
+   "utilPerRps": 0.03988
+  },
+  "discount.createDiscount": {
+   "mid": 6.059,
+   "low": 1.212,
+   "busiest": "misarch-kotlin-discount-1",
+   "utilPerRps": 0.04126
+  },
+  "discount.createCoupon": {
+   "mid": 8.982,
+   "low": 1.796,
+   "busiest": "misarch-kotlin-discount-1",
+   "utilPerRps": 0.02783
+  },
+  "tax.createTaxRate": {
+   "mid": 2.761,
+   "low": 0.552,
+   "busiest": "misarch-kotlin-tax-1",
+   "utilPerRps": 0.09055
+  },
+  "tax.createTaxRateVersion": {
+   "mid": 4.467,
+   "low": 0.893,
+   "busiest": "misarch-kotlin-tax-1",
+   "utilPerRps": 0.05597
+  },
+  "shipment.createShipmentMethod": {
+   "mid": 8.713,
+   "low": 1.743,
+   "busiest": "misarch-kotlin-shipment-1",
+   "utilPerRps": 0.02869
+  },
+  "address.createVendorAddress": {
+   "mid": 7.083,
+   "low": 1.417,
+   "busiest": "misarch-kotlin-address-1",
+   "utilPerRps": 0.03529
+  }
+ },
+ "missing": []
+}

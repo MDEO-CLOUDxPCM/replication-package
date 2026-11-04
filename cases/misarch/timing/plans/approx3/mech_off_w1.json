@@ -1,0 +1,211 @@
+{
+ "name": "mech_off_w1",
+ "config": "off",
+ "block": 6,
+ "rateLevel": "mid",
+ "types": [
+  "createOrder",
+  "orderTracking.hot",
+  "orderTracking.cold",
+  "wishlistView.hot",
+  "wishlistView.cold",
+  "createOrder.hot"
+ ],
+ "baseTypes": {
+  "createOrder": "createOrder",
+  "orderTracking.hot": "orderTracking",
+  "orderTracking.cold": "orderTracking",
+  "wishlistView.hot": "wishlistView",
+  "wishlistView.cold": "wishlistView",
+  "createOrder.hot": "createOrder"
+ },
+ "mechanisms": {
+  "localCopies": false,
+  "entityCache": false,
+  "cacheTtlS": 60
+ },
+ "prep": [
+  "calibration/.venv/bin/python calibration/scripts/maintain.py --stack kotlin"
+ ],
+ "warm": "warm_mech.json",
+ "durationS": 950,
+ "phases": [
+  {
+   "name": "idle",
+   "duration": 60,
+   "rates": {}
+  },
+  {
+   "name": "createShoppingcartItem:fill",
+   "duration": 45,
+   "rates": {
+    "createShoppingcartItem": 38.978
+   }
+  },
+  {
+   "name": "createOrder:pre",
+   "duration": 15,
+   "rates": {}
+  },
+  {
+   "name": "createOrder:warm",
+   "duration": 20,
+   "rates": {
+    "createOrder": 16.687
+   }
+  },
+  {
+   "name": "createOrder:steady",
+   "duration": 75,
+   "rates": {
+    "createOrder": 16.687
+   }
+  },
+  {
+   "name": "createOrder:drain",
+   "duration": 20,
+   "rates": {}
+  },
+  {
+   "name": "orderTracking.hot:pre",
+   "duration": 15,
+   "rates": {}
+  },
+  {
+   "name": "orderTracking.hot:warm",
+   "duration": 20,
+   "rates": {
+    "orderTracking.hot": 15.879
+   }
+  },
+  {
+   "name": "orderTracking.hot:steady",
+   "duration": 75,
+   "rates": {
+    "orderTracking.hot": 15.879
+   }
+  },
+  {
+   "name": "orderTracking.hot:drain",
+   "duration": 20,
+   "rates": {}
+  },
+  {
+   "name": "orderTracking.cold:pre",
+   "duration": 15,
+   "rates": {}
+  },
+  {
+   "name": "orderTracking.cold:warm",
+   "duration": 20,
+   "rates": {
+    "orderTracking.cold": 15.879
+   }
+  },
+  {
+   "name": "orderTracking.cold:steady",
+   "duration": 75,
+   "rates": {
+    "orderTracking.cold": 15.879
+   }
+  },
+  {
+   "name": "orderTracking.cold:drain",
+   "duration": 20,
+   "rates": {}
+  },
+  {
+   "name": "wishlist.createWishlist:fill",
+   "duration": 35,
+   "rates": {
+    "wishlist.createWishlist": 20.943
+   }
+  },
+  {
+   "name": "wishlistView.hot:pre",
+   "duration": 15,
+   "rates": {}
+  },
+  {
+   "name": "wishlistView.hot:warm",
+   "duration": 20,
+   "rates": {
+    "wishlistView.hot": 6.819
+   }
+  },
+  {
+   "name": "wishlistView.hot:steady",
+   "duration": 75,
+   "rates": {
+    "wishlistView.hot": 6.819
+   }
+  },
+  {
+   "name": "wishlistView.hot:drain",
+   "duration": 20,
+   "rates": {}
+  },
+  {
+   "name": "wishlistView.cold:pre",
+   "duration": 15,
+   "rates": {}
+  },
+  {
+   "name": "wishlistView.cold:warm",
+   "duration": 20,
+   "rates": {
+    "wishlistView.cold": 6.819
+   }
+  },
+  {
+   "name": "wishlistView.cold:steady",
+   "duration": 75,
+   "rates": {
+    "wishlistView.cold": 6.819
+   }
+  },
+  {
+   "name": "wishlistView.cold:drain",
+   "duration": 20,
+   "rates": {}
+  },
+  {
+   "name": "createOrder.hot:pre",
+   "duration": 15,
+   "rates": {}
+  },
+  {
+   "name": "createOrder.hot:warm",
+   "duration": 20,
+   "rates": {
+    "createOrder.hot": 16.687
+   }
+  },
+  {
+   "name": "createOrder.hot:steady",
+   "duration": 75,
+   "rates": {
+    "createOrder.hot": 16.687
+   }
+  },
+  {
+   "name": "createOrder.hot:drain",
+   "duration": 20,
+   "rates": {}
+  },
+  {
+   "name": "idle_end",
+   "duration": 30,
+   "rates": {}
+  }
+ ],
+ "burstTypes": [
+  "createOrder",
+  "orderTracking.hot",
+  "orderTracking.cold",
+  "wishlistView.hot",
+  "wishlistView.cold",
+  "createOrder.hot"
+ ],
+ "burstScale": 0.5
+}

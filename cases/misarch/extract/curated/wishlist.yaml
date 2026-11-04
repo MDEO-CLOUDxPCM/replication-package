@@ -1,0 +1,196 @@
+# wishlist (Kotlin original). Curated; schema: build.py docstring. Anchors are relative to
+# services/wishlist/src/main/kotlin/org/misarch/wishlist/.
+service: wishlist
+transactional: >-
+  service/WishlistService.kt @Transactional: createWishlist, updateWishlist and deleteWishlist each run in one
+  transaction; updateWishlist and deleteWishlist first read and lock the wishlist row (SELECT * ... FOR UPDATE), so
+  concurrent changes of one wishlist are serialised. The link rows of a variant set are written by one statement
+  (INSERT ... SELECT unnest). No events are published.
+
+tables:
+  UserEntity:
+    kind: copy
+    copyOf: {User: [id]}
+    fedBy: [user/user/created]
+    note: existence check of createWishlist and _entities(User)
+  ProductVariantEntity:
+    kind: copy
+    copyOf: {ProductVariant: [id]}
+    fedBy: [catalog/product-variant/created]
+    note: existence check of the variant ids of createWishlist/updateWishlist; joined by Wishlist.productVariants
+  WishlistEntity:
+    kind: class
+    class: Wishlist
+    note: the wishlist row; its variant set is the link table WishlistToProductVariantEntity (V2; was a UUID[] column)
+    refs:
+      - {attr: userId, to: User, kind: association, mult: "1"}
+  WishlistToProductVariantEntity:
+    kind: join
+    joins: [Wishlist, ProductVariant]
+    field: productVariants
+    note: >-
+      Wishlist.productVariants [*] -> ProductVariant (V2__wishlist_product_variants.sql: was WishlistEntity.productVariantIds
+      UUID[]); PRIMARY KEY (wishlistId, productVariantId), FK to WishlistEntity, none to the ProductVariant copy
+
+operations:
+  - id: wishlist.wishlist
+    kind: query
+    trigger: {graphql: Query.wishlist}
+    entry: graphql/Query.kt#fun wishlist(
+    feature: F11
+    note: the wishlist row; its variants only by Wishlist.productVariants when selected
+    accesses:
+      - {class: Wishlist, mode: read, op: select, shape: batch, rows: 1, via: WishlistRepository.findAllById, table: WishlistEntity,
+         today: local, at: graphql/Query.kt#WishlistDataLoader::class, note: "DataLoader; then authorizes the owner"}
+
+  - id: wishlist.createWishlist
+    kind: command
+    trigger: {graphql: Mutation.createWishlist}
+    entry: graphql/Mutation.kt#fun createWishlist(
+    feature: F11
+    note: "the saved entity is the answer (no re-read)"
+    transaction:
+      at: "service/WishlistService.kt#@Transactional@1"
+      classes: [ProductVariant, User, Wishlist]
+      publishInside: false
+      note: "the variant and user checks, the row, then the link rows (one statement)"
+    accesses:
+      - {class: ProductVariant, mode: read, op: select, shape: batch, rows: "distinct input productVariantIds", when: "productVariantIds not empty",
+         strong: true, via: ProductVariantService.validateProductVariantIds, table: ProductVariantEntity, today: copy,
+         at: "service/WishlistService.kt#productVariantService.validateProductVariantIds(productVariantIds)@1", note: "every id must exist (ConditionQueries.findAll, id = ANY(:ids))"}
+      - {class: User, mode: read, op: exists, shape: one, strong: true, via: UserRepository.existsById, table: UserEntity, today: copy,
+         at: service/WishlistService.kt#userRepository.existsById(input.userId), note: "the user must exist"}
+      - {class: Wishlist, mode: write, op: insert, shape: one, via: WishlistRepository.save, table: WishlistEntity, today: local,
+         at: "service/WishlistService.kt#val wishlist = repository.save("}
+      - {class: Wishlist, assoc: ProductVariant, mode: write, op: insert, shape: batch, rows: "distinct input productVariantIds", when: "productVariantIds not empty",
+         via: WishlistToProductVariantRepository.createAll, table: WishlistToProductVariantEntity, today: local,
+         at: "service/WishlistService.kt#productVariantRepository.createAll(wishlist.requiredId", note: "INSERT ... SELECT :wishlistId, unnest(:productVariantIds)"}
+
+  - id: wishlist.updateWishlist
+    kind: command
+    trigger: {graphql: Mutation.updateWishlist}
+    entry: graphql/Mutation.kt#fun updateWishlist(
+    feature: F11
+    note: >-
+      the row is read and locked, the variant set replaced, the loaded row saved back with the name and lastUpdatedAt;
+      the answer is the saved entity. The loadgen's addToWishlist sends 2-6 variants and no name and selects id:
+      lock, check, DELETE, INSERT, UPDATE
+    transaction:
+      at: "service/WishlistService.kt#@Transactional@2"
+      classes: [Wishlist, ProductVariant]
+      publishInside: false
+      note: "SELECT * FOR UPDATE (locks the row), the variant check, DELETE the links, INSERT the links, UPDATE the row"
+    accesses:
+      - {class: Wishlist, mode: read, op: select, shape: one, strong: true, via: WishlistRepository.findByIdForUpdate, table: WishlistEntity,
+         today: local, at: "service/WishlistService.kt#repository.findByIdForUpdate(id)",
+         note: "lockOwnWishlist: reads and locks the row (SELECT * ... FOR UPDATE); existence and ownership check"}
+      - {class: ProductVariant, mode: read, op: select, shape: batch, rows: "distinct input productVariantIds", when: "productVariantIds given and not empty",
+         strong: true, via: ProductVariantService.validateProductVariantIds, table: ProductVariantEntity, today: copy,
+         at: "service/WishlistService.kt#productVariantService.validateProductVariantIds(productVariantIds)@2", note: "every id must exist (ConditionQueries.findAll, id = ANY(:ids))"}
+      - {class: Wishlist, assoc: ProductVariant, mode: write, op: delete, shape: list, rows: "links of the wishlist", when: "productVariantIds given",
+         via: WishlistToProductVariantRepository.deleteByWishlistId, table: WishlistToProductVariantEntity, today: local,
+         at: "service/WishlistService.kt#productVariantRepository.deleteByWishlistId(input.id)"}
+      - {class: Wishlist, assoc: ProductVariant, mode: write, op: insert, shape: batch, rows: "distinct input productVariantIds",
+         when: "productVariantIds given and not empty", via: WishlistToProductVariantRepository.createAll, table: WishlistToProductVariantEntity,
+         today: local, at: "service/WishlistService.kt#productVariantRepository.createAll(input.id", note: "INSERT ... SELECT :wishlistId, unnest(:productVariantIds)"}
+      - {class: Wishlist, mode: write, op: update, shape: one, when: "productVariantIds or name given", via: WishlistRepository.save, table: WishlistEntity,
+         today: local, at: "service/WishlistService.kt#return repository.save(wishlist)", note: "the loaded row with name and lastUpdatedAt"}
+
+  - id: wishlist.deleteWishlist
+    kind: command
+    trigger: {graphql: Mutation.deleteWishlist}
+    entry: graphql/Mutation.kt#fun deleteWishlist(
+    feature: F11
+    transaction:
+      at: "service/WishlistService.kt#@Transactional@3"
+      classes: [Wishlist]
+      publishInside: false
+      note: "the row read and locked (SELECT * ... FOR UPDATE), the links deleted, then the row"
+    accesses:
+      - {class: Wishlist, mode: read, op: select, shape: one, strong: true, via: WishlistRepository.findByIdForUpdate, table: WishlistEntity,
+         today: local, at: "service/WishlistService.kt#repository.findByIdForUpdate(id)",
+         note: "lockOwnWishlist: reads and locks the row; existence and ownership check; no concurrent updateWishlist adds links in between"}
+      - {class: Wishlist, assoc: ProductVariant, mode: write, op: delete, shape: list, rows: "links of the wishlist",
+         via: WishlistToProductVariantRepository.deleteByWishlistId, table: WishlistToProductVariantEntity, today: local,
+         at: "service/WishlistService.kt#productVariantRepository.deleteByWishlistId(id)"}
+      - {class: Wishlist, mode: write, op: delete, shape: one, via: WishlistRepository.delete, table: WishlistEntity, today: local,
+         at: "service/WishlistService.kt#repository.delete(wishlist)"}
+
+  - id: wishlist._entities.User
+    kind: query
+    trigger: {graphql: _entities(User)}
+    entry: graphql/federation/UserResolver.kt#class UserResolver
+    feature: F11
+    accesses:
+      - {class: User, mode: read, op: select, shape: batch, rows: 1, via: UserRepository.findAllById, table: UserEntity, today: copy,
+         at: graphql/federation/UserResolver.kt#UserDataLoader::class, note: "DataLoader; unknown user -> error; answers the User stub"}
+
+  - id: wishlist.User.wishlists
+    kind: query
+    trigger: {graphql: User.wishlists}
+    entry: graphql/model/User.kt#fun wishlists(
+    feature: F11
+    note: >-
+      authorizes the user, then WishlistConnection (BaseConnection, userId = id; first default 25): page, COUNT, probe,
+      each only when selected; each wishlist's variants by Wishlist.productVariants when selected
+    accesses:
+      - {class: Wishlist, mode: read, op: select, shape: list, rows: "wishlists of the user (page: first, default 25)", when: nodes selected,
+         via: WishlistConnection.nodes, table: WishlistEntity, today: local, at: "graphql/model/User.kt#WishlistConnection("}
+      - {class: Wishlist, mode: read, op: count, shape: one, when: totalCount selected, via: WishlistConnection.totalCount, table: WishlistEntity,
+         today: local, at: "graphql/model/User.kt#WishlistConnection(", note: "SELECT COUNT(t.id)"}
+      - {class: Wishlist, mode: read, op: exists, shape: optional, when: hasNextPage selected, table: WishlistEntity, today: local,
+         at: "graphql/model/User.kt#WishlistConnection(", note: "BaseConnection.hasNextPage probe: SELECT 1 ... LIMIT 1 OFFSET first + skip"}
+
+  - id: wishlist._entities.Wishlist
+    kind: query
+    trigger: {graphql: _entities(Wishlist)}
+    entry: graphql/federation/WishlistResolver.kt#class WishlistResolver
+    feature: F11
+    accesses:
+      - {class: Wishlist, mode: read, op: select, shape: batch, rows: 1, via: WishlistRepository.findAllById, table: WishlistEntity, today: local,
+         at: "graphql/federation/WishlistResolver.kt#WishlistDataLoader::class", note: "DataLoader; owner authorized (checkCanRead)"}
+
+  - id: wishlist.Wishlist.productVariants
+    kind: query
+    trigger: {graphql: Wishlist.productVariants}
+    entry: graphql/model/Wishlist.kt#fun productVariants(
+    feature: F11
+    note: >-
+      ProductVariantConnection (BaseConnection): ProductVariantEntity t INNER JOIN WishlistToProductVariantEntity j,
+      j.wishlistId = id, sorted by variant id; first default all: page (nodes), COUNT (totalCount), probe (hasNextPage,
+      only with first), each only when selected; returns ProductVariant stubs. wishlistView selects
+      productVariants(first: 10) { totalCount nodes }: the page and the COUNT (no probe)
+    accesses:
+      - {class: ProductVariant, mode: read, op: select, shape: list, rows: "variants of the wishlist (page: first, default all)", when: nodes selected,
+         via: ProductVariantConnection.nodes, table: ProductVariantEntity, today: copy, at: "graphql/model/Wishlist.kt#ProductVariantConnection("}
+      - {class: Wishlist, assoc: ProductVariant, mode: read, op: select, shape: list, rows: "variant links of the wishlist (page: first, default all)",
+         when: nodes selected, via: ProductVariantConnection.nodes, table: WishlistToProductVariantEntity, today: local,
+         at: "graphql/model/Wishlist.kt#ProductVariantConnection(", note: "same statement (join)"}
+      - {class: ProductVariant, mode: read, op: count, shape: one, when: totalCount selected, via: ProductVariantConnection.totalCount,
+         table: ProductVariantEntity, today: copy, at: "graphql/model/Wishlist.kt#ProductVariantConnection("}
+      - {class: Wishlist, assoc: ProductVariant, mode: read, op: count, shape: one, when: totalCount selected,
+         via: ProductVariantConnection.totalCount, table: WishlistToProductVariantEntity, today: local,
+         at: "graphql/model/Wishlist.kt#ProductVariantConnection(", note: "same statement (join)"}
+      - {class: Wishlist, assoc: ProductVariant, mode: read, op: exists, shape: optional, when: "hasNextPage selected and first given",
+         table: WishlistToProductVariantEntity, today: local, at: "graphql/model/Wishlist.kt#ProductVariantConnection(",
+         note: "BaseConnection.hasNextPage probe (joined): SELECT 1 ... LIMIT 1 OFFSET first + skip"}
+
+  - id: wishlist.on:user/user/created
+    kind: reaction
+    mechanism: copy
+    trigger: {topic: user/user/created}
+    entry: event/EventController.kt#fun onUserCreated(
+    feature: F1
+    accesses:
+      - {class: User, mode: write, op: upsert, shape: one, via: UserRepository.createUser, table: UserEntity, today: copy,
+         at: service/UserService.kt#repository.createUser, note: "INSERT ... ON CONFLICT (id) DO NOTHING"}
+
+  - id: wishlist.on:catalog/product-variant/created
+    kind: reaction
+    mechanism: copy
+    trigger: {topic: catalog/product-variant/created}
+    entry: event/EventController.kt#fun onProductVariantCreated(
+    feature: F5
+    accesses:
+      - {class: ProductVariant, mode: write, op: upsert, shape: one, via: ProductVariantRepository.createProductVariant, table: ProductVariantEntity,
+         today: copy, at: service/ProductVariantService.kt#repository.createProductVariant, note: "INSERT ... ON CONFLICT (id) DO NOTHING"}

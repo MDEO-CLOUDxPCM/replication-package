@@ -1,0 +1,11 @@
+java/lang/Thread.run;io/netty/channel/nio/NioEventLoop.run;io/netty/channel/epoll/Native.epollWait;epoll_wait 5
+java/lang/Thread.run;io/netty/util/concurrent/SingleThreadEventExecutor$4.run;reactor/netty/http/server/HttpServerOperations.onInboundNext;org/springframework/web/reactive/DispatcherHandler.handle;com/expediagroup/graphql/server/spring/execution/SpringGraphQLServer.execute;graphql/execution/ExecutionStrategy.fetchField;org/misarch/catalog/graphql/Query.product;java/util/HashMap.get 7
+java/lang/Thread.run;io/netty/util/concurrent/SingleThreadEventExecutor$4.run;graphql/execution/ExecutionStrategy.fetchField;org/misarch/catalog/graphql/model/Product$categories$1.invokeSuspend;org/springframework/data/r2dbc/convert/MappingR2dbcConverter.read;kotlin/reflect/jvm/internal/KCallableImpl.call 4
+java/lang/Thread.run;io/netty/channel/epoll/EpollEventLoop.run;io/r2dbc/postgresql/client/ReactorNettyClient$1.onNext;reactor/core/publisher/FluxMap$MapSubscriber.onNext;io/netty/buffer/AbstractByteBuf.readInt 6
+java/lang/Thread.run;graphql/execution/ExecutionStrategy.completeValue;tools/jackson/databind/ser/BeanSerializer.serialize 3
+clone;thread_native_entry;Thread::call_run;JavaThread::thread_main_inner;CompileBroker::compiler_thread_loop;C2Compiler::compile_method 9
+java/lang/Thread.run;org/springframework/web/reactive/function/client/ExchangeFunctions$DefaultExchangeFunction.exchange;io/netty/channel/AbstractChannel.write 2
+java/lang/Thread.run;io/opentelemetry/javaagent/shaded/io/opentelemetry/sdk/trace/SdkSpan.end;java/util/ArrayList.add 2
+[unknown_Java] 1
+java/lang/Thread.run;java/util/concurrent/ThreadPoolExecutor.runWorker;java/util/TimerThread.mainLoop 1
+clone;thread_native_entry;Thread::call_run;WorkerThread::run;G1ParTask::work 4

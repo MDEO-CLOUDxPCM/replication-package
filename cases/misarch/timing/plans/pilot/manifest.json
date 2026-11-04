@@ -1,0 +1,51 @@
+{
+ "variant": "pilot",
+ "multipliers": [
+  0.4,
+  1.0,
+  2.5
+ ],
+ "note": "run with run.py measure --pilot (no lock, marked invalid); then analyze_iso.py over the windows and gen_plans.py pilot-rates",
+ "windows": [
+  {
+   "plan": "pilot_w1.json",
+   "name": "pilot_w1",
+   "config": "off",
+   "block": 1,
+   "rateLevel": "pilot",
+   "durationS": 1250,
+   "prep": [
+    "calibration/.venv/bin/python calibration/scripts/maintain.py --stack kotlin",
+    "calibration/.venv/bin/python requests/run.py cleanup"
+   ],
+   "warm": "warm_timing.json"
+  },
+  {
+   "plan": "pilot_w2.json",
+   "name": "pilot_w2",
+   "config": "off",
+   "block": 1,
+   "rateLevel": "pilot",
+   "durationS": 1350,
+   "prep": [
+    "calibration/.venv/bin/python calibration/scripts/maintain.py --stack kotlin",
+    "calibration/.venv/bin/python requests/run.py prep --n 400"
+   ],
+   "warm": "warm_timing.json"
+  },
+  {
+   "plan": "pilot_w3.json",
+   "name": "pilot_w3",
+   "config": "off",
+   "block": 1,
+   "rateLevel": "pilot",
+   "durationS": 1350,
+   "prep": [
+    "calibration/.venv/bin/python calibration/scripts/maintain.py --stack kotlin",
+    "calibration/.venv/bin/python requests/run.py cleanup"
+   ],
+   "warm": "warm_timing.json"
+  }
+ ],
+ "totalWindowS": 3950
+}

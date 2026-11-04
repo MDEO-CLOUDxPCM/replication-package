@@ -1,0 +1,411 @@
+{
+ "$schema": "http://json-schema.org/draft-07/schema#",
+ "$ref": "#/definitions/PacketManifest",
+ "definitions": {
+  "PacketManifest": {
+   "type": "object",
+   "properties": {
+    "contract": {
+     "type": "string",
+     "description": "the contract version the packet was built for (CONTRACT_VERSION); the reader checks the major"
+    },
+    "id": {
+     "$ref": "#/definitions/Id",
+     "description": "unique among the loaded packets; the namespace of the browser's marks (`explorer-verify-v1:<id>`)"
+    },
+    "name": {
+     "type": "string",
+     "description": "shown in the header and the run list"
+    },
+    "description": {
+     "type": "string"
+    },
+    "family": {
+     "type": "string",
+     "description": "the problem family whose generic views apply (`palladio-architecture`: the Model panel over the InputModel, the Interactions tab, the plugin's detail); absent: a plain multi-objective packet (runs, designs, architecture graph)"
+    },
+    "domains": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/Id"
+     },
+     "description": "the domains of the packet (domains/<id>.json); a run belongs to the packet of its domain"
+    },
+    "builtAt": {
+     "type": "string"
+    },
+    "builtBy": {
+     "type": "string",
+     "description": "the builder (command or script) that wrote the packet"
+    },
+    "fingerprint": {
+     "type": "string",
+     "description": "hash over the inputs' hashes (and the builder's code): two builds from the same inputs have the same one"
+    },
+    "inputs": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/PacketInput"
+     },
+     "description": "what the packet was built from, with content hashes: the backend reports the packet stale when one changed"
+    },
+    "roots": {
+     "type": "object",
+     "additionalProperties": {
+      "type": "string"
+     },
+     "description": "named directories, relative to the packet directory (or absolute): what `cwd`, source trees and inputs are relative to"
+    },
+    "objectives": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/MeasureDef"
+     },
+     "description": "the objectives, constraints and metrics the packet's runs report: labels, units, directions, their doc's key"
+    },
+    "constraints": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/MeasureDef"
+     }
+    },
+    "metrics": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/MeasureDef"
+     }
+    },
+    "vocabulary": {
+     "$ref": "#/definitions/Vocabulary",
+     "description": "the words of the problem: mechanisms and styles a design chooses, with labels and explanations"
+    },
+    "docs": {
+     "type": "object",
+     "additionalProperties": {
+      "type": "string"
+     },
+     "description": "name -> file under the packet (docs/*.json or *.md); served inlined with the manifest (GET /api/packets/:id)"
+    },
+    "capabilities": {
+     "$ref": "#/definitions/Capabilities",
+     "description": "what the explorer shows for this packet"
+    },
+    "sources": {
+     "type": "object",
+     "additionalProperties": {
+      "$ref": "#/definitions/SourceTree"
+     },
+     "description": "named source trees the evidence of the Verify parts (and the Model panel's paths) point into"
+    },
+    "verify": {
+     "$ref": "#/definitions/VerifySetup",
+     "description": "the Verify tab's precomputed files (capability `verify`)"
+    },
+    "commands": {
+     "type": "object",
+     "additionalProperties": {
+      "$ref": "#/definitions/PacketCommand"
+     },
+     "description": "commands the backend may run for this packet (`simulate`: a design's detail, `rebuild`: the packet again). A command runs only when the backend's LOCAL configuration allows it for this packet (server.local.json `allowCommands`, or EXPLORER_ALLOW_COMMANDS); a packet never enables its own commands"
+    }
+   },
+   "required": [
+    "contract",
+    "id",
+    "name",
+    "domains"
+   ],
+   "additionalProperties": false
+  },
+  "Id": {
+   "type": "string"
+  },
+  "PacketInput": {
+   "type": "object",
+   "properties": {
+    "label": {
+     "type": "string",
+     "description": "what it is (\"the extraction\")"
+    },
+    "root": {
+     "type": "string",
+     "description": "a root of `roots` the path is relative to (default: the packet directory)"
+    },
+    "path": {
+     "type": "string"
+    },
+    "hash": {
+     "type": "string",
+     "description": "sha256 hex (a prefix is enough)"
+    }
+   },
+   "required": [
+    "path",
+    "hash"
+   ],
+   "additionalProperties": false
+  },
+  "MeasureDef": {
+   "type": "object",
+   "properties": {
+    "key": {
+     "type": "string"
+    },
+    "label": {
+     "type": "string"
+    },
+    "code": {
+     "type": "string",
+     "description": "O1 … O5, C1 …: the short code the docs use"
+    },
+    "unit": {
+     "type": "string"
+    },
+    "direction": {
+     "type": "string",
+     "enum": [
+      "minimize",
+      "maximize",
+      "violation",
+      "descriptive"
+     ]
+    },
+    "digits": {
+     "type": "number"
+    },
+    "doc": {
+     "type": "string",
+     "description": "the key of its entry in docs `metrics` (default: `key`)"
+    }
+   },
+   "required": [
+    "key",
+    "label"
+   ],
+   "additionalProperties": false
+  },
+  "Vocabulary": {
+   "type": "object",
+   "properties": {
+    "mechanisms": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/VocabEntry"
+     },
+     "description": "the mechanisms of an access or call site (sync, async, cache, copy, join, …)"
+    },
+    "styles": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/VocabEntry"
+     },
+     "description": "the styles of a workflow (choreography, orchestration)"
+    },
+    "operationKinds": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/VocabEntry"
+     },
+     "description": "the kinds of operations (query, mutation, reaction, …)"
+    },
+    "edges": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/VocabEntry"
+     },
+     "description": "the edge layers of the architecture graph (its legend, the mechanism badges, the edges' tooltips): the mechanisms of the accesses (sync, copy, cache, join, saga, local) and `feed`, `event`, `reference`; `about` is the legend's tooltip"
+    }
+   },
+   "additionalProperties": false
+  },
+  "VocabEntry": {
+   "type": "object",
+   "properties": {
+    "id": {
+     "type": "string"
+    },
+    "label": {
+     "type": "string"
+    },
+    "about": {
+     "type": "string",
+     "description": "a sentence: what it means"
+    },
+    "short": {
+     "type": "string",
+     "description": "a shorter label (chips)"
+    }
+   },
+   "required": [
+    "id",
+    "label"
+   ],
+   "additionalProperties": false
+  },
+  "Capabilities": {
+   "type": "object",
+   "properties": {
+    "model": {
+     "type": "boolean",
+     "description": "the Model panel (needs an input model, models/<domain>.json, and the family palladio-architecture)"
+    },
+    "modelTabs": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/ModelTabId"
+     },
+     "description": "the Model panel's tabs, in this order (default: all the input model supports)"
+    },
+    "verify": {
+     "type": "boolean",
+     "description": "the Verify tab (needs `verify`)"
+    },
+    "performance": {
+     "type": "boolean",
+     "description": "the Performance panel (precomputed, cached or simulated details)"
+    },
+    "simulate": {
+     "type": "boolean",
+     "description": "opening a design's performance may simulate it now (the command `simulate`, or the dummy simulator)"
+    }
+   },
+   "additionalProperties": false
+  },
+  "ModelTabId": {
+   "type": "string",
+   "enum": [
+    "how",
+    "domain",
+    "ops",
+    "mech",
+    "workload",
+    "mm",
+    "verify"
+   ],
+   "description": "a model tab of the Model panel (capability `model`)"
+  },
+  "SourceTree": {
+   "anyOf": [
+    {
+     "type": "object",
+     "properties": {
+      "kind": {
+       "type": "string",
+       "const": "git"
+      },
+      "label": {
+       "type": "string"
+      },
+      "root": {
+       "type": "string"
+      },
+      "path": {
+       "type": "string"
+      },
+      "ref": {
+       "type": "string"
+      },
+      "about": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "kind",
+      "label",
+      "path",
+      "ref"
+     ],
+     "additionalProperties": false
+    },
+    {
+     "type": "object",
+     "properties": {
+      "kind": {
+       "type": "string",
+       "const": "dir"
+      },
+      "label": {
+       "type": "string"
+      },
+      "root": {
+       "type": "string"
+      },
+      "path": {
+       "type": "string"
+      },
+      "allow": {
+       "type": "array",
+       "items": {
+        "type": "string"
+       }
+      },
+      "about": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "kind",
+      "label",
+      "path"
+     ],
+     "additionalProperties": false
+    }
+   ],
+   "description": "A source tree: `git` reads the files of a repository at a commit (`git show <ref>:<path>`), `dir` the working tree of a directory, restricted to the `allow` prefixes. Paths are relative to `root` (a key of `roots`) or the packet."
+  },
+  "VerifySetup": {
+   "type": "object",
+   "properties": {
+    "parts": {
+     "type": "string",
+     "description": "verify/parts.json: the parts with their claims and evidence (contract/verify.ts `VerifyParts`)"
+    },
+    "causes": {
+     "type": "string",
+     "description": "verify/causes.json: per operation part what it causes downstream (`VerifyCauses`)"
+    },
+    "chains": {
+     "type": "string",
+     "description": "verify/chains.json: per operation the functions from its entry to its steps (`VerifyChains`)"
+    }
+   },
+   "required": [
+    "parts"
+   ],
+   "additionalProperties": false
+  },
+  "PacketCommand": {
+   "type": "object",
+   "properties": {
+    "argv": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    },
+    "cwd": {
+     "type": "string"
+    },
+    "env": {
+     "type": "object",
+     "additionalProperties": {
+      "type": "string"
+     }
+    },
+    "about": {
+     "type": "string"
+    },
+    "timeoutS": {
+     "type": "number"
+    }
+   },
+   "required": [
+    "argv"
+   ],
+   "additionalProperties": false,
+   "description": "A command: `argv` with placeholders `{name}` the backend fills (always: packet, the packet directory, and every root by its name; simulate: model, diff, out, request, build; rebuild: exportArgs, the input model's recorded export arguments — an argument that is only an array placeholder expands to several), run in `cwd` (a key of `roots` or a path relative to the packet)"
+  }
+ },
+ "$id": "https://local/explorer-packet/1.14.0",
+ "title": "Explorer data packet manifest (packet.json) 1.14.0"
+}

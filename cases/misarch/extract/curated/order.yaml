@@ -1,0 +1,481 @@
+# order (Kotlin original, port of the Rust service). Curated; schema: build.py docstring. Anchors are relative to
+# services/order/src/main/kotlin/org/misarch/order/.
+service: order
+transactional: >-
+  service/CheckoutService.kt validates, prices and calls shoppingcart, inventory, discount and shipment outside any
+  transaction (no connection is held while the calls run); the writes are service transactions (@Transactional):
+  OrderService.createOrder (the OrderEntity row, then one INSERT per OrderItemEntity row and per
+  OrderItemToDiscountEntity row, saveAll), OrderService.placeOrder (the compare-and-set on PENDING, the event's item
+  and discount reads and the publish of order/order/created), UserService.registerUserAddress (UserEntity row +
+  UserAddressEntity row) and OrderCompensationService.compensateOrderItems (the whole handler: its reads, the
+  compensation and its item links, the publish). Rejecting a stale pending order is a compare-and-set of its own.
+  A resolver reads its own rows (Query.order and the federation resolvers through the data loaders); the child
+  connections Order.orderItems, OrderItem.discounts and User.orders are read by their field resolvers (BaseConnection:
+  page, COUNT, probe, each only when its field is selected).
+
+tables:
+  UserEntity:
+    kind: copy
+    copyOf: {User: [id]}
+    fedBy: [user/user/created, address/user-address/created]
+    note: >-
+      the user ids (an address event also inserts the user row, in case the user event is not processed yet). Read by
+      createOrder (the user exists). Until the relational port (V2) the row also held the user's address ids as an
+      array (user_address_ids, now UserAddressEntity)
+  UserAddressEntity:
+    kind: copy
+    copyOf: {UserAddress: [id, userId, archivedAt]}
+    fedBy: [address/user-address/created, address/user-address/archived]
+    note: >-
+      one row per non-archived address of a user (key userId, id); inserted on created, deleted on archived. Read by
+      createOrder: the shipment and the invoice address must be addresses of the user (one statement for both)
+  CouponEntity:
+    kind: copy
+    copyOf: {Coupon: [id]}
+    fedBy: [discount/coupon/created]
+    note: existence check of createOrder's coupon ids
+  ShipmentMethodEntity:
+    kind: copy
+    copyOf: {ShipmentMethod: [id]}
+    fedBy: [shipment/shipment-method/created]
+    note: existence check of createOrder's shipment methods; archiving is not mirrored (shipment-method/archived not subscribed)
+  ProductVariantEntity:
+    kind: copy
+    copyOf: {ProductVariant: [id, isPubliclyVisible, currentVersion], ProductVariantVersion: [id, retailPrice, taxRateId]}
+    fedBy: [catalog/product-variant-version/created, catalog/product-variant/updated]
+    note: a variant is first inserted (publicly visible) by its version event; product-variant/created is not subscribed
+  TaxRateEntity:
+    kind: copy
+    copyOf: {TaxRate: [id, currentVersionId], TaxRateVersion: [id, rate, version]}
+    fedBy: [tax/tax-rate-version/created]
+  OrderEntity:
+    kind: class
+    class: Order
+    refs:
+      - {attr: userId, to: User, kind: association, mult: "1"}
+      - {attr: shipmentAddressId, to: UserAddress, kind: association, mult: "1"}
+      - {attr: invoiceAddressId, to: UserAddress, kind: association, mult: "1"}
+      - {attr: paymentInformationId, to: PaymentInformation, kind: association, mult: "1"}
+  OrderItemEntity:
+    kind: class
+    class: OrderItem
+    note: frozen copies of the variant visibility, the version (price, tax rate id) and the tax rate version (rate, version)
+    refs:
+      - {attr: orderId, to: Order, kind: composition, mult: "1"}
+      - {attr: productVariantId, to: ProductVariant, kind: association, mult: "1", snapshot: true}
+      - {attr: productVariantVersionId, to: ProductVariantVersion, kind: association, mult: "1", snapshot: true}
+      - {attr: productVariantVersionTaxRateId, to: TaxRate, kind: association, mult: "1", snapshot: true,
+         note: "taxRateId of the frozen product variant version"}
+      - {attr: taxRateVersionId, to: TaxRateVersion, kind: association, mult: "1", snapshot: true}
+      - {attr: shoppingCartItemId, to: ShoppingCartItem, kind: association, mult: "1"}
+      - {attr: shipmentMethodId, to: ShipmentMethod, kind: association, mult: "1"}
+  OrderItemToDiscountEntity:
+    kind: join
+    joins: [OrderItem, Discount]
+    field: discounts
+    note: >-
+      OrderItem.discounts [*] -> Discount: the discounts applied to an item, each with a snapshot of its value at order
+      time (msa embeds them in the order item, internal_discounts); the port's own table of them is no class
+  OrderCompensationEntity:
+    kind: class
+    class: OrderCompensation
+    refs:
+      - {attr: orderId, to: Order, kind: association, mult: "1"}
+  OrderCompensationToOrderItemEntity:
+    kind: join
+    joins: [OrderCompensation, OrderItem]
+    field: orderItems
+    note: >-
+      OrderCompensation.orderItems [*] -> OrderItem: the compensated items, position = index in the former array
+      (V2__relational_children.sql: was order_compensations.order_item_ids uuid[]; like shipment's
+      ShipmentToOrderItemEntity)
+
+operations:
+  # ------------------------------------------------------------------ queries
+  - id: order.order
+    kind: query
+    trigger: {graphql: Query.order}
+    entry: graphql/Query.kt#fun order(
+    feature: F25
+    note: >-
+      the order's row through OrderDataLoader (one findAllById per request), then authorizes the owner; its items are
+      read only by Order.orderItems when selected (the orderTracking request: the row and the item page, no discounts)
+    accesses:
+      - {class: Order, mode: read, op: select, shape: batch, rows: 1, via: OrderRepository.findAllById, table: OrderEntity, today: local,
+         at: "graphql/Query.kt#dfe.load(OrderDataLoader::class, id)", note: "the OrderEntity row (data loader); then authorizes the owner"}
+
+  - id: order.orderItem
+    kind: query
+    trigger: {graphql: Query.orderItem}
+    entry: graphql/Query.kt#fun orderItem(
+    feature: F25
+    note: "two statements: the item's row, then its order's row for the authorization; discounts only by OrderItem.discounts"
+    accesses:
+      - {class: OrderItem, mode: read, op: select, shape: one, via: OrderItemRepository.findById, table: OrderItemEntity, today: local,
+         at: service/OrderService.kt#val orderItem = orderItemRepository.findByIdOrThrow(id), note: "the OrderItemEntity row"}
+      - {class: Order, mode: read, op: select, shape: one, via: OrderRepository.findById, table: OrderEntity, today: local,
+         at: service/OrderService.kt#repository.findByIdOrThrow(orderItem.orderId), note: "the order's row: authorizes the user of the order"}
+
+  # ------------------------------------------------------------------ mutations
+  - id: order.createOrder
+    kind: command
+    trigger: {graphql: Mutation.createOrder}
+    entry: graphql/Mutation.kt#fun createOrder(
+    feature: F16
+    note: >-
+      CheckoutService.createOrder, outside any transaction: 4 copy reads (user, shipment methods, coupons when given,
+      both addresses), the cart (S20), the variant copy, inventory (S21), the tax-rate copy, discount (S22), shipment
+      (S23); then OrderService.createOrder's transaction (the order row, one INSERT per item and per applied
+      discount). The answer is the inserted entity (no re-read); the loadgen's document selects id,
+      paymentInformationId, placedAt, so no child statement follows. Nothing is published (the saga starts with
+      placeOrder). Unknown or invisible variants are dropped from the order (they are still sent to inventory and
+      discount)
+    transaction:
+      at: "service/OrderService.kt#@Transactional@1"
+      classes: [Order, OrderItem]
+      publishInside: false
+      note: >-
+        OrderService.createOrder: INSERT OrderEntity, then one INSERT per OrderItemEntity row and one per
+        OrderItemToDiscountEntity row (saveAll); no transaction around the reads and the remote calls
+    accesses:
+      - {class: User, mode: read, op: exists, shape: one, strong: true, via: UserRepository.existsById, table: UserEntity, today: copy,
+         at: service/CheckoutService.kt#require(userRepository.existsById(input.userId)),
+         note: "the user must exist (DESIGN.md AB40, AB57)"}
+      - {class: ShipmentMethod, mode: read, op: select, shape: batch, rows: "shipment method ids of the order item inputs", strong: true,
+         via: CheckoutService.validateOrderInput, table: ShipmentMethodEntity, today: copy,
+         at: "service/CheckoutService.kt#conditionQueries.existingIds<ShipmentMethodEntity>(shipmentMethodIds)",
+         note: "ConditionQueries.existingIds: SELECT t.id ... = ANY(ids); every id must exist"}
+      - {class: Coupon, mode: read, op: select, shape: batch, rows: "coupon ids of the order item inputs", when: "some input has coupon ids", strong: true,
+         via: CheckoutService.validateOrderInput, table: CouponEntity, today: copy,
+         at: "service/CheckoutService.kt#conditionQueries.existingIds<CouponEntity>(couponIds)",
+         note: "ConditionQueries: id = ANY(ids); no statement for an empty id list"}
+      - {class: UserAddress, mode: read, op: select, shape: batch, rows: 2, strong: true, via: CheckoutService.validateOrderInput, table: UserAddressEntity,
+         today: copy, at: "service/CheckoutService.kt#conditionQueries.findAll<UserAddressEntity>(",
+         note: "shipment and invoice address must be addresses of the user: WHERE userId AND id = ANY(both)"}
+      - {class: ShoppingCartItem, mode: read, shape: list, rows: "all items of the user's cart", strong: true, today: call,
+         at: service/CheckoutService.kt#checkoutClient.shoppingCartItems(input.userId, authorizedUser), note: "S20: item id, product variant id, count"}
+      - {class: ProductVariant, mode: read, op: select, shape: batch, rows: "distinct product variants of the selected cart items", strong: true,
+         via: CheckoutService.createOrder, table: ProductVariantEntity, today: copy, at: "service/CheckoutService.kt#conditionQueries.findAll<ProductVariantEntity>(",
+         note: "visibility; missing or invisible variants are dropped"}
+      - {class: ProductVariantVersion, mode: read, op: select, shape: batch, rows: "distinct product variants of the selected cart items", strong: true,
+         via: CheckoutService.createOrder, table: ProductVariantEntity, today: copy, at: "service/CheckoutService.kt#conditionQueries.findAll<ProductVariantEntity>(",
+         note: "same statement: current version id, retail price, tax rate id (frozen into the item)"}
+      - {class: ProductItem, mode: read, shape: batch, rows: "distinct product variants of the selected cart items", strong: true, today: call,
+         at: service/CheckoutService.kt#checkoutClient.inventoryCounts(orderedProductVariants.keys.toList()), note: "S21: inventoryCount (unreserved items) per variant"}
+      - {class: TaxRate, mode: read, op: select, shape: batch, rows: "tax rate ids of the found visible variants", strong: true, via: CheckoutService.createOrder,
+         table: TaxRateEntity, today: copy, at: "service/CheckoutService.kt#val taxRates = conditionQueries.findAll<TaxRateEntity>("}
+      - {class: TaxRateVersion, mode: read, op: select, shape: batch, rows: "tax rate ids of the found visible variants", strong: true,
+         via: CheckoutService.createOrder, table: TaxRateEntity, today: copy, at: "service/CheckoutService.kt#val taxRates = conditionQueries.findAll<TaxRateEntity>(",
+         note: "same statement: current version (rate, version) frozen into the item"}
+      - {class: Discount, mode: read, shape: batch, rows: "distinct product variants of the selected cart items", strong: true, today: call,
+         at: service/CheckoutService.kt#val discounts = checkoutClient.applicableDiscounts(, note: "S22: applicable discounts (id, value) per variant"}
+      - {class: Coupon, mode: read, shape: batch, rows: "coupon ids of the inputs", strong: true, today: call,
+         at: service/CheckoutService.kt#val discounts = checkoutClient.applicableDiscounts(, note: "S22: coupons must exist, be redeemed by the user and apply"}
+      - {class: CouponRedemption, mode: read, shape: batch, rows: "coupon ids of the inputs", strong: true, today: call,
+         at: service/CheckoutService.kt#val discounts = checkoutClient.applicableDiscounts(, note: "S22: the user redeemed the coupon"}
+      - {class: DiscountUsage, mode: read, shape: batch, rows: "found discounts with a per-user limit", strong: true, today: call,
+         at: service/CheckoutService.kt#val discounts = checkoutClient.applicableDiscounts(, note: "S22: remaining usages of the user"}
+      - {class: ShipmentMethod, mode: read, shape: batch, rows: "distinct shipment methods of the found visible variants", strong: true, today: call,
+         at: service/CheckoutService.kt#checkoutClient.shipmentFees(, note: "S23: fees (base, per quantity, per weight); archived methods rejected"}
+      - {class: ProductVariantVersion, mode: read, shape: batch, rows: "found visible variants", strong: true, today: call,
+         at: service/CheckoutService.kt#checkoutClient.shipmentFees(, note: "S23: weight, read by shipment from its own copy"}
+      - {class: Order, mode: write, op: insert, shape: one, via: OrderRepository.save, table: OrderEntity, today: local,
+         at: "service/OrderService.kt#val order = repository.save(", note: "INSERT OrderEntity (id generated by the database), the transaction's first statement"}
+      - {class: OrderItem, mode: write, op: insert, shape: perItem, per: "found visible variants (one INSERT per order item)", when: "order has items",
+         via: OrderItemRepository.saveAll, table: OrderItemEntity, today: local, at: "service/OrderService.kt#orderItemRepository.saveAll(",
+         note: "same transaction"}
+      - {class: OrderItem, assoc: Discount, mode: write, op: insert, shape: perItem, per: "(item, applied discount) pairs (one INSERT each)",
+         when: "some item has a discount", via: OrderItemToDiscountRepository.saveAll, table: OrderItemToDiscountEntity, today: local,
+         at: "service/OrderService.kt#orderItemToDiscountRepository.saveAll(itemDiscounts)", note: "same transaction"}
+    calls:
+      - to: [shoppingcart._entities.User, shoppingcart.User.shoppingcart, shoppingcart.ShoppingCart.shoppingcartItems]
+        how: dapr-invoke
+        at: service/CheckoutService.kt#checkoutClient.shoppingCartItems(input.userId, authorizedUser)
+        shape: one
+        rows: 1
+        strong: true
+        purpose: >-
+          S20, queries/get_shopping_cart_product_variant_ids_and_counts.graphql (remote/CheckoutClient.kt): POST
+          /v1.0/invoke/shoppingcart/method/ with ONE representation {__typename: User, id: userId}, selecting shoppingcart
+          { shoppingcartItems { nodes { id, productVariant { id }, count } } } (no first: the whole cart); forwards the
+          Authorized-User header; the cart lines map the inputs' shoppingCartItemIds to variant ids and counts
+      - to: [inventory._entities.ProductVariant, inventory.ProductVariant.inventoryCount]
+        how: dapr-invoke
+        at: service/CheckoutService.kt#checkoutClient.inventoryCounts(orderedProductVariants.keys.toList())
+        shape: batch
+        rows: "distinct product variants of the selected cart items"
+        strong: true
+        purpose: >-
+          S21, queries/get_unreserved_product_item_counts.graphql: POST /v1.0/invoke/inventory/method/graphql with one
+          representation {__typename: ProductVariant, id} per variant, selecting id, inventoryCount; every variant must
+          have at least the cart count
+      - to: [discount.findApplicableDiscounts]
+        how: dapr-invoke
+        at: service/CheckoutService.kt#val discounts = checkoutClient.applicableDiscounts(
+        shape: one
+        rows: "input list: one {productVariantId, count, couponIds} per distinct product variant of the selected cart items"
+        strong: true
+        purpose: >-
+          S22, queries/get_discounts.graphql: POST /v1.0/invoke/discount/method/graphql, findApplicableDiscounts(input:
+          {userId, orderAmount = sum price x count, productVariants}) selecting productVariantId, discounts { id, discount };
+          the discounts are frozen into OrderItemToDiscountEntity
+      - to: [shipment.calculateShipmentFees]
+        how: dapr-invoke
+        at: service/CheckoutService.kt#checkoutClient.shipmentFees(
+        shape: one
+        rows: "input list: one {productVariantVersionId, quantity, shipmentMethodId} per found visible variant"
+        strong: true
+        purpose: >-
+          S23, queries/get_shipment_fees.graphql: POST /v1.0/invoke/shipment/method/graphql,
+          calculateShipmentFees(input: {items}); the fees are added to compensatableOrderAmount
+
+  - id: order.placeOrder
+    kind: command
+    trigger: {graphql: Mutation.placeOrder}
+    entry: graphql/Mutation.kt#fun placeOrder(
+    feature: F17
+    sagaStep: {saga: Buy, role: step}
+    note: >-
+      starts the Buy saga (order/order/created). CheckoutService.placeOrder reads the order's row once (owner
+      authorization; createdAt decides place vs reject); a stale pending order is rejected by a compare-and-set of its
+      own (then an error, no event); otherwise OrderService.placeOrder's transaction: the compare-and-set PENDING ->
+      PLACED (no PENDING order: an error), the event's items and their discount ids (the items of the order, then
+      their discounts) and the publish. The answer is the updated entity; the loadgen's document selects id: no child
+      statement
+    transaction:
+      at: "service/OrderService.kt#@Transactional@2"
+      classes: [Order]
+      publishInside: true
+      note: "OrderService.placeOrder: the compare-and-set, the reads for the event and the publish (when placed)"
+    accesses:
+      - {class: Order, mode: read, op: select, shape: one, strong: true, via: OrderRepository.findById, table: OrderEntity, today: local,
+         at: service/CheckoutService.kt#val order = orderRepository.findByIdOrThrow(input.id),
+         note: "the OrderEntity row: authorization of the owner; createdAt decides place vs reject (the status is the compare-and-set's)"}
+      - {class: Order, mode: write, op: update, shape: one, when: "pending for less than 1 h", via: OrderRepository.placeIfPending, table: OrderEntity,
+         today: local, at: "service/OrderService.kt#repository.placeIfPending(order.requiredId, placedAt)", note: "compare-and-set PENDING -> PLACED"}
+      - {class: Order, mode: write, op: update, shape: one, when: "pending for 1 h or longer", via: OrderRepository.rejectIfPending, table: OrderEntity,
+         today: local, at: "service/OrderService.kt#repository.rejectIfPending(order.requiredId)", note: "compare-and-set PENDING -> REJECTED, then an error (no event)"}
+      - {class: OrderItem, mode: read, op: select, shape: list, rows: "items of the order", when: placed, via: OrderItemRepository.findByOrderIdOrderByPosition,
+         table: OrderItemEntity, today: local, at: service/OrderService.kt#orderItemRepository.findByOrderIdOrderByPosition(orderId), note: "for the event (ORDER BY position)"}
+      - {class: OrderItem, assoc: Discount, mode: read, op: select, shape: batch, rows: "discounts of the order's items", when: "placed and the order has items",
+         via: OrderService.orderItemDTOs, table: OrderItemToDiscountEntity, today: local,
+         at: "service/OrderService.kt#conditionQueries.findAll<OrderItemToDiscountEntity>(", note: "orderItemId = ANY(the items): the event's discount ids"}
+    publishes:
+      - {topic: order/order/created, at: "service/OrderService.kt#eventPublisher.publishEvent(OrderEvents.ORDER_CREATED", payload: [Order, OrderItem],
+         when: placed, note: "OrderDTO: the order with its items and their discount ids, plus the optional cvc; inside the transaction"}
+
+  # ------------------------------------------------------------------ federation
+  - id: order._entities.Order
+    kind: query
+    trigger: {graphql: _entities(Order)}
+    entry: graphql/federation/OrderResolver.kt#class OrderResolver
+    feature: F17
+    note: "OrderDataLoader: one statement for the request's representations; no authorization; children by their fields when selected"
+    accesses:
+      - {class: Order, mode: read, op: select, shape: batch, rows: 1, via: OrderRepository.findAllById, table: OrderEntity, today: local,
+         at: graphql/federation/OrderResolver.kt#OrderDataLoader::class, note: "the OrderEntity row"}
+
+  - id: order.Order.orderItems
+    kind: query
+    trigger: {graphql: Order.orderItems}
+    entry: graphql/model/Order.kt#fun orderItems(
+    feature: F25
+    note: >-
+      a connection over the order's OrderItemEntity rows (OrderItemConnection, sorted by id; first default all): page
+      (nodes), COUNT (totalCount), probe (hasNextPage, only with first), each only when selected. One connection per
+      order (no batching across orders). orderTracking selects nodes without first: the page only
+    accesses:
+      - {class: OrderItem, mode: read, op: select, shape: list, rows: "items of the order (page: first, default all)", when: nodes selected,
+         via: OrderItemConnection.nodes, table: OrderItemEntity, today: local, at: "graphql/model/Order.kt#OrderItemConnection(",
+         note: "SELECT t.* FROM OrderItemEntity t WHERE t.orderId ORDER BY id LIMIT/OFFSET"}
+      - {class: OrderItem, mode: read, op: count, shape: one, when: totalCount selected, via: OrderItemConnection.totalCount, table: OrderItemEntity,
+         today: local, at: "graphql/model/Order.kt#OrderItemConnection(", note: "SELECT COUNT(t.id)"}
+      - {class: OrderItem, mode: read, op: exists, shape: optional, when: "hasNextPage selected and first given", via: OrderItemConnection.nodes,
+         table: OrderItemEntity, today: local, at: "graphql/model/Order.kt#OrderItemConnection(",
+         note: "probe (hasNextPage): SELECT 1 ... LIMIT 1 OFFSET first + skip (false without first)"}
+
+  - id: order._entities.OrderItem
+    kind: query
+    trigger: {graphql: _entities(OrderItem)}
+    entry: graphql/federation/OrderItemResolver.kt#class OrderItemResolver
+    feature: F17
+    note: "OrderItemDataLoader: one statement for the request's representations; no authorization"
+    accesses:
+      - {class: OrderItem, mode: read, op: select, shape: batch, rows: 1, via: OrderItemRepository.findAllById, table: OrderItemEntity, today: local,
+         at: graphql/federation/OrderItemResolver.kt#OrderItemDataLoader::class, note: "the OrderItemEntity row"}
+
+  - id: order.OrderItem.discounts
+    kind: query
+    trigger: {graphql: OrderItem.discounts}
+    entry: graphql/model/OrderItem.kt#fun discounts(
+    feature: F25
+    note: >-
+      a connection over the item's OrderItemToDiscountEntity rows (DiscountConnection, sorted by discountId; first
+      default all): page, COUNT, probe, each only when selected, per item; returns Discount stubs. No request of the
+      workload selects it
+    accesses:
+      - {class: OrderItem, assoc: Discount, mode: read, op: select, shape: list, rows: "discounts of the item (page: first, default all)", when: nodes selected,
+         via: DiscountConnection.nodes, table: OrderItemToDiscountEntity, today: local,
+         at: "graphql/model/OrderItem.kt#DiscountConnection(", note: "SELECT t.* ... WHERE t.orderItemId ORDER BY discountId"}
+      - {class: OrderItem, assoc: Discount, mode: read, op: count, shape: one, when: totalCount selected, via: DiscountConnection.totalCount,
+         table: OrderItemToDiscountEntity, today: local, at: "graphql/model/OrderItem.kt#DiscountConnection(",
+         note: "SELECT COUNT(t.discountId)"}
+      - {class: OrderItem, assoc: Discount, mode: read, op: exists, shape: optional, when: "hasNextPage selected and first given",
+         via: DiscountConnection.nodes, table: OrderItemToDiscountEntity, today: local,
+         at: "graphql/model/OrderItem.kt#DiscountConnection(", note: "probe (hasNextPage): SELECT 1 ... LIMIT 1 OFFSET first + skip"}
+
+  - id: order._entities.User
+    kind: query
+    trigger: {graphql: _entities(User)}
+    entry: graphql/federation/UserResolver.kt#class UserResolver
+    feature: F25
+    trivial: true
+    note: builds the User stub from the representation (ReferenceEntityResolver), no database access
+
+  - id: order.User.orders
+    kind: query
+    trigger: {graphql: User.orders}
+    entry: graphql/model/User.kt#fun orders(
+    feature: F25
+    note: >-
+      authorizes the user, then a connection over the user's OrderEntity rows (OrderConnection; first default 25):
+      page, COUNT, probe, each only when selected; the orders' items by Order.orderItems per order when selected
+    accesses:
+      - {class: Order, mode: read, op: select, shape: list, rows: "orders of the user (page: first, default 25)", when: nodes selected,
+         via: OrderConnection.nodes, table: OrderEntity, today: local, at: graphql/model/User.kt#OrderConnection(}
+      - {class: Order, mode: read, op: count, shape: one, when: totalCount selected, via: OrderConnection.totalCount, table: OrderEntity, today: local,
+         at: graphql/model/User.kt#OrderConnection(, note: "SELECT COUNT(t.id)"}
+      - {class: Order, mode: read, op: exists, shape: optional, when: hasNextPage selected, via: OrderConnection.nodes, table: OrderEntity,
+         today: local, at: graphql/model/User.kt#OrderConnection(, note: "probe (hasNextPage): SELECT 1 ... LIMIT 1 OFFSET first + skip"}
+
+  # ------------------------------------------------------------------ events
+  - id: order.on:catalog/product-variant/updated
+    kind: reaction
+    mechanism: copy
+    trigger: {topic: catalog/product-variant/updated}
+    entry: event/EventController.kt#fun onProductVariantUpdated(
+    feature: F5
+    accesses:
+      - {class: ProductVariant, mode: write, op: update, shape: one, via: ProductVariantRepository.updateVisibility, table: ProductVariantEntity, today: copy,
+         at: service/ProductVariantService.kt#repository.updateVisibility(, note: "visibility of a known variant (no upsert)"}
+
+  - id: order.on:catalog/product-variant-version/created
+    kind: reaction
+    mechanism: copy
+    trigger: {topic: catalog/product-variant-version/created}
+    entry: event/EventController.kt#fun onProductVariantVersionCreated(
+    feature: F5
+    accesses:
+      - {class: ProductVariantVersion, mode: write, op: upsert, shape: one, via: ProductVariantRepository.upsertCurrentVersion, table: ProductVariantEntity,
+         today: copy, at: service/ProductVariantService.kt#repository.upsertCurrentVersion(, note: "current version (id, retailPrice, taxRateId)"}
+      - {class: ProductVariant, mode: write, op: upsert, shape: one, via: ProductVariantRepository.upsertCurrentVersion, table: ProductVariantEntity, today: copy,
+         at: service/ProductVariantService.kt#repository.upsertCurrentVersion(, note: "same statement: inserts an unknown variant as publicly visible"}
+
+  - id: order.on:discount/coupon/created
+    kind: reaction
+    mechanism: copy
+    trigger: {topic: discount/coupon/created}
+    entry: event/EventController.kt#fun onCouponCreated(
+    feature: F12
+    accesses:
+      - {class: Coupon, mode: write, op: upsert, shape: one, via: CouponRepository.createCoupon, table: CouponEntity, today: copy,
+         at: service/CouponService.kt#repository.createCoupon(couponDTO.id), note: "INSERT ... ON CONFLICT (id) DO NOTHING"}
+
+  - id: order.on:tax/tax-rate-version/created
+    kind: reaction
+    mechanism: copy
+    trigger: {topic: tax/tax-rate-version/created}
+    entry: event/EventController.kt#fun onTaxRateVersionCreated(
+    feature: F8
+    accesses:
+      - {class: TaxRateVersion, mode: write, op: upsert, shape: one, via: TaxRateRepository.upsertCurrentVersion, table: TaxRateEntity, today: copy,
+         at: service/TaxRateService.kt#repository.upsertCurrentVersion(, note: "current version (id, rate, version)"}
+      - {class: TaxRate, mode: write, op: upsert, shape: one, via: TaxRateRepository.upsertCurrentVersion, table: TaxRateEntity, today: copy,
+         at: service/TaxRateService.kt#repository.upsertCurrentVersion(, note: "same statement: the tax rate row"}
+
+  - id: order.on:shipment/shipment-method/created
+    kind: reaction
+    mechanism: copy
+    trigger: {topic: shipment/shipment-method/created}
+    entry: event/EventController.kt#fun onShipmentMethodCreated(
+    feature: F24
+    accesses:
+      - {class: ShipmentMethod, mode: write, op: upsert, shape: one, via: ShipmentMethodRepository.createShipmentMethod, table: ShipmentMethodEntity, today: copy,
+         at: service/ShipmentMethodService.kt#repository.createShipmentMethod(shipmentMethodDTO.id), note: "INSERT ... ON CONFLICT (id) DO NOTHING"}
+
+  - id: order.on:user/user/created
+    kind: reaction
+    mechanism: copy
+    trigger: {topic: user/user/created}
+    entry: event/EventController.kt#fun onUserCreated(
+    feature: F1
+    accesses:
+      - {class: User, mode: write, op: upsert, shape: one, via: UserRepository.createUser, table: UserEntity, today: copy,
+         at: service/UserService.kt#repository.createUser(userDTO.id), note: "INSERT ... ON CONFLICT (id) DO NOTHING"}
+
+  - id: order.on:address/user-address/created
+    kind: reaction
+    mechanism: copy
+    trigger: {topic: address/user-address/created}
+    entry: event/EventController.kt#fun onUserAddressCreated(
+    feature: F3
+    transaction:
+      at: service/UserService.kt#@Transactional
+      classes: [User, UserAddress]
+      publishInside: false
+      note: "registerUserAddress: the UserEntity row, then the UserAddressEntity row, in one transaction (both copies)"
+    accesses:
+      - {class: User, mode: write, op: upsert, shape: one, via: UserRepository.createUser, table: UserEntity, today: copy,
+         at: service/UserService.kt#repository.createUser(userAddressDTO.userId), note: "INSERT ... ON CONFLICT (id) DO NOTHING: the user row if the user event is not processed yet"}
+      - {class: UserAddress, mode: write, op: upsert, shape: one, via: UserAddressRepository.createUserAddress, table: UserAddressEntity, today: copy,
+         at: service/UserService.kt#userAddressRepository.createUserAddress(, note: "the address row, ON CONFLICT DO NOTHING (idempotent)"}
+
+  - id: order.on:address/user-address/archived
+    kind: reaction
+    mechanism: copy
+    trigger: {topic: address/user-address/archived}
+    entry: event/EventController.kt#fun onUserAddressArchived(
+    feature: F3
+    accesses:
+      - {class: UserAddress, mode: write, op: delete, shape: one, via: UserAddressRepository.deleteById, table: UserAddressEntity, today: copy,
+         at: service/UserService.kt#userAddressRepository.deleteById(, note: "DELETE of the address row of the user (key userId, id)"}
+
+  - id: order.on:shipment/shipment/creation-failed
+    kind: reaction
+    trigger: {topic: shipment/shipment/creation-failed}
+    entry: event/EventController.kt#fun onShipmentCreationFailed(
+    feature: F17
+    sagaStep: {saga: Buy, role: compensation}
+    note: >-
+      a failed return shipment (no orderId) is acknowledged without action; compensates the listed items that are not
+      compensated yet; the whole handler is one transaction (OrderCompensationService.compensateOrderItems), the
+      publish inside it
+    transaction:
+      at: service/OrderCompensationService.kt#@Transactional
+      classes: [OrderCompensation]
+      publishInside: true
+      note: "compensateOrderItems: the reads, the compensation row, one OrderCompensationToOrderItemEntity row per compensated item, the publish"
+    accesses:
+      - {class: Shipment, mode: read, shape: one, today: payload, topic: shipment/shipment/creation-failed,
+         at: "service/OrderCompensationService.kt#val orderId = shipmentFailedDTO.orderId ?: return", note: "orderId and orderItemIds of the failed shipment"}
+      - {class: Order, mode: read, op: exists, shape: one, when: "orderId present", strong: true, via: OrderRepository.existsById, table: OrderEntity, today: local,
+         at: service/OrderCompensationService.kt#orderRepository.existsByIdOrThrow(orderId), note: "the order must exist"}
+      - {class: OrderCompensation, mode: read, op: select, shape: list, rows: "compensations of the order", when: "orderId present", strong: true,
+         via: OrderCompensationToOrderItemRepository.findByOrderId, table: OrderCompensationEntity, today: local,
+         at: service/OrderCompensationService.kt#orderCompensationToOrderItemRepository.findByOrderId(orderId),
+         note: "already compensated item ids: OrderCompensationToOrderItemEntity JOIN OrderCompensationEntity WHERE orderId"}
+      - {class: OrderCompensation, assoc: OrderItem, mode: read, op: select, shape: list, rows: "compensated items of the order", when: "orderId present",
+         strong: true, via: OrderCompensationToOrderItemRepository.findByOrderId, table: OrderCompensationToOrderItemEntity, today: local,
+         at: service/OrderCompensationService.kt#orderCompensationToOrderItemRepository.findByOrderId(orderId), note: "same statement (the join)"}
+      - {class: OrderItem, mode: read, op: select, shape: list, rows: "items of the order", when: "orderId present", strong: true,
+         via: OrderItemRepository.findByOrderIdOrderByPosition, table: OrderItemEntity, today: local,
+         at: service/OrderCompensationService.kt#orderItemRepository.findByOrderIdOrderByPosition(orderId),
+         note: "compensatable amounts of the listed items"}
+      - {class: OrderCompensation, mode: write, op: insert, shape: one, when: "uncompensated items listed", via: OrderCompensationRepository.save,
+         table: OrderCompensationEntity, today: local, at: service/OrderCompensationService.kt#val compensation = repository.save(}
+      - {class: OrderCompensation, assoc: OrderItem, mode: write, op: insert, shape: perItem, per: "the compensated items (one INSERT each)",
+         when: "uncompensated items listed", via: OrderCompensationToOrderItemRepository.saveAll, table: OrderCompensationToOrderItemEntity, today: local,
+         at: "service/OrderCompensationService.kt#orderCompensationToOrderItemRepository.saveAll(", note: "same transaction"}
+    publishes:
+      - {topic: order/order-compensation/created, at: "service/OrderCompensationService.kt#OrderEvents.ORDER_COMPENSATION_CREATED",
+         payload: [OrderCompensation], when: "a compensation was stored", note: "no subscriber; inside the transaction"}

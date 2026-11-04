@@ -1,0 +1,223 @@
+# review (Kotlin rewrite of the Rust/Mongo original). Curated; schema: build.py docstring. Anchors are relative to
+# services/review/src/main/kotlin/org/misarch/review/.
+service: review
+transactional: >-
+  service/ReviewService.kt @Transactional: createReview, updateReview and deleteReview each run in one transaction
+  (createReview's check-then-insert is also closed by the unique index (userId, productVariantId), V2/V3). No events
+  are published. Each subscribed topic has its own route (event/EventController.kt).
+
+tables:
+  UserEntity:
+    kind: copy
+    copyOf: {User: [id]}
+    fedBy: [user/user/created]
+    note: "existence check (createReview), _entities(User)"
+  ProductEntity:
+    kind: copy
+    copyOf: {Product: [id]}
+    fedBy: [catalog/product/created]
+    note: "only used by _entities(Product)"
+  ProductVariantEntity:
+    kind: copy
+    copyOf: {ProductVariant: [id, productId]}
+    fedBy: [catalog/product-variant/created]
+    note: "existence check and product id of createReview; _entities(ProductVariant)"
+  ReviewEntity:
+    kind: class
+    class: Review
+    refs:
+      - {attr: userId, to: User, kind: association, mult: "1"}
+      - {attr: productVariantId, to: ProductVariant, kind: association, mult: "1"}
+      - {attr: productId, to: Product, kind: association, mult: "1", snapshot: true,
+         note: "the variant's product id copied from ProductVariantEntity at creation (denormalized for Product.reviews/averageRating)"}
+    note: "unique (userId, productVariantId); stars generated from rating (V3)"
+
+operations:
+  - id: review.reviews
+    kind: query
+    trigger: {graphql: Query.reviews}
+    entry: graphql/Query.kt#fun reviews(
+    feature: F27
+    note: "ReviewConnection (BaseConnection, no predicate; first default 25): page (nodes), COUNT (totalCount), probe (hasNextPage), each only when selected"
+    accesses:
+      - {class: Review, mode: read, op: select, shape: list, rows: "first (default 25)", when: nodes selected, via: ReviewConnection.nodes,
+         table: ReviewEntity, today: local, at: "graphql/Query.kt#ReviewConnection(", note: "page: SELECT t.* FROM ReviewEntity t ORDER BY ... LIMIT first OFFSET skip"}
+      - {class: Review, mode: read, op: count, shape: one, when: totalCount selected, via: ReviewConnection.totalCount, table: ReviewEntity,
+         today: local, at: "graphql/Query.kt#ReviewConnection(", note: "SELECT COUNT(t.id) (no filter)"}
+      - {class: Review, mode: read, op: exists, shape: optional, when: hasNextPage selected, table: ReviewEntity, today: local,
+         at: "graphql/Query.kt#ReviewConnection(", note: "BaseConnection.hasNextPage probe: SELECT 1 ... LIMIT 1 OFFSET first + skip"}
+
+  - id: review.review
+    kind: query
+    trigger: {graphql: Query.review}
+    entry: graphql/Query.kt#fun review(
+    feature: F27
+    accesses:
+      - {class: Review, mode: read, op: select, shape: optional, via: ReviewRepository.findById, table: ReviewEntity, today: local,
+         at: "service/ReviewService.kt#suspend fun findReview(id: UUID): ReviewEntity? = repository.findById(id)"}
+
+  - id: review.createReview
+    kind: command
+    trigger: {graphql: Mutation.createReview}
+    entry: graphql/Mutation.kt#fun createReview(
+    feature: F27
+    note: "no event; the saved entity is the answer"
+    transaction: {at: "service/ReviewService.kt#@Transactional@1", classes: [ProductVariant, User, Review], publishInside: false}
+    accesses:
+      - {class: ProductVariant, mode: read, op: select, shape: one, strong: true, via: ProductVariantRepository.findById,
+         table: ProductVariantEntity, today: copy, at: service/ReviewService.kt#productVariantRepository.findById,
+         note: "the variant must exist; its productId is stored as the review's productId"}
+      - {class: User, mode: read, op: exists, shape: one, strong: true, via: UserRepository.existsById, table: UserEntity, today: copy,
+         at: service/ReviewService.kt#userRepository.existsById, note: "the user must exist"}
+      - {class: Review, mode: read, op: exists, shape: one, strong: true, via: ReviewRepository.existsByUserIdAndProductVariantId,
+         table: ReviewEntity, today: local, at: service/ReviewService.kt#repository.existsByUserIdAndProductVariantId,
+         note: "one review per user and variant"}
+      - {class: Review, mode: write, op: insert, shape: one, via: ReviewRepository.save, table: ReviewEntity, today: local,
+         at: service/ReviewService.kt#repository.save(review)@1, note: "a duplicate (unique index) is reported as already reviewed"}
+
+  - id: review.updateReview
+    kind: command
+    trigger: {graphql: Mutation.updateReview}
+    entry: graphql/Mutation.kt#fun updateReview(
+    feature: F27
+    note: "the loaded row is saved back with the fields set in the input and lastUpdatedAt (nothing set: no write)"
+    transaction: {at: "service/ReviewService.kt#@Transactional@2", classes: [Review], publishInside: false}
+    accesses:
+      - {class: Review, mode: read, op: select, shape: one, strong: true, via: ReviewRepository.findById, table: ReviewEntity, today: local,
+         at: service/ReviewService.kt#repository.findByIdOrThrow(id), note: "findOwnReview: only the author (or an employee) may update"}
+      - {class: Review, mode: write, op: update, shape: optional, when: a field is set in the input, via: ReviewRepository.save,
+         table: ReviewEntity, today: local, at: service/ReviewService.kt#return repository.save(review)}
+
+  - id: review.deleteReview
+    kind: command
+    trigger: {graphql: Mutation.deleteReview}
+    entry: graphql/Mutation.kt#fun deleteReview(
+    feature: F27
+    transaction: {at: "service/ReviewService.kt#@Transactional@3", classes: [Review], publishInside: false}
+    accesses:
+      - {class: Review, mode: read, op: select, shape: one, strong: true, via: ReviewRepository.findById, table: ReviewEntity, today: local,
+         at: service/ReviewService.kt#repository.findByIdOrThrow(id), note: "findOwnReview: only the author (or an employee) may delete"}
+      - {class: Review, mode: write, op: delete, shape: one, via: ReviewRepository.delete, table: ReviewEntity, today: local,
+         at: service/ReviewService.kt#repository.delete(}
+
+  - id: review._entities.Product
+    kind: query
+    trigger: {graphql: _entities(Product)}
+    entry: graphql/federation/ProductResolver.kt#class ProductResolver
+    feature: F27
+    accesses:
+      - {class: Product, mode: read, op: select, shape: batch, rows: 1, via: ProductRepository.findAllById, table: ProductEntity, today: copy,
+         at: graphql/federation/ProductResolver.kt#ProductDataLoader::class, note: "DataLoader; an unknown product fails like the data loader"}
+
+  - id: review.Product.reviews
+    kind: query
+    trigger: {graphql: Product.reviews}
+    entry: graphql/model/Product.kt#fun reviews(
+    feature: F27
+    note: "ReviewConnection (BaseConnection, productId = id; first default 25): page (nodes), COUNT (totalCount), probe (hasNextPage), each only when selected"
+    accesses:
+      - {class: Review, mode: read, op: select, shape: list, rows: "first (default 25)", when: nodes selected, via: ReviewConnection.nodes,
+         table: ReviewEntity, today: local, at: "graphql/model/Product.kt#ReviewConnection(", note: "page: SELECT t.* FROM ReviewEntity t WHERE productId ORDER BY ... LIMIT first OFFSET skip"}
+      - {class: Review, mode: read, op: count, shape: one, when: totalCount selected, via: ReviewConnection.totalCount, table: ReviewEntity,
+         today: local, at: "graphql/model/Product.kt#ReviewConnection(", note: "SELECT COUNT(t.id), WHERE productId"}
+      - {class: Review, mode: read, op: exists, shape: optional, when: hasNextPage selected, table: ReviewEntity, today: local,
+         at: "graphql/model/Product.kt#ReviewConnection(", note: "BaseConnection.hasNextPage probe: SELECT 1 ... LIMIT 1 OFFSET first + skip"}
+
+  - id: review.Product.averageRating
+    kind: query
+    trigger: {graphql: Product.averageRating}
+    entry: graphql/model/Product.kt#fun averageRating(
+    feature: F27
+    accesses:
+      - {class: Review, mode: read, op: select, shape: list, rows: "visible reviews of the product (aggregated: AVG)",
+         via: ReviewRepository.findAverageRatingByProductId, table: ReviewEntity, today: local,
+         at: service/ReviewService.kt#repository.findAverageRatingByProductId(productId), note: "one aggregate statement, returns one row"}
+
+  - id: review._entities.ProductVariant
+    kind: query
+    trigger: {graphql: _entities(ProductVariant)}
+    entry: graphql/federation/ProductVariantResolver.kt#class ProductVariantResolver
+    feature: F27
+    note: "runs before ProductVariant.averageRating in the Gatling 'product' query (defaultVariant { averageRating })"
+    accesses:
+      - {class: ProductVariant, mode: read, op: select, shape: batch, rows: 1, via: ProductVariantRepository.findAllById,
+         table: ProductVariantEntity, today: copy, at: graphql/federation/ProductVariantResolver.kt#ProductVariantDataLoader::class,
+         note: "DataLoader; an unknown variant fails like the data loader"}
+
+  - id: review.ProductVariant.reviews
+    kind: query
+    trigger: {graphql: ProductVariant.reviews}
+    entry: graphql/model/ProductVariant.kt#fun reviews(
+    feature: F27
+    note: "ReviewConnection (BaseConnection, productVariantId = id; first default 25): page (nodes), COUNT (totalCount), probe (hasNextPage), each only when selected"
+    accesses:
+      - {class: Review, mode: read, op: select, shape: list, rows: "first (default 25)", when: nodes selected, via: ReviewConnection.nodes,
+         table: ReviewEntity, today: local, at: "graphql/model/ProductVariant.kt#ReviewConnection(", note: "page: SELECT t.* FROM ReviewEntity t WHERE productVariantId ORDER BY ... LIMIT first OFFSET skip"}
+      - {class: Review, mode: read, op: count, shape: one, when: totalCount selected, via: ReviewConnection.totalCount, table: ReviewEntity,
+         today: local, at: "graphql/model/ProductVariant.kt#ReviewConnection(", note: "SELECT COUNT(t.id), WHERE productVariantId"}
+      - {class: Review, mode: read, op: exists, shape: optional, when: hasNextPage selected, table: ReviewEntity, today: local,
+         at: "graphql/model/ProductVariant.kt#ReviewConnection(", note: "BaseConnection.hasNextPage probe: SELECT 1 ... LIMIT 1 OFFSET first + skip"}
+
+  - id: review.ProductVariant.averageRating
+    kind: query
+    trigger: {graphql: ProductVariant.averageRating}
+    entry: graphql/model/ProductVariant.kt#fun averageRating(
+    feature: F27
+    accesses:
+      - {class: Review, mode: read, op: select, shape: list, rows: "visible reviews of the variant (aggregated: AVG)",
+         via: ReviewRepository.findAverageRatingByProductVariantId, table: ReviewEntity, today: local,
+         at: service/ReviewService.kt#repository.findAverageRatingByProductVariantId(productVariantId), note: "one aggregate statement, returns one row"}
+
+  - id: review._entities.User
+    kind: query
+    trigger: {graphql: _entities(User)}
+    entry: graphql/federation/UserResolver.kt#class UserResolver
+    feature: F27
+    accesses:
+      - {class: User, mode: read, op: select, shape: batch, rows: 1, via: UserRepository.findAllById, table: UserEntity, today: copy,
+         at: graphql/federation/UserResolver.kt#UserDataLoader::class, note: "DataLoader; an unknown user fails like the data loader"}
+
+  - id: review.User.reviews
+    kind: query
+    trigger: {graphql: User.reviews}
+    entry: graphql/model/User.kt#fun reviews(
+    feature: F27
+    note: "ReviewConnection (BaseConnection, userId = id; first default 25): page (nodes), COUNT (totalCount), probe (hasNextPage), each only when selected"
+    accesses:
+      - {class: Review, mode: read, op: select, shape: list, rows: "first (default 25)", when: nodes selected, via: ReviewConnection.nodes,
+         table: ReviewEntity, today: local, at: "graphql/model/User.kt#ReviewConnection(", note: "page: SELECT t.* FROM ReviewEntity t WHERE userId ORDER BY ... LIMIT first OFFSET skip"}
+      - {class: Review, mode: read, op: count, shape: one, when: totalCount selected, via: ReviewConnection.totalCount, table: ReviewEntity,
+         today: local, at: "graphql/model/User.kt#ReviewConnection(", note: "SELECT COUNT(t.id), WHERE userId"}
+      - {class: Review, mode: read, op: exists, shape: optional, when: hasNextPage selected, table: ReviewEntity, today: local,
+         at: "graphql/model/User.kt#ReviewConnection(", note: "BaseConnection.hasNextPage probe: SELECT 1 ... LIMIT 1 OFFSET first + skip"}
+
+  - id: review.on:user/user/created
+    kind: reaction
+    mechanism: copy
+    trigger: {topic: user/user/created}
+    entry: event/EventController.kt#fun onUserCreated(
+    feature: F1
+    accesses:
+      - {class: User, mode: write, op: insert, shape: one, via: UserRepository.createUser, table: UserEntity, today: copy,
+         at: service/UserService.kt#repository.createUser, note: "ON CONFLICT (id) DO NOTHING"}
+
+  - id: review.on:catalog/product/created
+    kind: reaction
+    mechanism: copy
+    trigger: {topic: catalog/product/created}
+    entry: event/EventController.kt#fun onProductCreated(
+    feature: F5
+    accesses:
+      - {class: Product, mode: write, op: insert, shape: one, via: ProductRepository.createProduct, table: ProductEntity, today: copy,
+         at: service/ProductService.kt#repository.createProduct, note: "ON CONFLICT (id) DO NOTHING"}
+
+  - id: review.on:catalog/product-variant/created
+    kind: reaction
+    mechanism: copy
+    trigger: {topic: catalog/product-variant/created}
+    entry: event/EventController.kt#fun onProductVariantCreated(
+    feature: F5
+    accesses:
+      - {class: ProductVariant, mode: write, op: insert, shape: one, via: ProductVariantRepository.createProductVariant,
+         table: ProductVariantEntity, today: copy, at: service/ProductVariantService.kt#repository.createProductVariant,
+         note: "ON CONFLICT (id) DO NOTHING"}

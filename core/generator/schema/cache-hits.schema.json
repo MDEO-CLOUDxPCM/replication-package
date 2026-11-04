@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "cache-hits.schema.json",
+  "title": "Case cache hit ratios",
+  "description": "Per call site that allows a cache, the hit ratio and stale share of a TTL cache over the session model's key streams (MiSArch: models/domain-cache-hits.json, written by cases/misarch/generator/cache_hits.py). core/generator/derive.py class Structure reads the run `day/zipf` (the model's profile, Zipf popularity) and ttlSeconds. The site names are the generated model's call sites, so the file is regenerated after the model's call sites change (GEN_HITS_BOOTSTRAP=1 tolerates missing sites).",
+  "type": "object",
+  "properties": {
+    "runs": {
+      "type": "object",
+      "description": "`<profile>/<popularity>` -> run; derive requires `day/zipf` (Structure).",
+      "additionalProperties": {
+        "$ref": "#/$defs/run"
+      },
+      "propertyNames": {
+        "pattern": "^[^/]+/[^/]+$"
+      },
+      "required": [
+        "day/zipf"
+      ],
+      "properties": {
+        "day/zipf": {
+          "$ref": "#/$defs/run"
+        }
+      }
+    },
+    "ttlSeconds": {
+      "type": "number",
+      "description": "Cache TTL in seconds (derive Structure: source label).",
+      "minimum": 0
+    },
+    "about": {
+      "type": "string",
+      "description": "Description."
+    },
+    "zipfS": {
+      "type": "number",
+      "description": "Zipf exponent of the product popularity (informative)."
+    },
+    "seed": {
+      "type": "integer",
+      "description": "Random seed (informative)."
+    }
+  },
+  "required": [
+    "runs",
+    "ttlSeconds"
+  ],
+  "additionalProperties": true,
+  "$defs": {
+    "site": {
+      "type": "object",
+      "description": "Cache statistics of one call site. Also carries (not read by the generator): hits, staleHits.",
+      "properties": {
+        "hitRatio": {
+          "type": "number",
+          "description": "hits / lookups (derive: CallSite.hitRatio; joinCache hit branch).",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "staleShare": {
+          "type": "number",
+          "description": "Share of the hits whose key was written after it was cached (derive: CallSite.staleShare).",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "lookups": {
+          "type": "integer",
+          "description": "Lookups; a site without any falls back to the base SEFF's site (derive generate call sites).",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "hitRatio",
+        "staleShare",
+        "lookups"
+      ],
+      "additionalProperties": true
+    },
+    "run": {
+      "type": "object",
+      "description": "One key-popularity run of the model's profile. Also carries (not read by the generator): meta (sessions, requests, window, unknownClasses).",
+      "properties": {
+        "sites": {
+          "type": "object",
+          "description": "call-site name (site_...) -> statistics (derive Structure.hits).",
+          "additionalProperties": {
+            "$ref": "#/$defs/site"
+          }
+        }
+      },
+      "required": [
+        "sites"
+      ],
+      "additionalProperties": true
+    }
+  }
+}

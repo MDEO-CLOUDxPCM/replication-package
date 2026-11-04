@@ -1,0 +1,533 @@
+{
+ "variant": "approx3",
+ "rates": "plans/rates.json",
+ "creating": [
+  "addToWishlist",
+  "address.createUserAddress",
+  "address.createVendorAddress",
+  "adminCreateProduct",
+  "adminCreateVariant",
+  "adminNewPrice",
+  "catalog.createCategory",
+  "createOrder",
+  "createReview",
+  "createShoppingcartItem",
+  "discount.createCoupon",
+  "discount.createDiscount",
+  "discount.registerCoupon",
+  "inventory.createProductItemBatch",
+  "media.uploadMedia",
+  "payment.createCreditCardPaymentInformation",
+  "placeOrder",
+  "registration",
+  "return.createReturn",
+  "shipment.createShipmentMethod",
+  "tax.createTaxRate",
+  "tax.createTaxRateVersion",
+  "wishlist.createWishlist"
+ ],
+ "readsFirst": true,
+ "bursts": "bursts.json (burst_table.py)",
+ "foCells": [
+  "i1q1c1PREs60",
+  "i1q1c0CCs60",
+  "i1q1c0INVs60",
+  "i1q3c0PREs60",
+  "i1q3c1CCs60",
+  "i1q3c1INVs60",
+  "i3q1c1PREs60",
+  "i3q1c0CCs60",
+  "i3q1c0INVs60",
+  "i3q3c0PREs60",
+  "i3q3c1CCs60",
+  "i3q3c1INVs60",
+  "i1q1c0PREs60",
+  "i1q1c1CCs60",
+  "i1q1c0INVs600",
+  "i1q3c1PREs60",
+  "i1q3c0CCs60",
+  "i3q3c0INVs600",
+  "i3q1c0PREs60",
+  "i3q1c1CCs60",
+  "i3q3c1PREs60",
+  "i3q3c0CCs60"
+ ],
+ "foBurstCells": [
+  "i1q1c1INVs60",
+  "i1q1c1PREs60",
+  "i1q1c1CCs60"
+ ],
+ "windows": [
+  {
+   "plan": "off_w1.json",
+   "name": "off_w1",
+   "config": "off",
+   "block": 2,
+   "rateLevel": "mid",
+   "durationS": 1465,
+   "prep": [
+    "calibration/.venv/bin/python calibration/scripts/maintain.py --stack kotlin",
+    "calibration/.venv/bin/python requests/run.py cleanup"
+   ],
+   "warm": "warm_timing.json",
+   "burstTypes": [
+    "products",
+    "products.anon",
+    "product",
+    "product.anon",
+    "users",
+    "address",
+    "paymentInformations",
+    "shipmentMethods",
+    "notifications",
+    "wishlistView",
+    "login"
+   ]
+  },
+  {
+   "plan": "off_w2.json",
+   "name": "off_w2",
+   "config": "off",
+   "block": 2,
+   "rateLevel": "mid",
+   "durationS": 1530,
+   "prep": [
+    "calibration/.venv/bin/python calibration/scripts/maintain.py --stack kotlin",
+    "calibration/.venv/bin/python requests/run.py prep --n 400"
+   ],
+   "warm": "warm_timing.json",
+   "burstTypes": [
+    "orderTracking",
+    "user.updateUser",
+    "adminUpdateProduct",
+    "catalog.updateProductVariant",
+    "registration",
+    "createShoppingcartItem",
+    "createOrder",
+    "placeOrder",
+    "return.createReturn",
+    "createReview",
+    "addToWishlist",
+    "wishlist.createWishlist"
+   ]
+  },
+  {
+   "plan": "off_w3.json",
+   "name": "off_w3",
+   "config": "off",
+   "block": 2,
+   "rateLevel": "mid",
+   "durationS": 1550,
+   "prep": [
+    "calibration/.venv/bin/python calibration/scripts/maintain.py --stack kotlin",
+    "calibration/.venv/bin/python requests/run.py cleanup"
+   ],
+   "warm": "warm_timing.json",
+   "burstTypes": [
+    "address.createUserAddress",
+    "payment.createCreditCardPaymentInformation",
+    "discount.registerCoupon",
+    "adminNewPrice",
+    "adminCreateVariant",
+    "adminCreateProduct",
+    "catalog.createCategory",
+    "inventory.createProductItemBatch",
+    "media.uploadMedia",
+    "discount.createDiscount",
+    "discount.createCoupon",
+    "tax.createTaxRate",
+    "tax.createTaxRateVersion",
+    "shipment.createShipmentMethod",
+    "address.createVendorAddress"
+   ]
+  },
+  {
+   "plan": "on_w1.json",
+   "name": "on_w1",
+   "config": "on",
+   "block": 3,
+   "rateLevel": "mid",
+   "durationS": 1465,
+   "prep": [
+    "calibration/.venv/bin/python calibration/scripts/maintain.py --stack kotlin",
+    "calibration/.venv/bin/python requests/run.py cleanup"
+   ],
+   "warm": "warm_timing.json",
+   "burstTypes": [
+    "products",
+    "products.anon",
+    "product",
+    "product.anon",
+    "users",
+    "address",
+    "paymentInformations",
+    "shipmentMethods",
+    "notifications",
+    "wishlistView",
+    "login"
+   ]
+  },
+  {
+   "plan": "on_w2.json",
+   "name": "on_w2",
+   "config": "on",
+   "block": 3,
+   "rateLevel": "mid",
+   "durationS": 1530,
+   "prep": [
+    "calibration/.venv/bin/python calibration/scripts/maintain.py --stack kotlin",
+    "calibration/.venv/bin/python requests/run.py prep --n 400"
+   ],
+   "warm": "warm_timing.json",
+   "burstTypes": [
+    "orderTracking",
+    "user.updateUser",
+    "adminUpdateProduct",
+    "catalog.updateProductVariant",
+    "registration",
+    "createShoppingcartItem",
+    "createOrder",
+    "placeOrder",
+    "return.createReturn",
+    "createReview",
+    "addToWishlist",
+    "wishlist.createWishlist"
+   ]
+  },
+  {
+   "plan": "on_w3.json",
+   "name": "on_w3",
+   "config": "on",
+   "block": 3,
+   "rateLevel": "mid",
+   "durationS": 1550,
+   "prep": [
+    "calibration/.venv/bin/python calibration/scripts/maintain.py --stack kotlin",
+    "calibration/.venv/bin/python requests/run.py cleanup"
+   ],
+   "warm": "warm_timing.json",
+   "burstTypes": [
+    "address.createUserAddress",
+    "payment.createCreditCardPaymentInformation",
+    "discount.registerCoupon",
+    "adminNewPrice",
+    "adminCreateVariant",
+    "adminCreateProduct",
+    "catalog.createCategory",
+    "inventory.createProductItemBatch",
+    "media.uploadMedia",
+    "discount.createDiscount",
+    "discount.createCoupon",
+    "tax.createTaxRate",
+    "tax.createTaxRateVersion",
+    "shipment.createShipmentMethod",
+    "address.createVendorAddress"
+   ]
+  },
+  {
+   "plan": "fo_w1.json",
+   "name": "fo_w1",
+   "config": "on",
+   "block": "4b",
+   "rateLevel": "factorial",
+   "durationS": 1490,
+   "prep": [
+    "calibration/.venv/bin/python calibration/scripts/maintain.py --stack kotlin",
+    "calibration/.venv/bin/python requests/run.py stock"
+   ],
+   "warm": "warm_timing.json",
+   "burstTypes": [
+    "foOrder.i1q1c1INVs60",
+    "foOrder.i1q1c1PREs60",
+    "foOrder.i1q1c1CCs60"
+   ]
+  },
+  {
+   "plan": "fo_w2.json",
+   "name": "fo_w2",
+   "config": "on",
+   "block": "4b",
+   "rateLevel": "factorial",
+   "durationS": 1490,
+   "prep": [
+    "calibration/.venv/bin/python calibration/scripts/maintain.py --stack kotlin",
+    "calibration/.venv/bin/python requests/run.py stock"
+   ],
+   "warm": "warm_timing.json",
+   "burstTypes": [
+    "foOrder.i1q1c1INVs60",
+    "foOrder.i1q1c1PREs60",
+    "foOrder.i1q1c1CCs60"
+   ]
+  },
+  {
+   "plan": "fo_w3.json",
+   "name": "fo_w3",
+   "config": "on",
+   "block": "4b",
+   "rateLevel": "factorial",
+   "durationS": 1140,
+   "prep": [
+    "calibration/.venv/bin/python calibration/scripts/maintain.py --stack kotlin",
+    "calibration/.venv/bin/python requests/run.py stock"
+   ],
+   "warm": "warm_timing.json",
+   "burstTypes": [
+    "foOrder.i1q1c1INVs60",
+    "foOrder.i1q1c1PREs60",
+    "foOrder.i1q1c1CCs60"
+   ]
+  },
+  {
+   "plan": "latency_w1.json",
+   "name": "latency_w1",
+   "config": "on",
+   "block": 5,
+   "rateLevel": "latency",
+   "durationS": 1420,
+   "prep": [
+    "calibration/.venv/bin/python calibration/scripts/maintain.py --stack kotlin",
+    "calibration/.venv/bin/python requests/run.py prep --n 400",
+    "calibration/.venv/bin/python requests/run.py cleanup"
+   ],
+   "warm": "warm_timing.json",
+   "burstTypes": [
+    "products",
+    "products.anon",
+    "product",
+    "product.anon",
+    "users",
+    "address",
+    "paymentInformations",
+    "shipmentMethods",
+    "notifications",
+    "wishlistView",
+    "login",
+    "orderTracking",
+    "user.updateUser",
+    "adminUpdateProduct",
+    "catalog.updateProductVariant",
+    "registration",
+    "createShoppingcartItem",
+    "createOrder",
+    "placeOrder",
+    "return.createReturn",
+    "createReview",
+    "addToWishlist",
+    "wishlist.createWishlist",
+    "address.createUserAddress",
+    "payment.createCreditCardPaymentInformation",
+    "discount.registerCoupon",
+    "adminNewPrice",
+    "adminCreateVariant",
+    "adminCreateProduct",
+    "catalog.createCategory",
+    "inventory.createProductItemBatch",
+    "media.uploadMedia",
+    "discount.createDiscount",
+    "discount.createCoupon",
+    "tax.createTaxRate",
+    "tax.createTaxRateVersion",
+    "shipment.createShipmentMethod",
+    "address.createVendorAddress"
+   ],
+   "sampler": "0.1"
+  },
+  {
+   "plan": "mech_off_w1.json",
+   "name": "mech_off_w1",
+   "config": "off",
+   "block": 6,
+   "rateLevel": "mid",
+   "durationS": 950,
+   "prep": [
+    "calibration/.venv/bin/python calibration/scripts/maintain.py --stack kotlin"
+   ],
+   "warm": "warm_mech.json",
+   "mechanisms": {
+    "localCopies": false,
+    "entityCache": false,
+    "cacheTtlS": 60
+   },
+   "burstTypes": [
+    "createOrder",
+    "orderTracking.hot",
+    "orderTracking.cold",
+    "wishlistView.hot",
+    "wishlistView.cold",
+    "createOrder.hot"
+   ],
+   "burstScale": 0.5
+  },
+  {
+   "plan": "mech_cc_w1.json",
+   "name": "mech_cc_w1",
+   "config": "off",
+   "block": 6,
+   "rateLevel": "mid",
+   "durationS": 395,
+   "prep": [
+    "calibration/.venv/bin/python calibration/scripts/maintain.py --stack kotlin"
+   ],
+   "warm": "warm_mech.json",
+   "mechanisms": {
+    "localCopies": false,
+    "entityCache": false,
+    "cacheTtlS": 60,
+    "callerCache": "shipment,discount,inventory"
+   },
+   "burstTypes": [
+    "createOrder",
+    "createOrder.hot"
+   ],
+   "burstScale": 0.5
+  },
+  {
+   "plan": "mech_on_w1.json",
+   "name": "mech_on_w1",
+   "config": "off",
+   "block": 6,
+   "rateLevel": "mid",
+   "durationS": 1660,
+   "prep": [
+    "calibration/.venv/bin/python calibration/scripts/maintain.py --stack kotlin",
+    "calibration/.venv/bin/python requests/run.py cleanup"
+   ],
+   "warm": "warm_mech.json",
+   "mechanisms": {
+    "localCopies": true,
+    "entityCache": true,
+    "cacheTtlS": 60,
+    "sharedCache": true
+   },
+   "burstTypes": [
+    "createOrder",
+    "orderTracking.hot",
+    "orderTracking.cold",
+    "wishlistView.hot",
+    "wishlistView.cold",
+    "discount.createDiscount",
+    "discount.updateDiscount",
+    "discount.createCoupon",
+    "adminCreateProduct",
+    "adminUpdateProduct",
+    "adminCreateVariant",
+    "adminNewPrice",
+    "shipment.createShipmentMethod",
+    "shipment.archiveShipmentMethod"
+   ],
+   "burstScale": 0.5
+  },
+  {
+   "plan": "mech_on_w2.json",
+   "name": "mech_on_w2",
+   "config": "on",
+   "block": 6,
+   "rateLevel": "mid",
+   "durationS": 1660,
+   "prep": [
+    "calibration/.venv/bin/python calibration/scripts/maintain.py --stack kotlin",
+    "calibration/.venv/bin/python requests/run.py cleanup"
+   ],
+   "warm": "warm_mech.json",
+   "mechanisms": {
+    "localCopies": true,
+    "entityCache": true,
+    "cacheTtlS": 60,
+    "sharedCache": true
+   },
+   "burstTypes": [
+    "createOrder",
+    "orderTracking.hot",
+    "orderTracking.cold",
+    "wishlistView.hot",
+    "wishlistView.cold",
+    "discount.createDiscount",
+    "discount.updateDiscount",
+    "discount.createCoupon",
+    "adminCreateProduct",
+    "adminUpdateProduct",
+    "adminCreateVariant",
+    "adminNewPrice",
+    "shipment.createShipmentMethod",
+    "shipment.archiveShipmentMethod"
+   ],
+   "burstScale": 0.5
+  },
+  {
+   "plan": "mech_cc_w2.json",
+   "name": "mech_cc_w2",
+   "config": "on",
+   "block": 6,
+   "rateLevel": "mid",
+   "durationS": 395,
+   "prep": [
+    "calibration/.venv/bin/python calibration/scripts/maintain.py --stack kotlin"
+   ],
+   "warm": "warm_mech.json",
+   "mechanisms": {
+    "localCopies": false,
+    "entityCache": false,
+    "cacheTtlS": 60,
+    "callerCache": "shipment,discount,inventory"
+   },
+   "burstTypes": [
+    "createOrder",
+    "createOrder.hot"
+   ],
+   "burstScale": 0.5
+  },
+  {
+   "plan": "atload_w1.json",
+   "name": "atload_w1",
+   "config": "off",
+   "block": 7,
+   "rateLevel": "sessions",
+   "durationS": 1140,
+   "prep": [
+    "calibration/.venv/bin/python calibration/scripts/maintain.py --stack kotlin",
+    "calibration/.venv/bin/python requests/run.py prep --n 400"
+   ],
+   "warm": "warm_timing.json",
+   "burstTypes": [
+    "products",
+    "product",
+    "users",
+    "address",
+    "paymentInformations",
+    "shipmentMethods",
+    "notifications",
+    "wishlistView",
+    "login",
+    "registration",
+    "createShoppingcartItem",
+    "createOrder",
+    "placeOrder",
+    "orderTracking",
+    "return.createReturn",
+    "createReview",
+    "addToWishlist",
+    "wishlist.createWishlist",
+    "user.updateUser",
+    "address.createUserAddress",
+    "payment.createCreditCardPaymentInformation",
+    "discount.registerCoupon",
+    "adminUpdateProduct",
+    "adminNewPrice",
+    "adminCreateVariant",
+    "adminCreateProduct",
+    "catalog.updateProductVariant",
+    "catalog.createCategory",
+    "inventory.createProductItemBatch",
+    "media.uploadMedia",
+    "discount.createDiscount",
+    "discount.createCoupon",
+    "tax.createTaxRate",
+    "tax.createTaxRateVersion",
+    "shipment.createShipmentMethod",
+    "address.createVendorAddress"
+   ]
+  }
+ ],
+ "totalWindowS": 20830
+}

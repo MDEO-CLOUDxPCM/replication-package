@@ -1,0 +1,2556 @@
+using "../metamodel/domain.mm"
+
+// The objectives and constraints of a realised design (DESIGN.md AB): the model holds plain PCM
+// (base plus realisation, ./realise.mt), the decisions with their trace, and the load profile it
+// is evaluated with. Every design is evaluated by LoadProfile.replications simulations (seeds
+// seed, seed + 1, …; AB26, AB28): the plugin's pcmEvaluate runs SimOxide on the realised model (SPD
+// + HPA, usage streams, the synchronous-path monitoring) with the request below, and every function
+// here combines those results (the plugin caches each per model and request). No value comes from an analytic walk of the model any more, and the plugin
+// interprets nothing: groups, profile, percentiles, failure model, prices and budgets are here.
+//   cost              O1  flat prices of the containers in use (database servers: a price plus
+//                         their cores sized to their busiest bin, AB30), per-core price x the pods
+//                         the HPA ran (ready and starting, over the measured window), per-replica
+//                         overhead x the mean ready pods, caches
+//   failure           O2  failed outcomes per million sessions: the sessions that need an
+//                         unavailable failure source on their synchronous path (the sources of
+//                         §U/§W: a container alone, a change unit's releases over its containers;
+//                         the sessions' container sets are measured, `pathSets`), plus, weighted by
+//                         Reliability.asyncWeight and the business criticality of its process,
+//                         the failed units of the asynchronous work they trigger (event handlers,
+//                         saga steps; not copy maintenance; measured container sets,
+//                         `asyncPathSets`, AB24, AB25)
+//   changeCoupling    O3  static, over the base calls (trace) and the placement (unchanged)
+//   inconsistency     O4  stale reads and writes to other containers per session, over the
+//                         simulated call counts; a read counts with the probability that its
+//                         data changed within the staleness window (simulated write rates, AB23)
+//   latencyBudget     C1  simulated statistic per request type above its budget (the model's
+//                         LatencyBudgetPolicy: statistic, factor x today's statistic under the
+//                         same profile, minimum completions), summed relative excess;
+//                         1000 when the simulation failed or stopped at the pod limit
+//   peakCapacity      C2  the largest per-bin utilisation of the PeakCapacity containers above
+//                         the limit; 1 when the simulation failed
+//   performance       O5  the share of requests slower than their C1 budget, per request type
+//                         weighted by today's completion share (AB27)
+//   cohesion          C3  Σ over the services (classes in one container) and the shared database
+//                         servers of the connected components of their classes in the domain's
+//                         affinity graph − 1 (references, shared referrers, classes accessed together
+//                         by ≥ 2 operations; AB25, AB26)
+//   changeCouplingBound, inconsistencyBound
+//                         O3, O4 as constraints: relative excess over the model's ObjectiveBound
+//                         (factor × today's value; 0 without one; AB30)
+//   inconsistencyLooseBound
+//                         O4 next to minimize inconsistency: relative excess over 2 × today's
+//                         (the ObjectiveBound's reference; DESIGN.md AB31.4)
+//   modularity, replicas, utilisation, peakUtilisation, responseTime, simulationFailed, peakPods,
+//   createdPods, simulationWallMs, failureSync, failureAsync, printFailure, printInconsistency,
+//   printCohesion, cohesionServices, cohesionServers, printPerformance:
+//   reporting
+// What the earlier analytic evaluation computed and Palladio cannot represent (DESIGN.md AB10):
+// the ideal autoscaler (now the simulated HPA), a CPU quota's slowdown under load (the quota's
+// cores run at full speed), the node slowdown of containers sharing a host (no shared host).
+//
+// The part up to "end of the request" is copied verbatim into optimize/domain/detail.fn
+// (core/tools/gen_detail_fn.sh), so that the explorer's detail run gets exactly this request.
+
+// ═══ Helpers ══════════════════════════════════════════════════════════════════════════
+
+record Place(assembly: AssemblyContext, container: ResourceContainer)
+
+// The placement of the model as written: AllocationContexts that the realisation did not make.
+fun placement(): List<Place> {
+    val out = emptyList<Place>()
+    for (ac in AllocationContext.all()) {
+        if (ac.entityName != "realised" && ac.assemblyContext != null && ac.resourceContainer != null) {
+            out.add(Place(ac.assemblyContext!!, ac.resourceContainer!!))
+        }
+    }
+    return out
+}
+
+fun placeOf(places: List<Place>, a: Any?): ResourceContainer? {
+    for (p in places) {
+        if (p.assembly == a) {
+            return p.container
+        }
+    }
+    return null
+}
+
+fun used(places: List<Place>): List<ResourceContainer> {
+    val out = emptyList<ResourceContainer>()
+    for (p in places) {
+        if (!out.includes(p.container)) {
+            out.add(p.container)
+        }
+    }
+    return out
+}
+
+fun msPerTimeUnit(): double {
+    for (d in ArchitectureDecisions.all()) {
+        return d.msPerTimeUnit
+    }
+    return 1000.0
+}
+
+fun realisedOf(c: Any?): RealisedContainer? {
+    for (rc in RealisedContainer.all()) {
+        if (rc.container == c) {
+            return rc
+        }
+    }
+    return null
+}
+
+fun direct(): List<ResourceContainer> {
+    val out = emptyList<ResourceContainer>()
+    for (r in RemoteCalls.all()) {
+        for (c in r.direct) {
+            out.add(c)
+        }
+    }
+    return out
+}
+
+// Assemblies with a Placement that may sit outside the direct containers (D32).
+fun modules(): List<AssemblyContext> {
+    val d = direct()
+    val out = emptyList<AssemblyContext>()
+    for (p in Placement.all()) {
+        val a = p.allocation.assemblyContext
+        if (a != null && p.candidates.exists((c) => !d.includes(c))) {
+            out.add(a!!)
+        }
+    }
+    return out
+}
+
+fun deployableOf(c: Any?): Deployable? {
+    for (d in Deployable.all()) {
+        if (d.container == c) {
+            return d
+        }
+    }
+    return null
+}
+
+fun sidecarCores(d: Deployable): double {
+    if (d.sidecarCores == null) {
+        return 1.0
+    }
+    return d.sidecarCores!! * 1.0
+}
+
+// ═══ The evaluation request (DESIGN.md AB1, AB10) ═══════════════════════════════════════
+
+// The load profile of the model (one per model); without one the model's own load, 120 s
+// warm-up, 120 s window.
+fun warmUp(): double {
+    for (p in LoadProfile.all()) {
+        return p.warmUpSeconds
+    }
+    return 120.0
+}
+
+fun endTime(): double {
+    for (p in LoadProfile.all()) {
+        return p.endSeconds
+    }
+    return 240.0
+}
+
+fun simSeed(): int {
+    for (p in LoadProfile.all()) {
+        return p.seed ?? 1
+    }
+    return 1
+}
+
+fun usageStreams(): boolean {
+    for (p in LoadProfile.all()) {
+        return p.usageStreams ?? true
+    }
+    return true
+}
+
+fun maxPods(): int {
+    for (p in LoadProfile.all()) {
+        return p.maxPods ?? 400
+    }
+    return 400
+}
+
+// C2's time bins (s).
+fun binSeconds(): double {
+    for (p in PeakCapacity.all()) {
+        return p.binSeconds ?? 10.0
+    }
+    return 10.0
+}
+
+// The per-scenario load profile: every LoadStep, times in seconds.
+fun loadSteps(): List<PcmLoadStep> {
+    val out = emptyList<PcmLoadStep>()
+    for (p in LoadProfile.all()) {
+        for (s in p.steps) {
+            out.add(PcmLoadStep(s.scenario, s.seconds, s.factor))
+        }
+    }
+    return out
+}
+
+// The HPA's limits of a Deployable's group (AB10): maxReplicas absent: 50.
+fun maxOf(a: Autoscaling): int {
+    return a.maxReplicas ?? 50
+}
+
+fun minOf(a: Autoscaling): int {
+    var n = a.minReplicas ?? 1
+    if (n < 1) {
+        n = 1
+    }
+    if (n > maxOf(a)) {
+        n = maxOf(a)
+    }
+    return n
+}
+
+fun initialOf(a: Autoscaling): int {
+    var n = a.initialReplicas ?? minOf(a)
+    if (n < minOf(a)) {
+        n = minOf(a)
+    }
+    if (n > maxOf(a)) {
+        n = maxOf(a)
+    }
+    return n
+}
+
+// The scaling groups (AB2): every Deployable with an Autoscaling whose container holds a
+// component of the model as written. The pod is the realised container (one replica: ⌈q⌉ cores,
+// at the limit speed q/⌈q⌉, or at full speed with a quota); the HPA measures its CPU against a
+// request of ⌈q⌉ of the pod's cores (limit speed: busy cores / cores), or of q full-speed cores
+// with a quota.
+fun scalingGroups(): List<PcmScalingGroup> {
+    val u = used(placement())
+    val out = emptyList<PcmScalingGroup>()
+    for (d in Deployable.all()) {
+        val a = d.autoscaling
+        if (a != null && u.includes(d.container)) {
+            var request = d.cpuPerReplica.ceil() * 1.0
+            if (d.quota != null && d.quota!!) {
+                request = d.cpuPerReplica
+            }
+            out.add(PcmScalingGroup(d.container, minOf(a!!), maxOf(a!!), a!!.targetUtilisation, initialOf(a!!),
+                a!!.startupSeconds ?? 30.0, a!!.scaleDownSeconds ?? -1.0, request, ""))
+        }
+    }
+    return out
+}
+
+// The sidecar of a scaling group is not scaled (Palladio has no pod of two containers that one
+// HPA scales; AB10): it gets the cores of maxReplicas pods, so it never limits, as the earlier
+// dynamic translation did (H3). Its rate stays the realised one (a literal: the base rate).
+fun overrides(): List<PcmOverride> {
+    val u = used(placement())
+    val out = emptyList<PcmOverride>()
+    for (d in Deployable.all()) {
+        val a = d.autoscaling
+        if (a != null && u.includes(d.container)) {
+            val rc = realisedOf(d.container)
+            if (rc != null && rc!!.sidecar != null) {
+                for (s in rc!!.sidecar!!.activeResourceSpecifications) {
+                    if (s.activeResourceType == ProcessingResourceType.CPU) {
+                        val n = (maxOf(a!!) * sidecarCores(d)).round() as int
+                        out.add(PcmOverride(s, n, (s.processingRate ?? "1").toDouble()))
+                    }
+                }
+            }
+        }
+    }
+    return out
+}
+
+// The percentiles every response-time statistic is asked for (C1 reads the policy's, AB20).
+fun percentiles(): List<double> {
+    val out = emptyList<double>()
+    out.add(50.0)
+    out.add(90.0)
+    out.add(95.0)
+    out.add(99.0)
+    return out
+}
+
+// The simulation's limits: a deterministic event limit (beyond: capped, infeasible) and a generous
+// wall-clock limit as a safety net only (a wall-clock stop would make feasibility depend on the
+// machine's load).
+fun maxEvents(): long {
+    return 200000000
+}
+
+fun wallSeconds(): double {
+    return 900.0
+}
+
+// Kubernetes' HPA controller settings (its defaults): sync period, tolerance, scale-down
+// stabilisation, CPU initialisation period (s).
+fun hpaSync(): double {
+    return 15.0
+}
+
+fun hpaTolerance(): double {
+    return 0.1
+}
+
+fun hpaDownscale(): double {
+    return 300.0
+}
+
+fun hpaCpuInitialisation(): double {
+    return 300.0
+}
+
+// The one simulation of the design (cached by the plugin per model and request). Every argument is
+// given, so the request does not depend on the plugin's defaults.
+fun evaluation(): PcmEvaluation {
+    return evaluationWith(simSeed())
+}
+
+// The simulations of one evaluation (DESIGN.md AB26): LoadProfile.replications (absent: 1) runs of the
+// same request with the load profile's seed, seed + 1, …; each is cached by the plugin. The objectives
+// and constraints combine them (O1, O2, O4 and the reporting means: the mean; C1: the mean statistic per
+// request type; C2: the maximum; O5: the mean statistic per request type).
+fun replications(): int {
+    for (l in LoadProfile.all()) {
+        return l.replications ?? 1
+    }
+    return 1
+}
+
+// The k-th simulation (k = 0 is evaluation()).
+fun evaluationAt(k: int): PcmEvaluation {
+    return evaluationWith(simSeed() + k)
+}
+
+// All simulations of the evaluation, fetched once per metric (every pcmEvaluate call returns the whole
+// result, even from the plugin's cache).
+fun evaluations(): List<PcmEvaluation> {
+    val es = emptyList<PcmEvaluation>()
+    var k = 0
+    while (k < replications()) {
+        es.add(evaluationAt(k))
+        k = k + 1
+    }
+    return es
+}
+
+// The same request with another seed of the load profile.
+fun evaluationWith(seed: int): PcmEvaluation {
+    return pcmEvaluate(end = endTime(), warmUp = warmUp(), binSeconds = binSeconds(), msPerTimeUnit = msPerTimeUnit(),
+        profile = loadSteps(), groups = scalingGroups(), services = emptyList<PcmServiceGroup>(), overrides = overrides(),
+        percentiles = percentiles(), detailCalls = false, histogramPerDecade = 10, seed = seed,
+        usageStreams = usageStreams(), fixDoubleResume = true, maxPods = maxPods(), hpaSyncSeconds = hpaSync(),
+        hpaTolerance = hpaTolerance(), hpaDownscaleStabilisationSeconds = hpaDownscale(),
+        hpaCpuInitialisationSeconds = hpaCpuInitialisation(), maxPathSets = 10000, wallSeconds = wallSeconds(),
+        maxEvents = maxEvents(), asyncPaths = true, asyncIgnoreForks = copyForks())
+}
+
+// The request printed for the explorer's detail run (core/tools/detail_request.py turns the lines into
+// `palladio-sim-service detail`'s request JSON): entity names of containers and scenarios.
+fun detailRequest(): double {
+    println("REQUEST warmUpS=" + warmUp() + " durationS=" + endTime() + " binS=" + binSeconds() + " timeUnitMs="
+        + msPerTimeUnit() + " seed=" + simSeed() + " usageStreams=" + usageStreams() + " fixDoubleResume=true maxPods="
+        + maxPods() + " hpaSyncS=" + hpaSync() + " hpaTolerance=" + hpaTolerance() + " hpaDownscaleStabilisationS="
+        + hpaDownscale() + " hpaCpuInitialisationS=" + hpaCpuInitialisation() + " maxPathSets=10000 wallSeconds="
+        + wallSeconds() + " maxEvents=" + maxEvents() + " histogramPerDecade=10 asyncPaths=true")
+    println("IGNOREFORKS " + copyForks().size())
+    for (x in percentiles()) {
+        println("PERCENTILE " + x)
+    }
+    printOverrides()
+    printSteps()
+    return printGroups()
+}
+
+// (One loop per function: the script compiler cannot merge locals of two model or record types at
+// a loop head.)
+fun printGroups(): double {
+    var n = 0.0
+    for (g in scalingGroups()) {
+        val c = g.container as ResourceContainer
+        println("GROUP " + c.entityName + " " + g.minReplicas + " " + g.maxReplicas + " " + g.targetUtilisation + " "
+            + g.initialReplicas + " " + g.startupSeconds + " " + g.scaleDownSeconds + " " + g.cpuRequest)
+        n = n + 1.0
+    }
+    return n
+}
+
+fun printOverrides() {
+    for (o in overrides()) {
+        val spec = o.resource as ProcessingResourceSpecification
+        println("OVERRIDE " + spec.resourceContainer!!.entityName + " " + o.replicas + " " + o.rate)
+    }
+}
+
+fun printSteps() {
+    for (s in loadSteps()) {
+        var name = "*"
+        if (s.scenario != null) {
+            name = (s.scenario as UsageScenario).entityName ?? "*"
+        }
+        println("STEP " + name + " " + s.time + " " + s.factor)
+    }
+}
+
+// The forks that only maintain copies (AB25): the asynchronous fork of every realised Notification
+// of a copy feed's writer (ArchitectureDecisions.feedNotifications: one delivery per copy it feeds).
+// Their failures delay a copy (O4's staleness), they lose no business step, so the measurement of
+// asynchronous work does not follow them (pcmEvaluate's asyncIgnoreForks).
+fun copyForks(): List<Any?> {
+    val notes = emptyList<Any?>()
+    for (ad in ArchitectureDecisions.all()) {
+        for (n in ad.feedNotifications) {
+            notes.add(n)
+        }
+    }
+    val out = emptyList<Any?>()
+    for (rn in RealisedNotification.all()) {
+        if (rn.notification != null && notes.includes(rn.notification!!) && !out.includes(rn.fork)) {
+            out.add(rn.fork)
+        }
+    }
+    return out
+}
+
+// ═══ end of the request ═══════════════════════════════════════════════════════════════
+
+fun failed(e: PcmEvaluation): boolean {
+    return e.failed || e.capped || e.timedOut
+}
+
+// Whether one of the evaluation's simulations failed (then the design is infeasible).
+fun anyFailed(es: List<PcmEvaluation>): boolean {
+    for (e in es) {
+        if (failed(e)) {
+            return true
+        }
+    }
+    return false
+}
+
+fun simulationFailed(): double {
+    if (anyFailed(evaluations())) {
+        return 1.0
+    }
+    return 0.0
+}
+
+// The CPU of container c in the simulation's statistics.
+fun cpuStat(e: PcmEvaluation, c: Any?): PcmResourceStat? {
+    for (s in e.resources) {
+        if (s.container == c && s.kind == "CPU") {
+            return s
+        }
+    }
+    return null
+}
+
+// The pods of an autoscaled container, ready or starting, averaged over the window (the cost
+// basis: replica-core-seconds / its cores per pod / window).
+fun podsOf(e: PcmEvaluation, c: Any?): double {
+    val s = cpuStat(e, c)
+    if (s == null || s!!.cores <= 0.0 || e.windowSeconds <= 0.0) {
+        return 1.0
+    }
+    return s!!.replicaCoreSeconds / s!!.cores / e.windowSeconds
+}
+
+fun readyPodsOf(e: PcmEvaluation, c: Any?): double {
+    val s = cpuStat(e, c)
+    if (s == null) {
+        return 1.0
+    }
+    return s!!.meanReadyReplicas
+}
+
+// The value of percentile `pct` in a statistic's percentilesMs (aligned with e.percentiles); 0
+// when it was not asked for.
+fun percentileOf(e: PcmEvaluation, xs: ReadonlyList<double>, pct: double): double {
+    var i = 0
+    var at = -1
+    for (q in e.percentiles) {
+        if (q == pct) {
+            at = i
+        }
+        i = i + 1
+    }
+    var j = 0
+    var v = 0.0
+    for (x in xs) {
+        if (j == at) {
+            v = x
+        }
+        j = j + 1
+    }
+    return v
+}
+
+// ═══ O1, reporting ════════════════════════════════════════════════════════════════════
+
+// As before AB with the simulated pods in place of the ideal autoscaler's count (AB2): a
+// ContainerPrice is per pod (with perCore, AB30: per container plus its cores sized to its peak, sizedCores); a Deployable's cores are q per pod (its CPU limit, as the cost rule
+// counted them: replicas × cpuPerReplica), its per-replica overhead per ready pod.
+fun cost(): double {
+    val es = evaluations()
+    var sum = 0.0
+    for (e in es) {
+        sum = sum + costOf(e)
+    }
+    return sum / es.size()
+}
+
+fun costOf(e: PcmEvaluation): double {
+    val places = placement()
+    var perContainer = 1.0
+    var perCore = 0.0
+    var perReplica = 0.0
+    var perCache = 0.0
+    for (cm in CostModel.all()) {
+        perContainer = cm.perContainer
+        perCore = cm.perCore
+        perReplica = cm.perReplicaOverhead
+        perCache = cm.perCache
+    }
+    var total = 0.0
+    for (c in used(places)) {
+        val d = deployableOf(c)
+        var price = -1.0
+        var sized: ContainerPrice? = null
+        for (cm in CostModel.all()) {
+            for (p in cm.prices) {
+                if (p.containers.includes(c)) {
+                    price = p.price
+                    if (p.perCore != null) {
+                        sized = p
+                    }
+                }
+            }
+        }
+        var pods = 1.0
+        var ready = 1.0
+        if (d != null) {
+            if (d!!.autoscaling != null) {
+                pods = podsOf(e, c)
+                ready = readyPodsOf(e, c)
+            } else {
+                pods = d!!.replicas!!.count * 1.0
+                ready = pods
+            }
+        }
+        if (sized != null) {
+            total = total + price + sized!!.perCore!! * sizedCores(e, c, sized!!.minCores ?? 0.0)
+        } else if (price >= 0.0) {
+            total = total + price * pods
+        } else if (d != null) {
+            total = total + perContainer + perCore * pods * d!!.cpuPerReplica + perReplica * ready
+        } else {
+            var cores = 0.0
+            for (s in c.activeResourceSpecifications) {
+                if (s.activeResourceType == ProcessingResourceType.CPU) {
+                    cores = cores + (s.numberOfReplicas ?? 1) * 1.0
+                }
+            }
+            total = total + perContainer + perCore * cores + perReplica
+        }
+    }
+    var caches = 0
+    val idle = inactiveSeffs()
+    val idleCalls = emptyList<Any?>()
+    if (idle.size() > 0) {
+        for (rc in RealisedCall.all()) {
+            if (inactive(idle, rc)) {
+                idleCalls.add(rc.action)
+            }
+        }
+    }
+    for (site in CallSite.all()) {
+        if (idleCalls.size() > 0 && idleCalls.includes(site.`call`)) {
+            continue
+        }
+        val m = site.mechanism
+        if (m is CachedCall) {
+            caches = caches + 1
+        } else if (m is ComposedCall) {
+            val h = (m as ComposedCall).hitRatio
+            if (h != null && h!! > 0.0) {
+                caches = caches + 1
+            }
+        }
+    }
+    return total + perCache * caches
+}
+
+// The cores a container that does not autoscale is provisioned with (AB30): its CPU's busiest bin
+// at PeakCapacity's limit (C2's bins), at least minCores.
+fun sizedCores(e: PcmEvaluation, c: Any?, minCores: double): double {
+    var limit = 1.0
+    for (p in PeakCapacity.all()) {
+        limit = p.limit
+    }
+    var cores = minCores
+    val s = cpuStat(e, c)
+    if (s != null && limit > 0.0 && s!!.cores * s!!.maxBinUtilisation / limit > cores) {
+        cores = s!!.cores * s!!.maxBinUtilisation / limit
+    }
+    return cores
+}
+
+// The mean ready pods of the used Deployables (fixed ones: their count).
+fun replicas(): double {
+    val es = evaluations()
+    var sum = 0.0
+    for (e in es) {
+        sum = sum + replicasOf(e)
+    }
+    return sum / es.size()
+}
+
+fun replicasOf(e: PcmEvaluation): double {
+    val u = used(placement())
+    var sum = 0.0
+    for (d in Deployable.all()) {
+        if (u.includes(d.container)) {
+            if (d.autoscaling != null) {
+                sum = sum + readyPodsOf(e, d.container)
+            } else {
+                sum = sum + d.replicas!!.count * 1.0
+            }
+        }
+    }
+    return sum
+}
+
+// The busiest processing resource over the window.
+fun utilisation(): double {
+    val es = evaluations()
+    var sum = 0.0
+    for (e in es) {
+        sum = sum + utilisationOf(e)
+    }
+    return sum / es.size()
+}
+
+fun utilisationOf(e: PcmEvaluation): double {
+    var max = 0.0
+    for (s in e.resources) {
+        if (s.kind != "DELAY" && s.meanUtilisation > max) {
+            max = s.meanUtilisation
+        }
+    }
+    return max
+}
+
+// The largest over the simulations.
+fun peakPods(): double {
+    var max = 0.0
+    for (e in evaluations()) {
+        if (e.peakPods > max) {
+            max = e.peakPods
+        }
+    }
+    return max
+}
+
+fun createdPods(): double {
+    val es = evaluations()
+    var sum = 0.0
+    for (e in es) {
+        sum = sum + e.createdPods * 1.0
+    }
+    return sum / es.size()
+}
+
+// The simulations' compute time together.
+fun simulationWallMs(): double {
+    var sum = 0.0
+    for (e in evaluations()) {
+        sum = sum + e.wallMs
+    }
+    return sum
+}
+
+// Count-weighted mean response time of the system operations (ms).
+fun responseTime(): double {
+    val es = evaluations()
+    var sum = 0.0
+    for (e in es) {
+        sum = sum + responseTimeOf(e)
+    }
+    return sum / es.size()
+}
+
+fun responseTimeOf(e: PcmEvaluation): double {
+    var sum = 0.0
+    var n = 0.0
+    for (o in e.operations) {
+        sum = sum + o.meanMs * o.count
+        n = n + o.count
+    }
+    if (n > 0.0) {
+        return sum / n
+    }
+    return 0.0
+}
+
+// Per system operation one line: OP <signature> <count> <mean ms> <p50 ms> <p90 ms> <p95 ms> <p99 ms>
+// (budgets: core/tools/gen_domain_budgets.sh).
+fun printOperations(): double {
+    val e = evaluation()
+    if (failed(e)) {
+        println("FAILED " + e.message)
+    }
+    var n = 0.0
+    for (o in e.operations) {
+        val s = o.signature as OperationSignature
+        println("OP " + s.entityName + " " + o.count + " " + o.meanMs + " " + percentileOf(e, o.percentilesMs, 50.0) + " "
+            + percentileOf(e, o.percentilesMs, 90.0) + " " + percentileOf(e, o.percentilesMs, 95.0) + " "
+            + percentileOf(e, o.percentilesMs, 99.0))
+        n = n + 1.0
+    }
+    return n
+}
+
+// ═══ C1, C2 ═══════════════════════════════════════════════════════════════════════════
+
+// With several simulations (replications) each request type's statistic is their mean, against the
+// references averaged over the same seeds (core/tools/gen_domain_budgets.sh SEEDS, AB26).
+fun latencyBudget(): double {
+    val es = evaluations()
+    if (anyFailed(es)) {
+        return 1000.0
+    }
+    return operationBudgetViolation(es)
+}
+
+// C1's policy (LatencyBudgetPolicy, AB20): the statistic (mean, p50, p90, p95, p99), the factor on the
+// reference's statistic and the reference completions a budget needs. Without a policy: the p95
+// against OperationLatencyBudget.ms (factor ≤ 0 marks it).
+fun policyStatistic(): string {
+    for (p in LatencyBudgetPolicy.all()) {
+        return p.statistic
+    }
+    return "p95"
+}
+
+fun policyFactor(): double {
+    for (p in LatencyBudgetPolicy.all()) {
+        return p.factor
+    }
+    return -1.0
+}
+
+fun policyMinCompletions(): int {
+    for (p in LatencyBudgetPolicy.all()) {
+        return p.minCompletions
+    }
+    return 0
+}
+
+// A response-time statistic of a measurement (ms).
+fun statisticOf(e: PcmEvaluation, o: PcmResponseStat, stat: string): double {
+    if (stat == "mean") {
+        return o.meanMs
+    }
+    if (stat == "p50") {
+        return percentileOf(e, o.percentilesMs, 50.0)
+    }
+    if (stat == "p90") {
+        return percentileOf(e, o.percentilesMs, 90.0)
+    }
+    if (stat == "p99") {
+        return percentileOf(e, o.percentilesMs, 99.0)
+    }
+    return percentileOf(e, o.percentilesMs, 95.0)
+}
+
+// The reference's statistic of a budget (≤ 0 when the model has none).
+fun referenceOf(b: OperationLatencyBudget, stat: string): double {
+    if (stat == "mean") {
+        return b.referenceMeanMs ?? -1.0
+    }
+    if (stat == "p50") {
+        return b.referenceP50Ms ?? -1.0
+    }
+    if (stat == "p90") {
+        return b.referenceP90Ms ?? -1.0
+    }
+    if (stat == "p99") {
+        return b.referenceP99Ms ?? -1.0
+    }
+    return b.referenceP95Ms ?? -1.0
+}
+
+// The budget of a request type under the policy (ms; ≤ 0: none).
+fun budgetOf(b: OperationLatencyBudget, stat: string, factor: double, minCount: int): double {
+    if (factor <= 0.0) {
+        return b.ms
+    }
+    if ((b.referenceCount ?? 0) < minCount) {
+        return -1.0
+    }
+    val r = referenceOf(b, stat)
+    if (r <= 0.0) {
+        return -1.0
+    }
+    return factor * r
+}
+
+// Per request type (OperationLatencyBudget, AB6, AB20): the system operation's statistic against
+// its budget. (A function of its own: the script compiler cannot merge the two budget classes at a
+// loop head.)
+fun operationBudgetViolation(es: List<PcmEvaluation>): double {
+    val stat = policyStatistic()
+    val factor = policyFactor()
+    val minCount = policyMinCompletions()
+    var sum = 0.0
+    for (b in OperationLatencyBudget.all()) {
+        val budget = budgetOf(b, stat, factor, minCount)
+        if (budget > 0.0) {
+            val v = meanOperationStatistic(es, b.operation, stat) / budget - 1.0
+            if (v > 0.0) {
+                sum = sum + v
+            }
+        }
+    }
+    return sum
+}
+
+// The mean over the simulations of a request type's statistic (a simulation without completions
+// counts 0, as one simulation did before).
+fun meanOperationStatistic(es: List<PcmEvaluation>, op: OperationSignature, stat: string): double {
+    var sum = 0.0
+    for (e in es) {
+        sum = sum + operationStatistic(e, op, stat)
+    }
+    return sum / es.size()
+}
+
+// The statistic of a request type (the largest over the system operations with its signature; 0
+// without completions).
+fun operationStatistic(e: PcmEvaluation, op: OperationSignature, stat: string): double {
+    var p = 0.0
+    for (o in e.operations) {
+        if (o.signature == op && o.count > 0) {
+            val q = statisticOf(e, o, stat)
+            if (q > p) {
+                p = q
+            }
+        }
+    }
+    return p
+}
+
+// The largest per-bin utilisation of the PeakCapacity containers' processing resources (AB6).
+// With several simulations: the largest over them.
+fun peakUtilisation(): double {
+    return peakUtilisationOver(evaluations())
+}
+
+fun peakUtilisationOver(es: List<PcmEvaluation>): double {
+    var max = 0.0
+    for (e in es) {
+        val u = peakUtilisationOf(e)
+        if (u > max) {
+            max = u
+        }
+    }
+    return max
+}
+
+fun peakUtilisationOf(e: PcmEvaluation): double {
+    var max = 0.0
+    for (p in PeakCapacity.all()) {
+        for (s in e.resources) {
+            if (s.kind != "DELAY" && p.containers.exists((x) => x == s.container) && s.maxBinUtilisation > max) {
+                max = s.maxBinUtilisation
+            }
+        }
+    }
+    return max
+}
+
+fun peakCapacity(): double {
+    val es = evaluations()
+    if (anyFailed(es)) {
+        return 1.0
+    }
+    var limit = 1.0
+    for (p in PeakCapacity.all()) {
+        limit = p.limit
+    }
+    val v = peakUtilisationOver(es) - limit
+    if (v > 0.0) {
+        return v
+    }
+    return 0.0
+}
+
+// Failure sources (common causes, DESIGN.md §U, §W): a source is down with probability u and then
+// takes down every container of its set; sources are independent. The simulation measures per
+// session which containers its synchronous path used (pcmEvaluate's pathSets); O2 below.
+//   - every used container alone: processUnavailability (application container) or
+//     serverUnavailability (directly reached container, a database server);
+//   - every change unit's releases, u = changes · changeFailureRate · restoreHours / periodHours,
+//     over the containers holding its components. On the directly reached ones they count with
+//     tenantShare κ: a source κ·u over the unit's application and direct containers and one
+//     (1 − κ)·u over its application containers only; κ = 1 is one source.
+// Sources with the same container set add up. One release of a unit is counted once per session,
+// however many of its containers the session needs (§W).
+record FailureSource(id: double, size: double, u: double)
+
+record SourceMember(id: double, container: Any?)
+
+record FailureModel(sources: List<FailureSource>, members: List<SourceMember>)
+
+fun addSource(srcs: List<FailureSource>, members: List<SourceMember>, set: List<Any?>, u: double) {
+    if (set.size() == 0 || u <= 0.0) {
+        return
+    }
+    for (s in srcs) {
+        if (s.size == set.size() * 1.0) {
+            var same = true
+            for (c in set) {
+                if (!members.exists((m) => m.id == s.id && m.container == c)) {
+                    same = false
+                }
+            }
+            if (same) {
+                s.u = s.u + u
+                return
+            }
+        }
+    }
+    val id = srcs.size() * 1.0
+    srcs.add(FailureSource(id, set.size() * 1.0, u))
+    for (c in set) {
+        members.add(SourceMember(id, c))
+    }
+}
+
+fun failureModel(): FailureModel {
+    val places = placement()
+    val d = direct()
+    val mods = modules()
+    var cfr = 0.0
+    var restore = 0.0
+    var period = 1.0
+    var uProc = 0.0
+    var uDb = 0.0
+    var kappa = 0.0
+    for (r in Reliability.all()) {
+        cfr = r.changeFailureRate
+        restore = r.restoreHours
+        period = r.periodHours
+        uProc = r.processUnavailability
+        uDb = r.serverUnavailability
+        kappa = r.tenantShare
+    }
+    val hosts = emptyList<ResourceContainer>()
+    for (m in mods) {
+        val c = placeOf(places, m)
+        if (c != null && !hosts.includes(c!!)) {
+            hosts.add(c!!)
+        }
+    }
+    val srcs = emptyList<FailureSource>()
+    val members = emptyList<SourceMember>()
+    val counted = emptyList<Any?>()
+    if (Reliability.all().size() > 0) {
+        for (c in used(places)) {
+            if (d.includes(c) || hosts.includes(c)) {
+                counted.add(c)
+                val alone = emptyList<Any?>()
+                alone.add(c)
+                if (d.includes(c)) {
+                    addSource(srcs, members, alone, uDb)
+                } else {
+                    addSource(srcs, members, alone, uProc)
+                }
+            }
+        }
+        for (unit in ChangeUnit.all()) {
+            val u = unit.changes * cfr * restore / period
+            val apps = emptyList<Any?>()
+            val all = emptyList<Any?>()
+            for (a in unit.components) {
+                val c = placeOf(places, a)
+                if (c != null && counted.includes(c!!) && !all.includes(c!!)) {
+                    all.add(c!!)
+                    if (!d.includes(c!!)) {
+                        apps.add(c!!)
+                    }
+                }
+            }
+            if (apps.size() == all.size()) {
+                addSource(srcs, members, all, u)
+            } else {
+                addSource(srcs, members, all, kappa * u)
+                addSource(srcs, members, apps, (1.0 - kappa) * u)
+            }
+        }
+    }
+    return FailureModel(srcs, members)
+}
+
+// ═══ Objectives as constraints (AB30) ═════════════════════════════════════════════════
+
+// The relative excess of `value` over the model's ObjectiveBound for `objective` (factor ×
+// reference); 0 without a bound. A run that optimises against today's cut minimises some objectives
+// and keeps the others at most at today's level with these constraints (optimize/domain/
+// against-today-*.config); a failed simulation is C1's.
+fun boundOf(objective: string): ObjectiveBound? {
+    for (b in ObjectiveBound.all()) {
+        if (b.objective == objective) {
+            return b
+        }
+    }
+    return null
+}
+
+fun excessOver(b: ObjectiveBound, value: double): double {
+    return excessOverLimit(b.factor * b.reference, value)
+}
+
+fun excessOverLimit(limit: double, value: double): double {
+    if (limit <= 0.0) {
+        if (value > 0.0) {
+            return value
+        }
+        return 0.0
+    }
+    val v = value / limit - 1.0
+    if (v > 0.0) {
+        return v
+    }
+    return 0.0
+}
+
+fun changeCouplingBound(): double {
+    val b = boundOf("changeCoupling")
+    if (b == null) {
+        return 0.0
+    }
+    return excessOver(b!!, changeCoupling())
+}
+
+fun inconsistencyBound(): double {
+    val b = boundOf("inconsistency")
+    if (b == null) {
+        return 0.0
+    }
+    return excessOver(b!!, inconsistency())
+}
+
+// With O4 an objective: cuts off the corner of designs at several times today's O4 (AB31.4: half of the
+// population went there), at 2 × today's instead of the bound's factor.
+fun inconsistencyLooseBound(): double {
+    val b = boundOf("inconsistency")
+    if (b == null) {
+        return 0.0
+    }
+    return excessOverLimit(2.0 * b!!.reference, inconsistency())
+}
+
+// ═══ O2 ═══════════════════════════════════════════════════════════════════════════════
+
+// Failed outcomes per million measured sessions (DESIGN.md AB13, AB24, AB25):
+//   O2 = 10⁶ (F_sync + w F_async) / N
+// F_sync: the simulation returns per scenario the distinct container sets of the sessions'
+// synchronous paths with their counts (pathSets); a session fails unless every failure source
+// that its set touches (a source touches a set when one of its containers is in it) is up:
+// Σ_sets count (1 − Π_{s touched} (1 − u_s)), over the scenarios; N their sessions.
+// Exact for independent sources (the O2 before AB24).
+// F_async (asyncFailures): the asynchronous work done on the sessions' behalf, measured by the
+// simulation (pcmEvaluate's asyncPathSets, AB25.6). A trigger is a run of a SEFF that forks
+// asynchronously in its own steps (a publication of domain events, a fire-and-forget call, a
+// background orchestration) outside other asynchronous work; its unit is everything those forks
+// start, transitively (event handlers, saga steps, callbacks), so a choreographed saga is one unit
+// like an orchestrated one. Forks that only maintain copies (copyForks) are not followed
+// (asyncIgnoreForks): a retrying broker only delays them, and the staleness is O4's. The plugin
+// returns per (scenario, trigger, context, containers) the completed units Q in the window; a unit
+// fails when a source is down that touches its containers and none of the session's context (the
+// containers on the session's synchronous path when the work started: their outage fails the
+// session, which F_sync counts already, and an outage lasts far longer than a session):
+//   F_async = Σ_Q c_Q m_Q (1 − Π_{s touches containers_Q, not context_Q} (1 − u_s)),
+// c_Q the business criticality of the trigger's process (criticalityOf, domain.mm
+// Process.criticality), m_Q its count. Each source counts once per unit (§W). w =
+// Reliability.asyncWeight (absent: 0), a global factor. Without the measurement (a plugin before
+// revision 4: asyncPathsMeasured false) F_async is 0 and a warning is printed.
+fun failure(): double {
+    return failureOf(asyncWeight(), false)
+}
+
+// The synchronous term alone (O2 before AB24) and the asynchronous term (criticality-weighted,
+// without asyncWeight; reporting).
+fun failureSync(): double {
+    return failureOf(0.0, false)
+}
+
+fun failureAsync(): double {
+    val es = evaluations()
+    val fm = failureModel()
+    var sum = 0.0
+    for (e in es) {
+        val n = sessions(e)
+        if (n > 0.0) {
+            sum = sum + 1000000.0 * asyncFailures(fm, asyncUnits(e), false) / n
+        }
+    }
+    return sum / es.size()
+}
+
+// One line per unit of asynchronous work and the totals (harness evaluate, one thread):
+//   O2 unit <assembly> <service of X> c=<criticality> runs=<n_T> p=<failure probability of a run>
+//       new=<container:share of runs, for the containers of W_T with a source not touching C_T>
+//   O2 total sessions=<N> sync=<ppm> async=<ppm, criticality-weighted> weight=<w> o2=<ppm>
+fun printFailure(): double {
+    return failureOf(asyncWeight(), true)
+}
+
+fun asyncWeight(): double {
+    for (r in Reliability.all()) {
+        if (r.asyncWeight != null) {
+            return r.asyncWeight!!
+        }
+    }
+    return 0.0
+}
+
+// The mean over the simulations.
+fun failureOf(w: double, print: boolean): double {
+    val es = evaluations()
+    var sum = 0.0
+    for (e in es) {
+        sum = sum + failureAt(e, w, print)
+    }
+    return sum / es.size()
+}
+
+fun failureAt(e: PcmEvaluation, w: double, print: boolean): double {
+    val fm = failureModel()
+    var fail = 0.0
+    var total = 0.0
+    for (ps in e.pathSets) {
+        fail = fail + ps.count * (1.0 - upProbability(fm, ps))
+        total = total + ps.count
+    }
+    var async = 0.0
+    if (w > 0.0 || print) {
+        async = asyncFailures(fm, asyncUnits(e), print)
+    }
+    if (print) {
+        println("O2 total sessions=" + total + " sync=" + 1000000.0 * fail / total + " async=" + 1000000.0 * async / total
+            + " weight=" + w + " o2=" + 1000000.0 * (fail + w * async) / total)
+    }
+    if (total > 0.0) {
+        return 1000000.0 * (fail + w * async) / total
+    }
+    return 0.0
+}
+
+// Π (1 − u_s) over the sources with a container in `containers`.
+fun upProbability(fm: FailureModel, ps: PcmPathSet): double {
+    val touched = emptyList<double>()
+    for (c in ps.containers) {
+        for (m in fm.members) {
+            if (m.container == c && !touched.includes(m.id)) {
+                touched.add(m.id)
+            }
+        }
+    }
+    var up = 1.0
+    for (s in fm.sources) {
+        if (touched.includes(s.id)) {
+            up = up * (1.0 - s.u)
+        }
+    }
+    return up
+}
+
+// The ids of the sources with a container in `cs`.
+fun touchedSources(fm: FailureModel, cs: List<Any?>): List<double> {
+    val touched = emptyList<double>()
+    for (m in fm.members) {
+        if (!touched.includes(m.id) && m.container != null && cs.includes(m.container!!)) {
+            touched.add(m.id)
+        }
+    }
+    return touched
+}
+
+// The business criticality of the asynchronous work a SEFF starts (AB25): the largest
+// Process.criticality of the processes whose trigger, step or compensation is an operation the
+// SEFF runs (operationsOf); a process without one, and work of no process, takes
+// Domain.defaultCriticality (absent, or no domain: 1).
+fun criticalityOf(seff: ResourceDemandingSEFF): double {
+    var dflt = 1.0
+    for (d in Domain.all()) {
+        if (d.defaultCriticality != null) {
+            dflt = d.defaultCriticality!!
+        }
+    }
+    val ops = operationsOf(seff)
+    var c = -1.0
+    for (p in Process.all()) {
+        if (ops.includes(p.trigger) || p.steps.exists((o) => ops.includes(o)) || p.compensations.exists((o) => ops.includes(o))) {
+            var pc = dflt
+            if (p.criticality != null) {
+                pc = p.criticality!!
+            }
+            if (pc > c) {
+                c = pc
+            }
+        }
+    }
+    if (c < 0.0) {
+        return dflt
+    }
+    return c
+}
+
+// The domain operations a SEFF runs: those it describes (Operation.seffs: the operation's own SEFF
+// and the request types it is the root of) and those whose access part it is (an Access of the
+// operation calls its signature, e.g. `<operation>_write` in the accessed class's component).
+fun operationsOf(seff: ResourceDemandingSEFF): List<Operation> {
+    val out = emptyList<Operation>()
+    val sig = seff.describedService
+    for (op in Operation.all()) {
+        if (op.seffs.includes(seff) || op.accesses.exists((a) => a.actions.exists((x) => x.calledService == sig))) {
+            out.add(op)
+        }
+    }
+    return out
+}
+
+// A unit of asynchronous work as F_async counts it (one measured entry): its name (scenario,
+// assembly and service of the trigger), the trigger's criticality, the completed units with these
+// sets, the session's context and the containers the work touched.
+record AsyncUnit(name: string, criticality: double, count: double, context: List<Any?>, containers: List<Any?>)
+
+// The units of asynchronous work of the evaluated design, the one source of F_async: pcmEvaluate's
+// asyncPathSets (measured, AB25.6), over the scenarios. Empty, with a warning, when the
+// plugin did not measure them.
+fun asyncUnits(e: PcmEvaluation): List<AsyncUnit> {
+    val out = emptyList<AsyncUnit>()
+    if (!e.asyncPathsMeasured) {
+        println("WARNING O2: the simulation did not measure asynchronous work (asyncPathsMeasured false): O2 is the synchronous term only (DESIGN.md AB25.6)")
+        return out
+    }
+    for (ps in e.asyncPathSets) {
+        val ctx = emptyList<Any?>()
+        for (c in ps.context) {
+            ctx.add(c)
+        }
+        val cs = emptyList<Any?>()
+        for (c in ps.containers) {
+            cs.add(c)
+        }
+        var sc = "-"
+        if (ps.scenario != null) {
+            sc = (ps.scenario as UsageScenario).entityName ?? "?"
+        }
+        val asm = ps.assembly as AssemblyContext
+        val sig = ps.signature as OperationSignature
+        out.add(AsyncUnit(sc + " " + (asm.entityName ?? "?") + " " + (sig.entityName ?? "?"),
+            criticalityOf(ps.seff as ResourceDemandingSEFF), ps.count * 1.0, ctx, cs))
+    }
+    return out
+}
+
+// F_async (above): Σ over the units c m (1 − Π (1 − u_s)) over the sources that touch a container of
+// the unit and none of its session's context.
+fun asyncFailures(fm: FailureModel, units: List<AsyncUnit>, print: boolean): double {
+    var f = 0.0
+    for (u in units) {
+        val known = touchedSources(fm, u.context)
+        val hit = touchedSources(fm, u.containers)
+        var up = 1.0
+        for (s in fm.sources) {
+            if (hit.includes(s.id) && !known.includes(s.id)) {
+                up = up * (1.0 - s.u)
+            }
+        }
+        f = f + u.criticality * u.count * (1.0 - up)
+        if (print) {
+            printUnit(fm, u, known, 1.0 - up)
+        }
+    }
+    return f
+}
+
+// O2 unit <scenario> <assembly> <service> c=<criticality> count=<m> p=<failure probability of a unit>
+//     new=<the unit's containers with a source not touching the context>
+fun printUnit(fm: FailureModel, u: AsyncUnit, known: List<double>, p: double) {
+    var names = ""
+    for (c in u.containers) {
+        val ids = emptyList<Any?>()
+        ids.add(c)
+        if (touchedSources(fm, ids).exists((id) => !known.includes(id))) {
+            if (names != "") {
+                names = names + ","
+            }
+            names = names + ((c as ResourceContainer).entityName ?? "?")
+        }
+    }
+    println("O2 unit " + u.name + " c=" + u.criticality + " count=" + u.count + " p=" + p + " new=" + names)
+}
+
+// ═══ O3 ═══════════════════════════════════════════════════════════════════════════════
+
+record Consumer(callee: Any?, container: Any?, p: double)
+
+fun breakOf(rc: RealisedCall, contract: double): double {
+    if (rc.site != null) {
+        val b = rc.site!!.mechanism.breakProbability
+        if (b != null) {
+            return b!!
+        }
+    }
+    return contract
+}
+
+// The caller of a base call in the change coupling: an orchestrated step's is its orchestrator.
+fun callerOf(rc: RealisedCall, steps: List<RealisedCall>, stepCallers: List<AssemblyContext>): Any? {
+    val i = steps.indexOf(rc)
+    if (i >= 0) {
+        return stepCallers.at(i)
+    }
+    return rc.logicalCaller
+}
+
+fun changeCoupling(): double {
+    val places = placement()
+    val d = direct()
+    val deployables = emptyList<ResourceContainer>()
+    for (m in modules()) {
+        val c = placeOf(places, m)
+        if (c != null && !d.includes(c!!) && !deployables.includes(c!!)) {
+            deployables.add(c!!)
+        }
+    }
+    var contract = 0.15
+    var shared = 0.0
+    for (x in ChangeCoupling.all()) {
+        contract = x.contractBreak
+        val f = x.sharedServerCoupling
+        if (f != null) {
+            shared = f!!
+        }
+    }
+    // U2: per unit its direct containers (database servers) and its deployables
+    val unitServers = emptyList<List<ResourceContainer>>()
+    val unitHosts = emptyList<List<ResourceContainer>>()
+    if (shared > 0.0) {
+        for (unit in ChangeUnit.all()) {
+            val sv = emptyList<ResourceContainer>()
+            val hs = emptyList<ResourceContainer>()
+            for (a in unit.components) {
+                val c = placeOf(places, a)
+                if (c != null && d.includes(c!!) && !sv.includes(c!!)) {
+                    sv.add(c!!)
+                }
+                if (c != null && deployables.includes(c!!) && !hs.includes(c!!)) {
+                    hs.add(c!!)
+                }
+            }
+            unitServers.add(sv)
+            unitHosts.add(hs)
+        }
+    }
+    // orchestrated steps are calls of their trigger's component
+    val steps = emptyList<RealisedCall>()
+    val stepCallers = emptyList<AssemblyContext>()
+    for (plan in WorkflowPlan.all()) {
+        if (plan.workflow.style is Orchestrated) {
+            for (s in plan.steps) {
+                steps.add(s.`call`)
+                stepCallers.add(plan.orchestrator)
+            }
+        }
+    }
+    val consumers = emptyList<Consumer>()
+    val idle = inactiveSeffs()
+    for (rc in RealisedCall.all()) {
+        if (rc.logicalCaller == null || inactive(idle, rc)) {
+            continue
+        }
+        val prov = providerOf(rc)
+        val cc = placeOf(places, callerOf(rc, steps, stepCallers))
+        val ck = placeOf(places, prov)
+        if (cc == null || ck == null || cc == ck || !deployables.includes(cc!!)) {
+            continue
+        }
+        val p = breakOf(rc, contract)
+        var found = false
+        for (x in consumers) {
+            if (x.callee == prov && x.container == cc) {
+                found = true
+                if (p > x.p) {
+                    x.p = p
+                }
+            }
+        }
+        if (!found) {
+            consumers.add(Consumer(prov, cc, p))
+        }
+    }
+    var sum = 0.0
+    var total = 0.0
+    var ui = -1
+    for (unit in ChangeUnit.all()) {
+        ui = ui + 1
+        val own = emptyList<Any?>()
+        for (a in unit.components) {
+            val c = placeOf(places, a)
+            if (c != null && deployables.includes(c!!) && !own.exists((x) => x == c)) {
+                own.add(c)
+            }
+        }
+        val others = emptyList<Consumer>()
+        for (a in unit.components) {
+            for (x in consumers) {
+                if (x.callee == a && !own.exists((y) => y == x.container)) {
+                    var found = false
+                    for (o in others) {
+                        if (o.container == x.container) {
+                            found = true
+                            if (x.p > o.p) {
+                                o.p = x.p
+                            }
+                        }
+                    }
+                    if (!found) {
+                        others.add(Consumer(null, x.container, x.p))
+                    }
+                }
+            }
+        }
+        if (shared > 0.0) {
+            // U2: co-tenant services of the unit's database servers
+            val sv = unitServers.at(ui)
+            var j = -1
+            for (sv2 in unitServers) {
+                j = j + 1
+                if (j == ui || !sv2.exists((y) => sv.includes(y))) {
+                    continue
+                }
+                for (c in unitHosts.at(j)) {
+                    if (own.exists((y) => y == c)) {
+                        continue
+                    }
+                    var found = false
+                    for (o in others) {
+                        if (o.container == c) {
+                            found = true
+                            if (shared > o.p) {
+                                o.p = shared
+                            }
+                        }
+                    }
+                    if (!found) {
+                        others.add(Consumer(null, c, shared))
+                    }
+                }
+            }
+        }
+        var n = own.size() * 1.0
+        if (n < 1.0) {
+            n = 1.0
+        }
+        for (o in others) {
+            n = n + o.p
+        }
+        sum = sum + unit.changes * n
+        total = total + unit.changes
+    }
+    if (total > 0.0) {
+        return sum / total
+    }
+    return 0.0
+}
+
+// ═══ Call counts (O4, modularity) ═════════════════════════════════════════════════════
+
+// The simulated call counts of the window: the calls' actions (for indexOf) and their counts.
+record Count(action: Any?, n: double)
+
+record Counts(actions: List<Any?>, counts: List<Count>)
+
+fun counts(e: PcmEvaluation): Counts {
+    val actions = emptyList<Any?>()
+    val n = emptyList<Count>()
+    for (c in e.callCounts) {
+        actions.add(c.action)
+        n.add(Count(c.action, c.count * 1.0))
+    }
+    return Counts(actions, n)
+}
+
+fun countOf(cs: Counts, action: Any?): double {
+    val i = cs.actions.indexOf(action)
+    if (i >= 0) {
+        val c = cs.counts.at(i)
+        return c.n
+    }
+    return 0.0
+}
+
+// The hit ratio of a call's cache as realised (a cache branch around the call: CachedCall, or a
+// ComposedCall with a cache across containers), 0 without one. A cache as built (the provider's,
+// CallSite.cachedService, DESIGN.md AB33.1) has no branch: the call is made on a hit too, so 0.
+fun hitOf(rc: RealisedCall): double {
+    if (rc.site == null || (rc.built != "cache" && rc.built != "composedCache")) {
+        return 0.0
+    }
+    if (rc.site!!.cachedService != null) {
+        return 0.0
+    }
+    return siteHitRatio(rc.site!!)
+}
+
+// The hit ratio of a cache at a site: the site's own (CallSite.hitRatio, from its key stream,
+// AB33.2) or else its mechanism's; 0 for a mechanism without a cache.
+fun siteHitRatio(site: CallSite): double {
+    val m = site.mechanism
+    if (m is CachedCall) {
+        if (site.hitRatio != null) {
+            return site.hitRatio!!
+        }
+        return (m as CachedCall).hitRatio
+    }
+    if (m is ComposedCall) {
+        val h = (m as ComposedCall).hitRatio
+        if (h == null || h!! <= 0.0) {
+            return 0.0
+        }
+        if (site.hitRatio != null) {
+            return site.hitRatio!!
+        }
+        return h!!
+    }
+    return 0.0
+}
+
+// The operations of the providers' caches as built (CallSite.cachedService) and of the federation fetches
+// (CallSite.fetchService, AB43): their SEFFs' calls of the field's own operation are the misses or the fetch of
+// a call counted already.
+fun cachedServices(): List<Any?> {
+    val out = emptyList<Any?>()
+    for (s in CallSite.all()) {
+        if (s.cachedService != null) {
+            out.add(s.cachedService)
+        }
+        if (s.fetchService != null) {
+            out.add(s.fetchService)
+        }
+    }
+    return out
+}
+
+// The step forms of the effect steps (CallSite.stepService, DESIGN.md AB37): their SEFFs' calls of the
+// step's work are the same execution as the step's call, not a second one.
+fun stepServices(): List<Any?> {
+    val out = emptyList<Any?>()
+    for (s in CallSite.all()) {
+        if (s.stepService != null) {
+            out.add(s.stepService)
+        }
+    }
+    return out
+}
+
+fun isCached(cached: List<Any?>, sig: Any?): boolean {
+    for (s in cached) {
+        if (s == sig) {
+            return true
+        }
+    }
+    return false
+}
+
+// The logical count of a base call: the simulated count of its action, and behind a cache the
+// attempts (the action runs on a miss only: count / (1 − hit ratio)).
+fun attempts(cs: Counts, rc: RealisedCall): double {
+    val n = countOf(cs, rc.action)
+    val h = hitOf(rc)
+    if (h > 0.0 && h < 1.0) {
+        return n / (1.0 - h)
+    }
+    return n
+}
+
+// The measured sessions of the window, over the scenarios.
+fun sessions(e: PcmEvaluation): double {
+    var n = 0.0
+    for (s in e.sessions) {
+        n = n + s.count
+    }
+    return n
+}
+
+fun redirected(rc: RealisedCall): boolean {
+    for (r in Redirect.all()) {
+        if (r.`call` == rc.action) {
+            return true
+        }
+    }
+    return false
+}
+
+// The home as a decision (DESIGN.md AB38, AB41): the SEFFs of the home options not chosen are not reached; their
+// structure (calls, caches) is left out of the structural metrics.
+fun inactiveSeffs(): List<Any?> {
+    val out = emptyList<Any?>()
+    for (h in Home.all()) {
+        for (o in h.options) {
+            if (o != h.home) {
+                for (s in o.seffs) {
+                    out.add(s)
+                }
+            }
+        }
+    }
+    return out
+}
+
+// The provider a call reaches for the structural metrics: its logical one (a Home's call is re-targeted to the
+// chosen option, AB41, so that is the chosen home).
+fun providerOf(rc: RealisedCall): Any? {
+    return rc.logicalProvider
+}
+
+fun inactive(seffs: List<Any?>, rc: RealisedCall): boolean {
+    return seffs.size() > 0 && rc.seff != null && seffs.includes(rc.seff!!)
+}
+
+// ═══ Modularity ═══════════════════════════════════════════════════════════════════════
+
+fun couplingWeight(rc: RealisedCall): double {
+    if (rc.site == null) {
+        return 1.0
+    }
+    val m = rc.site!!.mechanism
+    if (m.couplingWeight != null) {
+        return m.couplingWeight!!
+    }
+    if (m is ComposedCall) {
+        return 0.5
+    }
+    if (m is AsyncCall) {
+        return 0.3
+    }
+    return 1.0
+}
+
+record Cluster(container: Any?, intra: double, inter: double)
+
+fun clusterOf(clusters: List<Cluster>, c: Any?): Cluster {
+    for (x in clusters) {
+        if (x.container == c) {
+            return x
+        }
+    }
+    val x = Cluster(c, 0.0, 0.0)
+    clusters.add(x)
+    return x
+}
+
+// The assembly an entry-level call reaches (the system's delegation of its provided role).
+fun entryAssembly(call: EntryLevelSystemCall): Any? {
+    for (pd in ProvidedDelegationConnector.all()) {
+        if (pd.outerProvidedRole == call.providedRole) {
+            return pd.assemblyContext
+        }
+    }
+    return null
+}
+
+// Cohesive MQ over the simulated traffic: per container its executions (entry calls and the
+// calls that ran its components; a cache's hits and a redirected call run nothing) and the calls
+// between its components (their logical counts), against the logical counts of the calls to other
+// containers times the mechanism's coupling weight.
+fun modularity(): double {
+    val es = evaluations()
+    var sum = 0.0
+    for (e in es) {
+        sum = sum + modularityOf(e)
+    }
+    return sum / es.size()
+}
+
+fun modularityOf(e: PcmEvaluation): double {
+    val cs = counts(e)
+    val places = placement()
+    val mods = modules()
+    val execs = emptyList<Count>()
+    for (c in e.callCounts) {
+        if (c.action is EntryLevelSystemCall) {
+            execs.add(Count(entryAssembly(c.action as EntryLevelSystemCall), c.count * 1.0))
+        }
+    }
+    val cached = cachedServices()
+    val stepForms = stepServices()
+    for (rc in RealisedCall.all()) {
+        if (rc.logicalCaller != null && !redirected(rc)) {
+            if (cached.size() > 0 && rc.seff != null && isCached(cached, rc.seff!!.describedService)) {
+                continue
+            }
+            if (stepForms.size() > 0 && rc.seff != null && rc.logicalCaller == rc.logicalProvider && isCached(stepForms, rc.seff!!.describedService)) {
+                continue
+            }
+            execs.add(Count(rc.logicalProvider, countOf(cs, rc.action)))
+        }
+    }
+    val clusters = emptyList<Cluster>()
+    for (a in mods) {
+        val c = placeOf(places, a)
+        if (c != null) {
+            val x = clusterOf(clusters, c)
+            for (q in execs) {
+                if (q.action == a) {
+                    x.intra = x.intra + q.n
+                }
+            }
+        }
+    }
+    for (rc in RealisedCall.all()) {
+        if (rc.logicalCaller == null || rc.logicalCaller == rc.logicalProvider || !mods.exists((x) => x == rc.logicalCaller) || !mods.exists((x) => x == rc.logicalProvider)) {
+            continue
+        }
+        val ca = placeOf(places, rc.logicalCaller)
+        val cb = placeOf(places, rc.logicalProvider)
+        if (ca == null || cb == null) {
+            continue
+        }
+        val r = attempts(cs, rc)
+        if (ca == cb) {
+            val x = clusterOf(clusters, ca)
+            x.intra = x.intra + r
+        } else {
+            val w = r * couplingWeight(rc)
+            val xa = clusterOf(clusters, ca)
+            xa.inter = xa.inter + w
+            val xb = clusterOf(clusters, cb)
+            xb.inter = xb.inter + w
+        }
+    }
+    var mq = 0.0
+    for (x in clusters) {
+        if (x.intra + x.inter > 0.0) {
+            mq = mq + x.intra / (x.intra + x.inter / 2.0)
+        }
+    }
+    return mq
+}
+
+// ═══ O4 ═══════════════════════════════════════════════════════════════════════════════
+
+// Per measured session, the expected number of stale reads (a cache's hits, a copy's reads
+// across containers, the calls into a replica apart from its source) and writes to another
+// container (weighted by mechanism):
+//   O4 = Σ_base calls n_f (s_f p_f + write_f) + Σ_{f → replica apart} n_f p_f, per session.
+// n_f is the call's logical count (its simulated count; a cache's: its attempts); calls behind a
+// cache hit or a redirected call do not run, as before AB (AB5). s_f is the share of the reads
+// that may be stale (a cache's hit ratio, Mechanism.staleReads across containers), write_f the
+// Consistency's sync or async weight of a write to another container. Since AB23 a possibly stale
+// read counts with the probability that the data it reads changed within the staleness window Δ:
+// p_f = min(1, w_f Δ), w_f the simulated write rate of the data the read touches (writes per second
+// of the window, dataWrites: a class's rows, or a reference's links, AB42; an execution writing several
+// of them once), Δ = Consistency.cacheTtlSeconds for a cache's hits and
+// Consistency.replicationLagSeconds for copies and replicas; p_f = 1 when the parameter is absent
+// or the data cannot be determined (the weighting before AB23). p_f = 0 for an immutable read (AB60):
+// every read access of the call's site has level IMMUTABLE (insert-only rows or never-changing
+// columns read by key: a stale answer can at most miss a row created a moment ago, never be wrong).
+fun inconsistency(): double {
+    return inconsistencyOf(false)
+}
+
+// O4 with one line per term and per written class (AB23; harness evaluate, one thread):
+//   O4 <kind> <caller> <service> <action> <classes> n=<count> s=<share> w=<1/s> d=<s> p=<p> old=<n s> new=<n s p>
+//   O4 class <class or reference> writes=<count> w=<1/s>
+//   O4 total sessions=<n> window=<s> old=<O4 with p = 1> new=<O4>
+fun printInconsistency(): double {
+    return inconsistencyOf(true)
+}
+
+// What a read or write touches (DESIGN.md AB42): a class's rows (ref null), or the links of a reference in a join
+// table (ref, cls its source). `whole`: everything the class holds, its rows and its references' links (a replica).
+record DataKey(cls: DomainClass, ref: Reference?, whole: boolean)
+
+record ActCount(act: ExternalCallAction, n: double)
+
+// The simulated write calls of one kind of data, each once (two accesses of one write call, e.g. createProduct's of
+// Product and of Product.categories, share it).
+record DataWrites(cls: DomainClass, ref: Reference?, acts: List<ActCount>)
+
+fun consistencyOf(): Consistency? {
+    for (c in Consistency.all()) {
+        return c
+    }
+    return null
+}
+
+fun windowSeconds(): double {
+    return endTime() - warmUp()
+}
+
+// The executions in the window that write each kind of data: the simulated counts of the calls of
+// the write accesses (Access with mode WRITE, metamodel/domain.mm), the call into the class's own
+// component or schema (Access.actions, F16), so one per execution of the writing operation.
+fun dataWrites(cs: Counts): List<DataWrites> {
+    val out = emptyList<DataWrites>()
+    for (a in Access.all()) {
+        if (a.mode == AccessMode.WRITE) {
+            val w = writesEntry(out, a.target, linksOf(a))
+            for (act in a.actions) {
+                if (!hasAct(w.acts, act)) {
+                    w.acts.add(ActCount(act, countOf(cs, act)))
+                }
+            }
+        }
+    }
+    return out
+}
+
+// The reference whose links alone an access touches (AB42), else null (the target's rows).
+fun linksOf(a: Access): Reference? {
+    if (a.via != null && a.via!!.table && a.via!!.source == a.target) {
+        return a.via
+    }
+    return null
+}
+
+fun hasAct(acs: List<ActCount>, act: ExternalCallAction): boolean {
+    for (ac in acs) {
+        if (ac.act == act) {
+            return true
+        }
+    }
+    return false
+}
+
+fun writesEntry(ws: List<DataWrites>, c: DomainClass, ref: Reference?): DataWrites {
+    for (w in ws) {
+        if (w.cls == c && w.ref == ref) {
+            return w
+        }
+    }
+    val w = DataWrites(c, ref, emptyList<ActCount>())
+    ws.add(w)
+    return w
+}
+
+fun matches(keys: List<DataKey>, w: DataWrites): boolean {
+    for (k in keys) {
+        if (k.cls == w.cls && (k.whole || k.ref == w.ref)) {
+            return true
+        }
+    }
+    return false
+}
+
+// The write calls of the data `keys`, each call once.
+fun writesOf(ws: List<DataWrites>, keys: List<DataKey>): double {
+    val seen = emptyList<ExternalCallAction>()
+    var n = 0.0
+    for (w in ws) {
+        if (matches(keys, w)) {
+            for (ac in w.acts) {
+                if (!seen.includes(ac.act)) {
+                    seen.add(ac.act)
+                    n = n + ac.n
+                }
+            }
+        }
+    }
+    return n
+}
+
+fun addKey(out: List<DataKey>, c: DomainClass, ref: Reference?, whole: boolean) {
+    for (k in out) {
+        if (k.cls == c && k.ref == ref && k.whole == whole) {
+            return
+        }
+    }
+    out.add(DataKey(c, ref, whole))
+}
+
+// The data a call reads (AB42): that of its read accesses (an Access with mode READ that lists the
+// call's site), otherwise the data the called operation
+// reads (Operation.seffs describes the called service; its READ accesses and, transitively, those of
+// the operations it calls). Empty when neither is found.
+fun readData(rc: RealisedCall): List<DataKey> {
+    val out = emptyList<DataKey>()
+    if (rc.site != null) {
+        for (a in Access.all()) {
+            if (a.mode == AccessMode.READ && a.sites.includes(rc.site!!)) {
+                addKey(out, a.target, linksOf(a), false)
+            }
+        }
+    }
+    if (out.size() > 0) {
+        return out
+    }
+    return operationReads(calledOperations(rc))
+}
+
+fun calledOperations(rc: RealisedCall): List<Operation> {
+    var sig: Any? = rc.action.calledService
+    if (rc.originalService != null) {
+        sig = rc.originalService
+    }
+    val ops = emptyList<Operation>()
+    for (op in Operation.all()) {
+        for (sf in op.seffs) {
+            if (sf.describedService == sig && !ops.includes(op)) {
+                ops.add(op)
+            }
+        }
+    }
+    return ops
+}
+
+fun operationReads(ops: List<Operation>): List<DataKey> {
+    val out = emptyList<DataKey>()
+    var i = 0
+    while (i < ops.size()) {
+        val op = ops.at(i)
+        for (a in op.accesses) {
+            if (a.mode == AccessMode.READ) {
+                addKey(out, a.target, linksOf(a), false)
+            }
+        }
+        for (k in op.calls) {
+            if (!ops.includes(k.callee)) {
+                ops.add(k.callee)
+            }
+        }
+        i = i + 1
+    }
+    return out
+}
+
+// Whether a call reads immutable data only (DESIGN.md AB60): its site's read accesses (an Access with
+// mode READ that lists it, at least one) all have level IMMUTABLE. Not for a call whose data comes
+// from the called operation (no Access lists its site).
+fun immutableRead(rc: RealisedCall): boolean {
+    if (rc.site == null) {
+        return false
+    }
+    var n = 0
+    for (a in Access.all()) {
+        if (a.mode == AccessMode.READ && a.sites.includes(rc.site!!)) {
+            if (a.level != ConsistencyLevel.IMMUTABLE) {
+                return false
+            }
+            n = n + 1
+        }
+    }
+    return n > 0
+}
+
+// The probability that data written w times per second changed within the window d: min(1, w d);
+// 1 without a window (absent parameter) or without known data.
+fun staleProbability(keys: List<DataKey>, ws: List<DataWrites>, window: double, d: double?): double {
+    if (d == null || keys.size() == 0 || window <= 0.0) {
+        return 1.0
+    }
+    val p = writesOf(ws, keys) / window * d!!
+    if (p > 1.0) {
+        return 1.0
+    }
+    return p
+}
+
+fun dataName(c: DomainClass, ref: Reference?): string {
+    if (ref != null) {
+        return ref!!.name
+    }
+    return c.name
+}
+
+fun dataNames(keys: List<DataKey>): string {
+    var s = ""
+    for (k in keys) {
+        if (s != "") {
+            s = s + "+"
+        }
+        s = s + dataName(k.cls, k.ref)
+    }
+    if (s == "") {
+        return "?"
+    }
+    return s
+}
+
+fun printTerm(kind: string, rc: RealisedCall, keys: List<DataKey>, n: double, s: double, ws: List<DataWrites>,
+        window: double, d: double?, p: double) {
+    var svc = "?"
+    if (rc.seff != null && rc.seff!!.describedService != null) {
+        svc = rc.seff!!.describedService!!.entityName ?? "?"
+    }
+    val caller = (rc.logicalCaller as AssemblyContext).entityName ?? "?"
+    var w = -1.0
+    if (window > 0.0) {
+        w = writesOf(ws, keys) / window
+    }
+    println("O4 " + kind + " " + caller + " " + svc + " " + (rc.action.entityName ?? "?") + " " + dataNames(keys)
+        + " n=" + n + " s=" + s + " w=" + w + " d=" + (d ?? -1.0) + " p=" + p + " old=" + n * s + " new=" + n * s * p)
+}
+
+fun printWrites(ws: List<DataWrites>, window: double) {
+    for (w in ws) {
+        var n = 0.0
+        for (ac in w.acts) {
+            n = n + ac.n
+        }
+        if (n > 0.0) {
+            println("O4 class " + dataName(w.cls, w.ref) + " writes=" + n + " w=" + n / window)
+        }
+    }
+}
+
+// The mean over the simulations.
+fun inconsistencyOf(print: boolean): double {
+    val es = evaluations()
+    var sum = 0.0
+    for (e in es) {
+        sum = sum + inconsistencyAt(e, print)
+    }
+    return sum / es.size()
+}
+
+fun inconsistencyAt(e: PcmEvaluation, print: boolean): double {
+    val con = consistencyOf()
+    if (con == null) {
+        return 0.0
+    }
+    val syncW = con!!.syncWriteWeight
+    val asyncW = con!!.asyncWriteWeight
+    val lag = con!!.replicationLagSeconds
+    val ttl = con!!.cacheTtlSeconds
+    val cs = counts(e)
+    val places = placement()
+    val window = windowSeconds()
+    val ws = dataWrites(cs)
+    var x = 0.0
+    var old = 0.0
+    for (rc in RealisedCall.all()) {
+        if (rc.logicalCaller == null) {
+            continue
+        }
+        val cc = placeOf(places, rc.logicalCaller)
+        val cp = placeOf(places, rc.logicalProvider)
+        val across = cc != cp
+        var hit = 0.0
+        var copy = 0.0
+        var write = 0.0
+        var staleShare: double? = null
+        if (rc.site != null) {
+            val mech = rc.site!!.mechanism
+            if (mech is CachedCall || (mech is ComposedCall && across)) {
+                hit = siteHitRatio(rc.site!!)
+                staleShare = rc.site!!.staleShare
+            }
+            if (across && mech.staleReads != null) {
+                copy = mech.staleReads!!
+            }
+            if (across && rc.site!!.writes != null && rc.site!!.writes!!) {
+                if (mech is AsyncCall) {
+                    write = asyncW
+                } else {
+                    write = syncW
+                }
+            }
+        }
+        val r = attempts(cs, rc)
+        if (hit > 0.0 || copy > 0.0) {
+            val classes = readData(rc)
+            val immutable = immutableRead(rc)
+            if (hit > 0.0) {
+                var p = staleProbability(classes, ws, window, ttl)
+                if (staleShare != null) {
+                    p = staleShare!!
+                }
+                if (immutable) {
+                    p = 0.0
+                }
+                x = x + r * hit * p
+                if (print) {
+                    printTerm("cache", rc, classes, r, hit, ws, window, ttl, p)
+                }
+            }
+            if (copy > 0.0) {
+                var p = staleProbability(classes, ws, window, lag)
+                if (immutable) {
+                    p = 0.0
+                }
+                x = x + r * copy * p
+                if (print) {
+                    printTerm("copy", rc, classes, r, copy, ws, window, lag, p)
+                }
+            }
+        }
+        old = old + r * (hit + copy + write)
+        if (write > 0.0) {
+            x = x + r * write
+            if (print) {
+                printTerm("write", rc, emptyList<DataKey>(), r, write, ws, window, null, 1.0)
+            }
+        }
+    }
+    val n = sessions(e)
+    if (print) {
+        printWrites(ws, window)
+        println("O4 total sessions=" + n + " window=" + window + " old=" + old / n + " new=" + x / n)
+    }
+    if (n > 0.0) {
+        return x / n
+    }
+    return 0.0
+}
+
+// ═══ O5 ═══════════════════════════════════════════════════════════════════════════════
+
+// Performance (DESIGN.md AB26, AB27): the share of requests slower than their latency budget, from
+// the simulations' latency histograms. Per request type k with an OperationLatencyBudget and a
+// reference (the gateway request types, so login, Keycloak's, has none): its budget b_k as in C1
+// (policy factor × today's statistic, 3 × today's p90; the fixed budget without a factor) and
+//   f_k = (completions of k slower than b_k) / (completions of k), the mean over the simulations
+//         (a histogram bin that straddles b_k counts linearly; 1 for a simulation without completions),
+//   O5 = Σ_k w_k f_k,   w_k = today's completions of k / Σ today's completions (fixed weights).
+// A slow phase (an overload episode before the autoscaler reacts) adds in proportion to its length
+// and severity, where the p99 ratio (AB26) jumped between ~1 and ~20 with the episode's presence in
+// a seed. Today's cut has its own value (not 1). A failed simulation: O5 = 1.
+fun performance(): double {
+    return performanceOf(false)
+}
+
+// One line per request type and the total (harness evaluate, one thread):
+//   O5 type <operation> budget=<ms> w=<weight> slow=<share of its completions over the budget>
+//   O5 total o5=<O5>
+fun printPerformance(): double {
+    return performanceOf(true)
+}
+
+record SlowShare(slow: double, total: double)
+
+// Completions of the system operations with this signature slower than the budget (and all of them).
+fun slowShareOf(e: PcmEvaluation, op: OperationSignature, budget: double): SlowShare {
+    var slow = 0.0
+    var total = 0.0
+    for (o in e.operations) {
+        if (o.signature == op && o.count > 0) {
+            // the first edge ≥ budget (index t) and the bin below it, which may straddle the budget
+            var i = 0
+            var t = -1
+            var lo = 0.0
+            var hi = 0.0
+            var prev = 0.0
+            for (x in o.histogramEdgesMs) {
+                if (t < 0 && x >= budget) {
+                    t = i
+                    lo = prev
+                    hi = x
+                }
+                prev = x
+                i = i + 1
+            }
+            var j = 0
+            for (c in o.histogramCounts) {
+                val n = c * 1.0
+                total = total + n
+                if (t >= 0 && j >= t) {
+                    slow = slow + n
+                } else {
+                    if (t > 0 && j == t - 1 && hi > lo) {
+                        slow = slow + n * (hi - budget) / (hi - lo)
+                    }
+                }
+                j = j + 1
+            }
+        }
+    }
+    return SlowShare(slow, total)
+}
+
+fun performanceOf(print: boolean): double {
+    val es = evaluations()
+    if (anyFailed(es)) {
+        return 1.0
+    }
+    val stat = policyStatistic()
+    val factor = policyFactor()
+    var total = 0.0
+    for (b in OperationLatencyBudget.all()) {
+        if (budgetOf(b, stat, factor, 0) > 0.0) {
+            total = total + (b.referenceCount ?? 0) * 1.0
+        }
+    }
+    if (total <= 0.0) {
+        return 0.0
+    }
+    var o5 = 0.0
+    for (b in OperationLatencyBudget.all()) {
+        val budget = budgetOf(b, stat, factor, 0)
+        if (budget <= 0.0) {
+            continue
+        }
+        val w = (b.referenceCount ?? 0) * 1.0 / total
+        var f = 0.0
+        for (e in es) {
+            val s = slowShareOf(e, b.operation, budget)
+            if (s.total > 0.0) {
+                f = f + s.slow / s.total
+            } else {
+                f = f + 1.0
+            }
+        }
+        f = f / es.size()
+        o5 = o5 + w * f
+        if (print) {
+            println("O5 type " + (b.operation.entityName ?? "?") + " budget=" + budget + " w=" + w + " slow=" + f)
+        }
+    }
+    if (print) {
+        println("O5 total o5=" + o5)
+    }
+    return o5
+}
+
+// ═══ C3 ═══════════════════════════════════════════════════════════════════════════════
+
+// Cohesion (DESIGN.md AB25.3, AB26): a service should hold classes that belong together in the domain,
+// and services that share a database server too. The affinity graph over the domain classes comes from
+// the domain model only (never from a cut): two classes are adjacent when one references the other
+// (Reference), when a third class references both (a shared referrer), or when at least
+// coAccessMin() = 2 distinct domain operations access both (the targets of their Accesses; every
+// Operation of the model: the ones the workload reaches and the other counted domain operations,
+// which the model holds without SEFF; one operation alone is a weak link, AB26). A service is the
+// set of classes whose components sit in one container (the placement as written); a database
+// server's services are those holding a class whose schema it hosts. Graded violation:
+//   C3 = Σ_services (components of the service's classes − 1)
+//      + Σ_database servers with ≥ 2 services (components of their services' classes, each service's
+//        classes taken as connected, − 1),
+// so a service's own split counts once (in the first part) and the second part counts database
+// servers shared by unrelated services. 0 when every service and every shared server is connected.
+record ClassNode(cls: DomainClass, host: Any?, server: Any?, id: double, label: double, group: double)
+
+record Affinity(a: ClassNode, b: ClassNode)
+
+record PairCount(a: DomainClass, b: DomainClass, n: double)
+
+record CohesionParts(services: double, servers: double)
+
+fun cohesion(): double {
+    val c = cohesionOf(false)
+    return c.services + c.servers
+}
+
+// One line per service and per database server with more than one component (harness evaluate, one
+// thread):
+//   C3 service <container> components=<k> <classes of a component>+... | <next component> ...
+//   C3 server <container> components=<k> <services of a component>+... | ...
+//   C3 total services=<n> service-part=<..> server-part=<..> violation=<C3>
+fun printCohesion(): double {
+    val c = cohesionOf(true)
+    return c.services + c.servers
+}
+
+// The two parts (reporting).
+fun cohesionServices(): double {
+    return cohesionOf(false).services
+}
+
+fun cohesionServers(): double {
+    return cohesionOf(false).servers
+}
+
+fun coAccessMin(): double {
+    return 2.0
+}
+
+fun classNodes(): List<ClassNode> {
+    val places = placement()
+    val out = emptyList<ClassNode>()
+    for (c in DomainClass.all()) {
+        var h: Any? = null
+        if (c.component != null) {
+            h = placeOf(places, c.component)
+        }
+        var d: Any? = null
+        if (c.schema != null) {
+            d = placeOf(places, c.schema)
+        }
+        val i = out.size() * 1.0
+        out.add(ClassNode(c, h, d, i, i, i))
+    }
+    return out
+}
+
+fun nodeOf(ns: List<ClassNode>, c: DomainClass): ClassNode? {
+    for (n in ns) {
+        if (n.cls == c) {
+            return n
+        }
+    }
+    return null
+}
+
+fun addAffinity(es: List<Affinity>, ns: List<ClassNode>, a: DomainClass, b: DomainClass) {
+    if (a == b) {
+        return
+    }
+    val x = nodeOf(ns, a)
+    val y = nodeOf(ns, b)
+    if (x != null && y != null) {
+        es.add(Affinity(x!!, y!!))
+    }
+}
+
+// Every pair of distinct classes in `cs` adjacent.
+fun addClique(es: List<Affinity>, ns: List<ClassNode>, cs: List<DomainClass>) {
+    var i = 0
+    while (i < cs.size()) {
+        var j = i + 1
+        while (j < cs.size()) {
+            addAffinity(es, ns, cs.at(i), cs.at(j))
+            j = j + 1
+        }
+        i = i + 1
+    }
+}
+
+// One more operation accessing both a and b.
+fun countPair(ps: List<PairCount>, a: DomainClass, b: DomainClass) {
+    for (p in ps) {
+        if ((p.a == a && p.b == b) || (p.a == b && p.b == a)) {
+            p.n = p.n + 1.0
+            return
+        }
+    }
+    ps.add(PairCount(a, b, 1.0))
+}
+
+fun affinities(ns: List<ClassNode>): List<Affinity> {
+    val es = emptyList<Affinity>()
+    for (c in DomainClass.all()) {
+        val targets = emptyList<DomainClass>()
+        for (r in c.references) {
+            addAffinity(es, ns, c, r.target)
+            if (r.target != c && !targets.includes(r.target)) {
+                targets.add(r.target)
+            }
+        }
+        addClique(es, ns, targets)
+    }
+    val ps = emptyList<PairCount>()
+    for (op in Operation.all()) {
+        val targets = emptyList<DomainClass>()
+        for (a in op.accesses) {
+            if (!targets.includes(a.target)) {
+                targets.add(a.target)
+            }
+        }
+        var i = 0
+        while (i < targets.size()) {
+            var j = i + 1
+            while (j < targets.size()) {
+                countPair(ps, targets.at(i), targets.at(j))
+                j = j + 1
+            }
+            i = i + 1
+        }
+    }
+    for (p in ps) {
+        if (p.n >= coAccessMin()) {
+            addAffinity(es, ns, p.a, p.b)
+        }
+    }
+    return es
+}
+
+// Connected components within each container: the smallest id spreads along the edges whose ends
+// share a container (label).
+fun serviceLabels(es: List<Affinity>) {
+    var changed = true
+    while (changed) {
+        changed = false
+        for (e in es) {
+            if (e.a.host != null && e.a.host == e.b.host && e.a.label != e.b.label) {
+                if (e.a.label < e.b.label) {
+                    e.b.label = e.a.label
+                } else {
+                    e.a.label = e.b.label
+                }
+                changed = true
+            }
+        }
+    }
+}
+
+// Per database server: the classes of its services, each service's classes one group from the
+// start (group = the smallest id of the service's classes), then the smallest group spreads along the
+// edges between classes of the server's services (one pass per server; serverComponents).
+fun serverHosts(ns: List<ClassNode>, d: Any?): List<Any?> {
+    val hs = emptyList<Any?>()
+    for (n in ns) {
+        if (n.server == d && n.host != null && !hs.includes(n.host!!)) {
+            hs.add(n.host!!)
+        }
+    }
+    return hs
+}
+
+fun serverComponents(ns: List<ClassNode>, es: List<Affinity>, hs: List<Any?>): double {
+    for (n in ns) {
+        n.group = -1.0
+        if (n.host != null && hs.includes(n.host!!)) {
+            var g = n.id
+            for (m in ns) {
+                if (m.host == n.host && m.id < g) {
+                    g = m.id
+                }
+            }
+            n.group = g
+        }
+    }
+    var changed = true
+    while (changed) {
+        changed = false
+        for (e in es) {
+            if (e.a.group >= 0.0 && e.b.group >= 0.0 && e.a.group != e.b.group) {
+                val g = e.a.group
+                val h = e.b.group
+                var lo = g
+                var hi = h
+                if (h < g) {
+                    lo = h
+                    hi = g
+                }
+                for (n in ns) {
+                    if (n.group == hi) {
+                        n.group = lo
+                    }
+                }
+                changed = true
+            }
+        }
+    }
+    val gs = emptyList<double>()
+    for (n in ns) {
+        if (n.group >= 0.0 && !gs.includes(n.group)) {
+            gs.add(n.group)
+        }
+    }
+    return gs.size() * 1.0
+}
+
+fun cohesionOf(print: boolean): CohesionParts {
+    val ns = classNodes()
+    val es = affinities(ns)
+    serviceLabels(es)
+    val hosts = emptyList<Any?>()
+    var pieces = 0.0
+    for (n in ns) {
+        if (n.host != null) {
+            if (!hosts.includes(n.host!!)) {
+                hosts.add(n.host!!)
+            }
+            if (n.label == n.id) {
+                pieces = pieces + 1.0
+            }
+        }
+    }
+    val v = pieces - hosts.size()
+    if (print) {
+        for (h in hosts) {
+            var k = 0
+            var line = ""
+            for (r in ns) {
+                if (r.host == h && r.label == r.id) {
+                    k = k + 1
+                    var names = ""
+                    for (n in ns) {
+                        if (n.host == h && n.label == r.id) {
+                            if (names != "") {
+                                names = names + "+"
+                            }
+                            names = names + n.cls.name
+                        }
+                    }
+                    if (line != "") {
+                        line = line + " | "
+                    }
+                    line = line + names
+                }
+            }
+            if (k > 1) {
+                println("C3 service " + ((h as ResourceContainer).entityName ?? "?") + " components=" + k + " " + line)
+            }
+        }
+    }
+    val servers = emptyList<Any?>()
+    for (n in ns) {
+        if (n.server != null && !servers.includes(n.server!!)) {
+            servers.add(n.server!!)
+        }
+    }
+    var w = 0.0
+    for (d in servers) {
+        val hs = serverHosts(ns, d)
+        if (hs.size() >= 2) {
+            val k = serverComponents(ns, es, hs)
+            w = w + k - 1.0
+            if (print && k > 1.0) {
+                println("C3 server " + ((d as ResourceContainer).entityName ?? "?") + " components=" + k + " "
+                    + serverLine(ns))
+            }
+        }
+    }
+    if (print) {
+        println("C3 total services=" + hosts.size() + " service-part=" + v + " server-part=" + w + " violation=" + (v + w))
+    }
+    return CohesionParts(v, w)
+}
+
+// The services (containers) of each group of the last serverComponents pass.
+fun serverLine(ns: List<ClassNode>): string {
+    val gs = emptyList<double>()
+    for (n in ns) {
+        if (n.group >= 0.0 && !gs.includes(n.group)) {
+            gs.add(n.group)
+        }
+    }
+    var line = ""
+    for (g in gs) {
+        val hs = emptyList<Any?>()
+        for (n in ns) {
+            if (n.group == g && n.host != null && !hs.includes(n.host!!)) {
+                hs.add(n.host!!)
+            }
+        }
+        var names = ""
+        for (h in hs) {
+            if (names != "") {
+                names = names + "+"
+            }
+            names = names + ((h as ResourceContainer).entityName ?? "?")
+        }
+        if (line != "") {
+            line = line + " | "
+        }
+        line = line + names
+    }
+    return line
+}

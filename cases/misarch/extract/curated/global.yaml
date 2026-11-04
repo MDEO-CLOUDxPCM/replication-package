@@ -1,0 +1,152 @@
+# Global curation: features (msa's 28, F0 = not assigned), sagas, msa mapping. Schema: build.py.
+features:
+  F1: "Sign-up / account"
+  F2: "View/edit profile"
+  F3: "Manage addresses"
+  F4: "Manage categories"
+  F5: "Manage products"
+  F6: "Browse catalog"
+  F7: "Media upload"
+  F8: "Tax rates"
+  F9: "Inventory / stock"
+  F10: "Shopping cart"
+  F11: "Wishlist"
+  F12: "Discounts and coupons (admin)"
+  F13: "Redeem coupon"
+  F14: "Applicable discounts"
+  F15: "Shipping fees"
+  F16: "Create order"
+  F17: "Place order"
+  F18: "Inventory reservation"
+  F19: "Discount validation"
+  F20: "Payment methods"
+  F21: "Payment processing"
+  F22: "Invoicing"
+  F23: "Shipment / fulfilment"
+  F24: "Shipment methods (admin)"
+  F25: "Order tracking"
+  F26: "Returns"
+  F27: "Reviews"
+  F28: "Notifications"
+  F0: "Not assigned (no msa feature fits)"
+
+# Business processes (today: choreographies). Their operations carry `sagaStep: {saga: <name>}`.
+sagas:
+  - {name: Buy, trigger: order.placeOrder, msa: proc_Buy}
+  - {name: Return, trigger: return.createReturn, msa: proc_Return}
+  - {name: Registration, trigger: "user.on:user/user/create", msa: proc_Registration}
+
+# Mapping of the msa seed model (domain/msa/misarch-kotlin.m) to this domain.
+# An msa operation is the work of one request type (or reaction) in its home service; what it needs
+# from other aggregates is a DataNeed there. So an msa operation maps to the operations of its home
+# service that the request runs, and the foreign parts map to msa's provider operations. `request`:
+# the round-2 request type (calibration/results-kotlin/demands.json) whose measured demand it carries.
+msa:
+  operations:
+    createUser: {ops: ["user.on:user/user/create"], request: eventUserCreate}
+    currentUser: {ops: [user.currentUser], request: users}
+    currentUserAddresses: {ops: [user.currentUser], request: address, note: "User.addresses via the need -> addressesOfUser"}
+    currentUserPaymentInfos: {ops: [user.currentUser], request: paymentInformations}
+    currentUserNotifications: {ops: [user.currentUser], note: "no request type in round 2"}
+    updateUser: {ops: [user.updateUser]}
+    getUser: {ops: [user._entities.User, user.user]}
+    createUserAddress: {ops: [address.createUserAddress]}
+    createVendorAddress: {ops: [address.createVendorAddress]}
+    addressesOfUser: {ops: [address._entities.User, address.User.addresses]}
+    getAddress: {ops: [address.address, address._entities.UserAddress, address._entities.VendorAddress]}
+    createCategory: {ops: [catalog.createCategory]}
+    createProduct: {ops: [catalog.createProduct], request: adminCreateProduct}
+    createProductVariant: {ops: [catalog.createProductVariant], request: adminCreateVariant}
+    updateProduct: {ops: [catalog.updateProduct], request: adminUpdateProduct}
+    createProductVariantVersion: {ops: [catalog.createProductVariantVersion], request: adminNewPrice}
+    updateProductVariant: {ops: [catalog.updateProductVariant]}
+    getCatalogEntry: {ops: [catalog._entities.Category, catalog._entities.Product, catalog._entities.ProductVariant, catalog._entities.ProductVariantVersion]}
+    products: {ops: [catalog.products], request: products}
+    product: {ops: [catalog.product, catalog.Product.categories, catalog.Product.defaultVariant, catalog.Product.variants], request: product}
+    resolveVariants: {ops: [catalog._entities.ProductVariant, catalog.ProductVariant.currentVersion, catalog.ProductVariant.product]}
+    uploadMedia: {ops: [media.uploadMedia]}
+    getMedia: {ops: [media._entities.Media]}
+    createTaxRate: {ops: [tax.createTaxRate]}
+    createTaxRateVersion: {ops: [tax.createTaxRateVersion]}
+    getTaxRate: {ops: [tax._entities.TaxRate, tax.taxRate]}
+    createProductItemBatch: {ops: [inventory.createProductItemBatch]}
+    inventoryCount: {ops: [inventory._entities.ProductVariant, inventory.ProductVariant.inventoryCount]}
+    setInFulfillment: {ops: ["inventory.on:payment/payment/payment-enabled"]}
+    markShipped: {ops: ["inventory.on:shipment/shipment/created"]}
+    markDelivered: {ops: ["inventory.on:shipment/shipment/status-updated"]}
+    createShoppingcartItem: {ops: [shoppingcart.createShoppingcartItem], request: createShoppingcartItem}
+    cartLines: {ops: [shoppingcart._entities.User, shoppingcart.User.shoppingcart]}
+    removeOrderedItems: {ops: ["shoppingcart.on:order/order/created"]}
+    createWishlist: {ops: [wishlist.createWishlist]}
+    updateWishlist: {ops: [wishlist.updateWishlist], request: addToWishlist}
+    viewWishlist: {ops: [wishlist.wishlist, wishlist.Wishlist.productVariants], request: wishlistView}
+    createDiscount: {ops: [discount.createDiscount]}
+    createCoupon: {ops: [discount.createCoupon]}
+    getCoupon: {ops: [discount._entities.Coupon]}
+    registerCoupon: {ops: [discount.registerCoupon]}
+    findApplicableDiscounts: {ops: [discount.findApplicableDiscounts]}
+    shipmentMethods: {ops: [shipment.shipmentMethods], request: shipmentMethods}
+    calculateShipmentFees: {ops: [shipment.calculateShipmentFees]}
+    getShipmentMethod: {ops: [shipment._entities.ShipmentMethod, shipment.shipmentMethod]}
+    createOrder: {ops: [order.createOrder], request: createOrder}
+    placeOrder: {ops: [order.placeOrder], request: placeOrder}
+    getOrder: {ops: [order._entities.Order, order.order]}
+    createOrderCompensation: {ops: ["order.on:shipment/shipment/creation-failed"]}
+    reserveItems: {ops: ["inventory.on:order/order/created"]}
+    releaseReservation: {ops: ["inventory.on:discount/order/validation-failed", "inventory.on:payment/payment/payment-failed"]}
+    validateOrder: {ops: ["discount.on:inventory/product-item/reservation-succeeded"]}
+    createPaymentInformation: {ops: [payment.createCreditCardPaymentInformation]}
+    paymentInformationsOfUser: {ops: [payment._entities.User, payment.User.paymentInformations]}
+    createDefaultPaymentInformations: {ops: ["payment.on:user/user/created"]}
+    startPayment: {ops: ["payment.on:discount/order/validation-succeeded"]}
+    updatePaymentStatus: {ops: ["payment.http:/payment/update-payment-status"]}
+    createInvoice: {ops: ["invoice.on:discount/order/validation-succeeded"]}
+    createShipments: {ops: ["shipment.on:payment/payment/payment-enabled"]}
+    updateShipmentStatus: {ops: ["shipment.http:/shipment/{id}/status"]}
+    createReturnShipment: {ops: ["shipment.on:return/return/created"]}
+    shipmentsOfOrder: {ops: [shipment._entities.Order, shipment.Order.shipments]}
+    getShipment: {ops: [shipment._entities.Shipment]}
+    createShipmentMethod: {ops: [shipment.createShipmentMethod]}
+    myOrders: {ops: [order.order, order.Order.orderItems], request: orderTracking}
+    createReturn: {ops: [return.createReturn]}
+    createReview: {ops: [review.createReview], request: createReview}
+    averageRating: {ops: [review._entities.ProductVariant, review.ProductVariant.averageRating]}
+    notificationsOfUser: {ops: [notification._entities.User, notification.User.notifications]}
+    createNotification: {ops: ["notification.on:notification/notification/create"]}
+  entities:
+    User: {classes: [User]}
+    UserAddress: {classes: [UserAddress]}
+    VendorAddress: {classes: [VendorAddress]}
+    Category: {classes: [Category]}
+    CategoryCharacteristic: {classes: [CategoryCharacteristic]}
+    Product: {classes: [Product]}
+    ProductVariant: {classes: [ProductVariant]}
+    ProductVariantVersion: {classes: [ProductVariantVersion]}
+    CharacteristicValue: {classes: [CategoryCharacteristicValue]}
+    TaxRate: {classes: [TaxRate]}
+    TaxRateVersion: {classes: [TaxRateVersion]}
+    Media: {classes: [Media]}
+    Discount: {classes: [Discount]}
+    Coupon: {classes: [Coupon]}
+    CouponRedemption: {classes: [CouponRedemption]}
+    DiscountUsage: {classes: [DiscountUsage]}
+    ProductItem: {classes: [ProductItem]}
+    ShoppingCart: {classes: [ShoppingCart]}
+    ShoppingCartItem: {classes: [ShoppingCartItem]}
+    Wishlist: {classes: [Wishlist]}
+    Order: {classes: [Order]}
+    OrderItem: {classes: [OrderItem]}
+    OrderCompensation: {classes: [OrderCompensation]}
+    PaymentInformation: {classes: [PaymentInformation]}
+    Payment: {classes: [Payment]}
+    Invoice: {classes: [Invoice]}
+    Shipment: {classes: [Shipment]}
+    ShipmentMethod: {classes: [ShipmentMethod]}
+    Return: {classes: [Return]}
+    Review: {classes: [Review]}
+    Notification: {classes: [Notification]}
+  # msa data needs that have no counterpart in the code on `main` (status absent: msa assumed them)
+  needs:
+    "createPaymentInformation->User": {status: absent, note: "payment keeps no user copy; createCreditCardPaymentInformation checks no user (curated/payment.yaml)"}
+    "createReview->Product": {status: absent, note: "createReview reads the ProductVariant copy (with productId) only; review's Product copy serves _entities(Product)"}
+    "createShipments->VendorAddress": {status: absent, note: "order shipments read only the UserAddress copy; the VendorAddress copy is read by createReturnShipment"}

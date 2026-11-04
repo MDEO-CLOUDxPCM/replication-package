@@ -1,0 +1,417 @@
+{
+ "name": "off_w3",
+ "config": "off",
+ "block": 2,
+ "rateLevel": "mid",
+ "types": [
+  "address.createUserAddress",
+  "payment.createCreditCardPaymentInformation",
+  "discount.registerCoupon",
+  "adminNewPrice",
+  "adminCreateVariant",
+  "adminCreateProduct",
+  "catalog.createCategory",
+  "inventory.createProductItemBatch",
+  "media.uploadMedia",
+  "discount.createDiscount",
+  "discount.createCoupon",
+  "tax.createTaxRate",
+  "tax.createTaxRateVersion",
+  "shipment.createShipmentMethod",
+  "address.createVendorAddress"
+ ],
+ "prep": [
+  "calibration/.venv/bin/python calibration/scripts/maintain.py --stack kotlin",
+  "calibration/.venv/bin/python requests/run.py cleanup"
+ ],
+ "durationS": 1550,
+ "phases": [
+  {
+   "name": "idle",
+   "duration": 60,
+   "rates": {}
+  },
+  {
+   "name": "address.createUserAddress:pre",
+   "duration": 15,
+   "rates": {}
+  },
+  {
+   "name": "address.createUserAddress:warm",
+   "duration": 15,
+   "rates": {
+    "address.createUserAddress": 5.602
+   }
+  },
+  {
+   "name": "address.createUserAddress:steady",
+   "duration": 45,
+   "rates": {
+    "address.createUserAddress": 5.602
+   }
+  },
+  {
+   "name": "address.createUserAddress:drain",
+   "duration": 25,
+   "rates": {}
+  },
+  {
+   "name": "payment.createCreditCardPaymentInformation:pre",
+   "duration": 15,
+   "rates": {}
+  },
+  {
+   "name": "payment.createCreditCardPaymentInformation:warm",
+   "duration": 15,
+   "rates": {
+    "payment.createCreditCardPaymentInformation": 19.413
+   }
+  },
+  {
+   "name": "payment.createCreditCardPaymentInformation:steady",
+   "duration": 45,
+   "rates": {
+    "payment.createCreditCardPaymentInformation": 19.413
+   }
+  },
+  {
+   "name": "payment.createCreditCardPaymentInformation:drain",
+   "duration": 20,
+   "rates": {}
+  },
+  {
+   "name": "discount.registerCoupon:pre",
+   "duration": 15,
+   "rates": {}
+  },
+  {
+   "name": "discount.registerCoupon:warm",
+   "duration": 15,
+   "rates": {
+    "discount.registerCoupon": 4.0
+   }
+  },
+  {
+   "name": "discount.registerCoupon:steady",
+   "duration": 45,
+   "rates": {
+    "discount.registerCoupon": 4.0
+   }
+  },
+  {
+   "name": "discount.registerCoupon:drain",
+   "duration": 20,
+   "rates": {}
+  },
+  {
+   "name": "adminNewPrice:pre",
+   "duration": 15,
+   "rates": {}
+  },
+  {
+   "name": "adminNewPrice:warm",
+   "duration": 15,
+   "rates": {
+    "adminNewPrice": 8.272
+   }
+  },
+  {
+   "name": "adminNewPrice:steady",
+   "duration": 45,
+   "rates": {
+    "adminNewPrice": 8.272
+   }
+  },
+  {
+   "name": "adminNewPrice:drain",
+   "duration": 25,
+   "rates": {}
+  },
+  {
+   "name": "adminCreateVariant:pre",
+   "duration": 15,
+   "rates": {}
+  },
+  {
+   "name": "adminCreateVariant:warm",
+   "duration": 15,
+   "rates": {
+    "adminCreateVariant": 9.075
+   }
+  },
+  {
+   "name": "adminCreateVariant:steady",
+   "duration": 45,
+   "rates": {
+    "adminCreateVariant": 9.075
+   }
+  },
+  {
+   "name": "adminCreateVariant:drain",
+   "duration": 30,
+   "rates": {}
+  },
+  {
+   "name": "adminCreateProduct:pre",
+   "duration": 15,
+   "rates": {}
+  },
+  {
+   "name": "adminCreateProduct:warm",
+   "duration": 15,
+   "rates": {
+    "adminCreateProduct": 7.264
+   }
+  },
+  {
+   "name": "adminCreateProduct:steady",
+   "duration": 45,
+   "rates": {
+    "adminCreateProduct": 7.264
+   }
+  },
+  {
+   "name": "adminCreateProduct:drain",
+   "duration": 35,
+   "rates": {}
+  },
+  {
+   "name": "catalog.createCategory:pre",
+   "duration": 15,
+   "rates": {}
+  },
+  {
+   "name": "catalog.createCategory:warm",
+   "duration": 15,
+   "rates": {
+    "catalog.createCategory": 16.767
+   }
+  },
+  {
+   "name": "catalog.createCategory:steady",
+   "duration": 45,
+   "rates": {
+    "catalog.createCategory": 16.767
+   }
+  },
+  {
+   "name": "catalog.createCategory:drain",
+   "duration": 20,
+   "rates": {}
+  },
+  {
+   "name": "inventory.createProductItemBatch:pre",
+   "duration": 15,
+   "rates": {}
+  },
+  {
+   "name": "inventory.createProductItemBatch:warm",
+   "duration": 15,
+   "rates": {
+    "inventory.createProductItemBatch": 17.247
+   }
+  },
+  {
+   "name": "inventory.createProductItemBatch:steady",
+   "duration": 45,
+   "rates": {
+    "inventory.createProductItemBatch": 17.247
+   }
+  },
+  {
+   "name": "inventory.createProductItemBatch:drain",
+   "duration": 20,
+   "rates": {}
+  },
+  {
+   "name": "media.uploadMedia:pre",
+   "duration": 15,
+   "rates": {}
+  },
+  {
+   "name": "media.uploadMedia:warm",
+   "duration": 15,
+   "rates": {
+    "media.uploadMedia": 6.268
+   }
+  },
+  {
+   "name": "media.uploadMedia:steady",
+   "duration": 45,
+   "rates": {
+    "media.uploadMedia": 6.268
+   }
+  },
+  {
+   "name": "media.uploadMedia:drain",
+   "duration": 20,
+   "rates": {}
+  },
+  {
+   "name": "discount.createDiscount:pre",
+   "duration": 15,
+   "rates": {}
+  },
+  {
+   "name": "discount.createDiscount:warm",
+   "duration": 15,
+   "rates": {
+    "discount.createDiscount": 6.059
+   }
+  },
+  {
+   "name": "discount.createDiscount:steady",
+   "duration": 45,
+   "rates": {
+    "discount.createDiscount": 6.059
+   }
+  },
+  {
+   "name": "discount.createDiscount:drain",
+   "duration": 20,
+   "rates": {}
+  },
+  {
+   "name": "discount.createCoupon:pre",
+   "duration": 15,
+   "rates": {}
+  },
+  {
+   "name": "discount.createCoupon:warm",
+   "duration": 15,
+   "rates": {
+    "discount.createCoupon": 8.982
+   }
+  },
+  {
+   "name": "discount.createCoupon:steady",
+   "duration": 45,
+   "rates": {
+    "discount.createCoupon": 8.982
+   }
+  },
+  {
+   "name": "discount.createCoupon:drain",
+   "duration": 20,
+   "rates": {}
+  },
+  {
+   "name": "tax.createTaxRate:pre",
+   "duration": 15,
+   "rates": {}
+  },
+  {
+   "name": "tax.createTaxRate:warm",
+   "duration": 15,
+   "rates": {
+    "tax.createTaxRate": 2.761
+   }
+  },
+  {
+   "name": "tax.createTaxRate:steady",
+   "duration": 45,
+   "rates": {
+    "tax.createTaxRate": 2.761
+   }
+  },
+  {
+   "name": "tax.createTaxRate:drain",
+   "duration": 20,
+   "rates": {}
+  },
+  {
+   "name": "tax.createTaxRateVersion:pre",
+   "duration": 15,
+   "rates": {}
+  },
+  {
+   "name": "tax.createTaxRateVersion:warm",
+   "duration": 15,
+   "rates": {
+    "tax.createTaxRateVersion": 4.467
+   }
+  },
+  {
+   "name": "tax.createTaxRateVersion:steady",
+   "duration": 45,
+   "rates": {
+    "tax.createTaxRateVersion": 4.467
+   }
+  },
+  {
+   "name": "tax.createTaxRateVersion:drain",
+   "duration": 20,
+   "rates": {}
+  },
+  {
+   "name": "shipment.createShipmentMethod:pre",
+   "duration": 15,
+   "rates": {}
+  },
+  {
+   "name": "shipment.createShipmentMethod:warm",
+   "duration": 15,
+   "rates": {
+    "shipment.createShipmentMethod": 8.713
+   }
+  },
+  {
+   "name": "shipment.createShipmentMethod:steady",
+   "duration": 45,
+   "rates": {
+    "shipment.createShipmentMethod": 8.713
+   }
+  },
+  {
+   "name": "shipment.createShipmentMethod:drain",
+   "duration": 20,
+   "rates": {}
+  },
+  {
+   "name": "address.createVendorAddress:pre",
+   "duration": 15,
+   "rates": {}
+  },
+  {
+   "name": "address.createVendorAddress:warm",
+   "duration": 15,
+   "rates": {
+    "address.createVendorAddress": 7.083
+   }
+  },
+  {
+   "name": "address.createVendorAddress:steady",
+   "duration": 45,
+   "rates": {
+    "address.createVendorAddress": 7.083
+   }
+  },
+  {
+   "name": "address.createVendorAddress:drain",
+   "duration": 20,
+   "rates": {}
+  },
+  {
+   "name": "idle_end",
+   "duration": 30,
+   "rates": {}
+  }
+ ],
+ "burstTypes": [
+  "address.createUserAddress",
+  "payment.createCreditCardPaymentInformation",
+  "discount.registerCoupon",
+  "adminNewPrice",
+  "adminCreateVariant",
+  "adminCreateProduct",
+  "catalog.createCategory",
+  "inventory.createProductItemBatch",
+  "media.uploadMedia",
+  "discount.createDiscount",
+  "discount.createCoupon",
+  "tax.createTaxRate",
+  "tax.createTaxRateVersion",
+  "shipment.createShipmentMethod",
+  "address.createVendorAddress"
+ ]
+}

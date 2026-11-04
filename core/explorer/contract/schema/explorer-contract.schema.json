@@ -1,0 +1,5265 @@
+{
+ "$schema": "http://json-schema.org/draft-07/schema#",
+ "definitions": {
+  "Id": {
+   "type": "string"
+  },
+  "defaultManifest": {
+   "$comment": "(id: Id, domains: Id[], hasModels: boolean, contract: string) => PacketManifest",
+   "type": "object",
+   "properties": {
+    "namedArgs": {
+     "type": "object",
+     "properties": {
+      "id": {
+       "$ref": "#/definitions/Id"
+      },
+      "domains": {
+       "type": "array",
+       "items": {
+        "$ref": "#/definitions/Id"
+       }
+      },
+      "hasModels": {
+       "type": "boolean"
+      },
+      "contract": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "id",
+      "domains",
+      "hasModels",
+      "contract"
+     ],
+     "additionalProperties": false
+    }
+   }
+  },
+  "PacketManifest": {
+   "type": "object",
+   "properties": {
+    "contract": {
+     "type": "string",
+     "description": "the contract version the packet was built for (CONTRACT_VERSION); the reader checks the major"
+    },
+    "id": {
+     "$ref": "#/definitions/Id",
+     "description": "unique among the loaded packets; the namespace of the browser's marks (`explorer-verify-v1:<id>`)"
+    },
+    "name": {
+     "type": "string",
+     "description": "shown in the header and the run list"
+    },
+    "description": {
+     "type": "string"
+    },
+    "family": {
+     "type": "string",
+     "description": "the problem family whose generic views apply (`palladio-architecture`: the Model panel over the InputModel, the Interactions tab, the plugin's detail); absent: a plain multi-objective packet (runs, designs, architecture graph)"
+    },
+    "domains": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/Id"
+     },
+     "description": "the domains of the packet (domains/<id>.json); a run belongs to the packet of its domain"
+    },
+    "builtAt": {
+     "type": "string"
+    },
+    "builtBy": {
+     "type": "string",
+     "description": "the builder (command or script) that wrote the packet"
+    },
+    "fingerprint": {
+     "type": "string",
+     "description": "hash over the inputs' hashes (and the builder's code): two builds from the same inputs have the same one"
+    },
+    "inputs": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/PacketInput"
+     },
+     "description": "what the packet was built from, with content hashes: the backend reports the packet stale when one changed"
+    },
+    "roots": {
+     "type": "object",
+     "additionalProperties": {
+      "type": "string"
+     },
+     "description": "named directories, relative to the packet directory (or absolute): what `cwd`, source trees and inputs are relative to"
+    },
+    "objectives": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/MeasureDef"
+     },
+     "description": "the objectives, constraints and metrics the packet's runs report: labels, units, directions, their doc's key"
+    },
+    "constraints": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/MeasureDef"
+     }
+    },
+    "metrics": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/MeasureDef"
+     }
+    },
+    "vocabulary": {
+     "$ref": "#/definitions/Vocabulary",
+     "description": "the words of the problem: mechanisms and styles a design chooses, with labels and explanations"
+    },
+    "docs": {
+     "type": "object",
+     "additionalProperties": {
+      "type": "string"
+     },
+     "description": "name -> file under the packet (docs/*.json or *.md); served inlined with the manifest (GET /api/packets/:id)"
+    },
+    "capabilities": {
+     "$ref": "#/definitions/Capabilities",
+     "description": "what the explorer shows for this packet"
+    },
+    "sources": {
+     "type": "object",
+     "additionalProperties": {
+      "$ref": "#/definitions/SourceTree"
+     },
+     "description": "named source trees the evidence of the Verify parts (and the Model panel's paths) point into"
+    },
+    "verify": {
+     "$ref": "#/definitions/VerifySetup",
+     "description": "the Verify tab's precomputed files (capability `verify`)"
+    },
+    "commands": {
+     "type": "object",
+     "additionalProperties": {
+      "$ref": "#/definitions/PacketCommand"
+     },
+     "description": "commands the backend may run for this packet (`simulate`: a design's detail, `rebuild`: the packet again). A command runs only when the backend's LOCAL configuration allows it for this packet (server.local.json `allowCommands`, or EXPLORER_ALLOW_COMMANDS); a packet never enables its own commands"
+    }
+   },
+   "required": [
+    "contract",
+    "id",
+    "name",
+    "domains"
+   ],
+   "additionalProperties": false
+  },
+  "PacketInput": {
+   "type": "object",
+   "properties": {
+    "label": {
+     "type": "string",
+     "description": "what it is (\"the extraction\")"
+    },
+    "root": {
+     "type": "string",
+     "description": "a root of `roots` the path is relative to (default: the packet directory)"
+    },
+    "path": {
+     "type": "string"
+    },
+    "hash": {
+     "type": "string",
+     "description": "sha256 hex (a prefix is enough)"
+    }
+   },
+   "required": [
+    "path",
+    "hash"
+   ],
+   "additionalProperties": false
+  },
+  "MeasureDef": {
+   "type": "object",
+   "properties": {
+    "key": {
+     "type": "string"
+    },
+    "label": {
+     "type": "string"
+    },
+    "code": {
+     "type": "string",
+     "description": "O1 … O5, C1 …: the short code the docs use"
+    },
+    "unit": {
+     "type": "string"
+    },
+    "direction": {
+     "type": "string",
+     "enum": [
+      "minimize",
+      "maximize",
+      "violation",
+      "descriptive"
+     ]
+    },
+    "digits": {
+     "type": "number"
+    },
+    "doc": {
+     "type": "string",
+     "description": "the key of its entry in docs `metrics` (default: `key`)"
+    }
+   },
+   "required": [
+    "key",
+    "label"
+   ],
+   "additionalProperties": false
+  },
+  "Vocabulary": {
+   "type": "object",
+   "properties": {
+    "mechanisms": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/VocabEntry"
+     },
+     "description": "the mechanisms of an access or call site (sync, async, cache, copy, join, …)"
+    },
+    "styles": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/VocabEntry"
+     },
+     "description": "the styles of a workflow (choreography, orchestration)"
+    },
+    "operationKinds": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/VocabEntry"
+     },
+     "description": "the kinds of operations (query, mutation, reaction, …)"
+    },
+    "edges": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/VocabEntry"
+     },
+     "description": "the edge layers of the architecture graph (its legend, the mechanism badges, the edges' tooltips): the mechanisms of the accesses (sync, copy, cache, join, saga, local) and `feed`, `event`, `reference`; `about` is the legend's tooltip"
+    }
+   },
+   "additionalProperties": false
+  },
+  "VocabEntry": {
+   "type": "object",
+   "properties": {
+    "id": {
+     "type": "string"
+    },
+    "label": {
+     "type": "string"
+    },
+    "about": {
+     "type": "string",
+     "description": "a sentence: what it means"
+    },
+    "short": {
+     "type": "string",
+     "description": "a shorter label (chips)"
+    }
+   },
+   "required": [
+    "id",
+    "label"
+   ],
+   "additionalProperties": false
+  },
+  "Capabilities": {
+   "type": "object",
+   "properties": {
+    "model": {
+     "type": "boolean",
+     "description": "the Model panel (needs an input model, models/<domain>.json, and the family palladio-architecture)"
+    },
+    "modelTabs": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/ModelTabId"
+     },
+     "description": "the Model panel's tabs, in this order (default: all the input model supports)"
+    },
+    "verify": {
+     "type": "boolean",
+     "description": "the Verify tab (needs `verify`)"
+    },
+    "performance": {
+     "type": "boolean",
+     "description": "the Performance panel (precomputed, cached or simulated details)"
+    },
+    "simulate": {
+     "type": "boolean",
+     "description": "opening a design's performance may simulate it now (the command `simulate`, or the dummy simulator)"
+    }
+   },
+   "additionalProperties": false
+  },
+  "ModelTabId": {
+   "type": "string",
+   "enum": [
+    "how",
+    "domain",
+    "ops",
+    "mech",
+    "workload",
+    "mm",
+    "verify"
+   ],
+   "description": "a model tab of the Model panel (capability `model`)"
+  },
+  "SourceTree": {
+   "anyOf": [
+    {
+     "type": "object",
+     "properties": {
+      "kind": {
+       "type": "string",
+       "const": "git"
+      },
+      "label": {
+       "type": "string"
+      },
+      "root": {
+       "type": "string"
+      },
+      "path": {
+       "type": "string"
+      },
+      "ref": {
+       "type": "string"
+      },
+      "about": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "kind",
+      "label",
+      "path",
+      "ref"
+     ],
+     "additionalProperties": false
+    },
+    {
+     "type": "object",
+     "properties": {
+      "kind": {
+       "type": "string",
+       "const": "dir"
+      },
+      "label": {
+       "type": "string"
+      },
+      "root": {
+       "type": "string"
+      },
+      "path": {
+       "type": "string"
+      },
+      "allow": {
+       "type": "array",
+       "items": {
+        "type": "string"
+       }
+      },
+      "about": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "kind",
+      "label",
+      "path"
+     ],
+     "additionalProperties": false
+    }
+   ],
+   "description": "A source tree: `git` reads the files of a repository at a commit (`git show <ref>:<path>`), `dir` the working tree of a directory, restricted to the `allow` prefixes. Paths are relative to `root` (a key of `roots`) or the packet."
+  },
+  "VerifySetup": {
+   "type": "object",
+   "properties": {
+    "parts": {
+     "type": "string",
+     "description": "verify/parts.json: the parts with their claims and evidence (contract/verify.ts `VerifyParts`)"
+    },
+    "causes": {
+     "type": "string",
+     "description": "verify/causes.json: per operation part what it causes downstream (`VerifyCauses`)"
+    },
+    "chains": {
+     "type": "string",
+     "description": "verify/chains.json: per operation the functions from its entry to its steps (`VerifyChains`)"
+    }
+   },
+   "required": [
+    "parts"
+   ],
+   "additionalProperties": false
+  },
+  "PacketCommand": {
+   "type": "object",
+   "properties": {
+    "argv": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    },
+    "cwd": {
+     "type": "string"
+    },
+    "env": {
+     "type": "object",
+     "additionalProperties": {
+      "type": "string"
+     }
+    },
+    "about": {
+     "type": "string"
+    },
+    "timeoutS": {
+     "type": "number"
+    }
+   },
+   "required": [
+    "argv"
+   ],
+   "additionalProperties": false,
+   "description": "A command: `argv` with placeholders `{name}` the backend fills (always: packet, the packet directory, and every root by its name; simulate: model, diff, out, request, build; rebuild: exportArgs, the input model's recorded export arguments — an argument that is only an array placeholder expands to several), run in `cwd` (a key of `roots` or a path relative to the packet)"
+  },
+  "PacketSummary": {
+   "type": "object",
+   "properties": {
+    "id": {
+     "$ref": "#/definitions/Id"
+    },
+    "name": {
+     "type": "string"
+    },
+    "description": {
+     "type": "string"
+    },
+    "family": {
+     "type": "string"
+    },
+    "domains": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/Id"
+     }
+    },
+    "capabilities": {
+     "$ref": "#/definitions/Capabilities"
+    },
+    "fingerprint": {
+     "type": "string"
+    },
+    "allowedCommands": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     },
+     "description": "the commands the local configuration allows for this packet"
+    },
+    "stale": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     },
+     "description": "inputs that changed since the build (staleness)"
+    },
+    "implicit": {
+     "type": "boolean",
+     "description": "the packet came without packet.json (a plain bundle)"
+    }
+   },
+   "required": [
+    "id",
+    "name",
+    "domains",
+    "capabilities",
+    "allowedCommands"
+   ],
+   "additionalProperties": false,
+   "description": "GET /api/index `packets[]`"
+  },
+  "PacketBody": {
+   "type": "object",
+   "properties": {
+    "contract": {
+     "type": "string"
+    },
+    "manifest": {
+     "$ref": "#/definitions/PacketManifest"
+    },
+    "docs": {
+     "type": "object",
+     "additionalProperties": {}
+    },
+    "summary": {
+     "$ref": "#/definitions/PacketSummary"
+    }
+   },
+   "required": [
+    "contract",
+    "manifest",
+    "docs",
+    "summary"
+   ],
+   "additionalProperties": false,
+   "description": "GET /api/packets/:id: the manifest with its docs inlined (JSON parsed, Markdown as text)"
+  },
+  "Mechanism": {
+   "type": "string",
+   "enum": [
+    "sync",
+    "copy",
+    "cache",
+    "join",
+    "saga"
+   ],
+   "description": "How one access of an operation to a class in another service is realised in a design (a decision). An access within the operation's own service has no mechanism (1.12.0: `local` is gone; its placement is \"no hop\", `DerivedAccess`)."
+  },
+  "ConsistencyLevel": {
+   "type": "string",
+   "enum": [
+    "strict",
+    "stale-ok",
+    "immutable"
+   ],
+   "description": "(1.13.0) how current a read (or a call's answer) must be, curated per read by the case: `strict` current data only (sync only; a copy only where today's code reads its own store), `stale-ok` a cache or a copy may serve it (priced by O4), `immutable` as stale-ok, but a stale answer cannot be wrong (O4 counts no staleness). Replaces the flag `strong` (contract/consistency.ts `levelOf` accepts the older spelling `strong`)."
+  },
+  "Consistency": {
+   "type": "object",
+   "properties": {
+    "level": {
+     "$ref": "#/definitions/ConsistencyLevel"
+    },
+    "rules": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    },
+    "reason": {
+     "type": "string"
+    },
+    "lock": {
+     "type": "boolean"
+    }
+   },
+   "required": [
+    "level"
+   ],
+   "additionalProperties": false,
+   "description": "(1.13.0) a read's or a call's curated consistency: its level, the rule ids that decide it (the case's `InputModel.consistency.rules`, e.g. S2, R1, I1) and the reason in the case's words; `lock` a statement that only locks (a strict read of the locked class)"
+  },
+  "Placement": {
+   "type": "string",
+   "enum": [
+    "noHop",
+    "remote"
+   ],
+   "description": "(1.12.0) where the two sides of a call run, as the UI names it (never a mechanism): `noHop` caller and callee in one container (a direct call: no middleware, no network, no receiving envelope), `remote` in different containers (the hop: both sidecars' middleware and the network; a synchronous call also pays the callee's receiving envelope)."
+  },
+  "PlanVia": {
+   "type": "string",
+   "enum": [
+    "root",
+    "service",
+    "gateway"
+   ],
+   "description": "(1.12.0) a request plan entry's `via` (`ModelRequest.plan[].via`, `ModelSite.planVia`): `root` the root resolver, `service` resolved in the service that resolves its parent (the root's service for a field on the root's objects), `gateway` a federation fetch by the gateway. Readers accept the older spelling `local` for `service` (`contract/plan.ts` planVia)."
+  },
+  "SagaStyle": {
+   "type": "string",
+   "enum": [
+    "choreography",
+    "orchestration"
+   ]
+  },
+  "DbPlacement": {
+   "type": "string",
+   "enum": [
+    "own",
+    "shared"
+   ]
+  },
+  "AccessMode": {
+   "type": "string",
+   "enum": [
+    "read",
+    "write"
+   ]
+  },
+  "OperationKind": {
+   "type": "string",
+   "enum": [
+    "query",
+    "mutation",
+    "handler",
+    "internal"
+   ],
+   "description": "query/mutation: GraphQL entry points; handler: event handler; internal: lookups and resolvers no client calls."
+  },
+  "Direction": {
+   "type": "string",
+   "enum": [
+    "minimize",
+    "maximize"
+   ]
+  },
+  "SourceKind": {
+   "type": "string",
+   "enum": [
+    "bundle",
+    "headless",
+    "mdeo"
+   ]
+  },
+  "RunStatus": {
+   "type": "string",
+   "enum": [
+    "running",
+    "completed",
+    "failed",
+    "cancelled"
+   ]
+  },
+  "RunIndex": {
+   "type": "object",
+   "properties": {
+    "contract": {
+     "type": "string"
+    },
+    "generatedAt": {
+     "type": "string"
+    },
+    "runs": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/RunSummary"
+     }
+    },
+    "domains": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/DomainRef"
+     }
+    },
+    "sources": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/SourceStatus"
+     },
+     "description": "sources the backend read, with errors (e.g. \"mdeo: dev instance not reachable, recorded responses used\")."
+    },
+    "packets": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/PacketSummary"
+     },
+     "description": "(1.10.0) the data packets (contract/packet.ts): every run belongs to the packet of its domain"
+    }
+   },
+   "required": [
+    "contract",
+    "generatedAt",
+    "runs",
+    "domains",
+    "sources"
+   ],
+   "additionalProperties": false
+  },
+  "RunSummary": {
+   "type": "object",
+   "properties": {
+    "id": {
+     "$ref": "#/definitions/Id"
+    },
+    "name": {
+     "type": "string"
+    },
+    "packet": {
+     "$ref": "#/definitions/Id",
+     "description": "(1.10.0) the packet the run belongs to (set by the backend)"
+    },
+    "description": {
+     "type": "string"
+    },
+    "source": {
+     "$ref": "#/definitions/SourceRef"
+    },
+    "problem": {
+     "type": "string",
+     "description": "e.g. \"static\", \"hpa\""
+    },
+    "domainId": {
+     "$ref": "#/definitions/Id"
+    },
+    "algorithm": {
+     "type": "string"
+    },
+    "status": {
+     "$ref": "#/definitions/RunStatus"
+    },
+    "createdAt": {
+     "type": "string"
+    },
+    "finishedAt": {
+     "type": "string"
+    },
+    "durationMs": {
+     "type": "number"
+    },
+    "populationSize": {
+     "type": "number"
+    },
+    "generations": {
+     "type": "number"
+    },
+    "evaluated": {
+     "type": "number"
+    },
+    "designCount": {
+     "type": "number",
+     "description": "designs whose decisions are known (archive, final population, references, or all evaluated)"
+    },
+    "archiveSize": {
+     "type": "number"
+    },
+    "objectives": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/ObjectiveDef"
+     }
+    },
+    "constraints": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/ConstraintDef"
+     }
+    },
+    "finalHypervolume": {
+     "type": "number"
+    },
+    "tags": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    },
+    "modelFingerprint": {
+     "type": "string",
+     "description": "(1.5.0) the fingerprint of the seed the run started from (contract/hash.ts modelFingerprint): a run whose seed is none of the input model's seeds was made with an earlier model"
+    }
+   },
+   "required": [
+    "id",
+    "name",
+    "source",
+    "problem",
+    "domainId",
+    "algorithm",
+    "status",
+    "createdAt",
+    "populationSize",
+    "generations",
+    "evaluated",
+    "designCount",
+    "objectives",
+    "constraints"
+   ],
+   "additionalProperties": false
+  },
+  "SourceRef": {
+   "type": "object",
+   "properties": {
+    "kind": {
+     "$ref": "#/definitions/SourceKind"
+    },
+    "location": {
+     "type": "string",
+     "description": "run directory, bundle path or base URL"
+    },
+    "executionId": {
+     "type": "string",
+     "description": "mdeo execution id"
+    },
+    "synthetic": {
+     "type": "boolean",
+     "description": "true when the data is synthetic (dummy generator)"
+    }
+   },
+   "required": [
+    "kind",
+    "location"
+   ],
+   "additionalProperties": false
+  },
+  "ObjectiveDef": {
+   "type": "object",
+   "properties": {
+    "key": {
+     "type": "string"
+    },
+    "label": {
+     "type": "string"
+    },
+    "unit": {
+     "type": "string"
+    },
+    "direction": {
+     "$ref": "#/definitions/Direction"
+    },
+    "description": {
+     "type": "string"
+    },
+    "digits": {
+     "type": "number",
+     "description": "decimals to show"
+    }
+   },
+   "required": [
+    "key",
+    "label",
+    "direction"
+   ],
+   "additionalProperties": false
+  },
+  "ConstraintDef": {
+   "type": "object",
+   "properties": {
+    "key": {
+     "type": "string"
+    },
+    "label": {
+     "type": "string"
+    },
+    "unit": {
+     "type": "string"
+    },
+    "description": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "key",
+    "label"
+   ],
+   "additionalProperties": false,
+   "description": "A constraint value is its violation: 0 = satisfied, > 0 = by how much it is violated."
+  },
+  "DomainRef": {
+   "type": "object",
+   "properties": {
+    "id": {
+     "$ref": "#/definitions/Id"
+    },
+    "name": {
+     "type": "string"
+    },
+    "version": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "id",
+    "name",
+    "version"
+   ],
+   "additionalProperties": false
+  },
+  "SourceStatus": {
+   "type": "object",
+   "properties": {
+    "id": {
+     "$ref": "#/definitions/Id"
+    },
+    "kind": {
+     "$ref": "#/definitions/SourceKind"
+    },
+    "location": {
+     "type": "string"
+    },
+    "ok": {
+     "type": "boolean"
+    },
+    "runs": {
+     "type": "number"
+    },
+    "mode": {
+     "type": "string",
+     "description": "\"live\", \"recorded\" (mdeo answered from recorded responses), \"files\"."
+    },
+    "message": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "id",
+    "kind",
+    "location",
+    "ok",
+    "runs",
+    "mode"
+   ],
+   "additionalProperties": false
+  },
+  "MetricDef": {
+   "type": "object",
+   "properties": {
+    "key": {
+     "type": "string"
+    },
+    "label": {
+     "type": "string"
+    },
+    "unit": {
+     "type": "string"
+    },
+    "digits": {
+     "type": "number"
+    },
+    "better": {
+     "type": "string",
+     "enum": [
+      "lower",
+      "higher",
+      "none"
+     ],
+     "description": "\"lower\" when lower is better, \"higher\", or \"none\" (descriptive)"
+    }
+   },
+   "required": [
+    "key",
+    "label"
+   ],
+   "additionalProperties": false,
+   "description": "Further per-design scalars (reported, not optimised), e.g. services, sync calls, mean response time."
+  },
+  "Run": {
+   "type": "object",
+   "properties": {
+    "id": {
+     "$ref": "#/definitions/Id"
+    },
+    "name": {
+     "type": "string"
+    },
+    "packet": {
+     "$ref": "#/definitions/Id",
+     "description": "(1.10.0) the packet the run belongs to (set by the backend)"
+    },
+    "description": {
+     "type": "string"
+    },
+    "source": {
+     "$ref": "#/definitions/SourceRef"
+    },
+    "problem": {
+     "type": "string",
+     "description": "e.g. \"static\", \"hpa\""
+    },
+    "domainId": {
+     "$ref": "#/definitions/Id"
+    },
+    "algorithm": {
+     "type": "string"
+    },
+    "status": {
+     "$ref": "#/definitions/RunStatus"
+    },
+    "createdAt": {
+     "type": "string"
+    },
+    "finishedAt": {
+     "type": "string"
+    },
+    "durationMs": {
+     "type": "number"
+    },
+    "populationSize": {
+     "type": "number"
+    },
+    "generations": {
+     "type": "number"
+    },
+    "evaluated": {
+     "type": "number"
+    },
+    "designCount": {
+     "type": "number",
+     "description": "designs whose decisions are known (archive, final population, references, or all evaluated)"
+    },
+    "archiveSize": {
+     "type": "number"
+    },
+    "objectives": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/ObjectiveDef"
+     }
+    },
+    "constraints": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/ConstraintDef"
+     }
+    },
+    "finalHypervolume": {
+     "type": "number"
+    },
+    "tags": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    },
+    "modelFingerprint": {
+     "type": "string",
+     "description": "(1.5.0) the fingerprint of the seed the run started from (contract/hash.ts modelFingerprint): a run whose seed is none of the input model's seeds was made with an earlier model"
+    },
+    "contract": {
+     "type": "string"
+    },
+    "config": {
+     "$ref": "#/definitions/RunConfig"
+    },
+    "metrics": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/MetricDef"
+     }
+    },
+    "history": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/Generation"
+     },
+     "description": "per generation (index 0 = initial population); empty when the source does not report them"
+    },
+    "hypervolume": {
+     "$ref": "#/definitions/HypervolumeSeries"
+    },
+    "archive": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/Id"
+     },
+     "description": "design ids of the external archive at the end (headless runs)"
+    },
+    "finalPopulation": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/Id"
+     },
+     "description": "design ids of the final population (dev-instance executions: its reported front)"
+    },
+    "references": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "designId": {
+        "$ref": "#/definitions/Id"
+       },
+       "label": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "designId",
+       "label"
+      ],
+      "additionalProperties": false
+     },
+     "description": "reference designs evaluated with the same evaluator (today's cut, knee, monolith, ...)"
+    }
+   },
+   "required": [
+    "algorithm",
+    "config",
+    "constraints",
+    "contract",
+    "createdAt",
+    "designCount",
+    "domainId",
+    "evaluated",
+    "generations",
+    "history",
+    "id",
+    "metrics",
+    "name",
+    "objectives",
+    "populationSize",
+    "problem",
+    "source",
+    "status"
+   ],
+   "additionalProperties": false
+  },
+  "RunConfig": {
+   "type": "object",
+   "properties": {
+    "populationSize": {
+     "type": "number"
+    },
+    "generations": {
+     "type": "number"
+    },
+    "batches": {
+     "type": "number"
+    },
+    "operators": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "name": {
+        "type": "string"
+       },
+       "weight": {
+        "type": "number"
+       },
+       "description": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "name"
+      ],
+      "additionalProperties": false
+     }
+    },
+    "mutationSteps": {
+     "type": "string",
+     "description": "e.g. \"interval(1, 3)\" operators per mutation"
+    },
+    "crossover": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "initialisation": {
+     "type": "string"
+    },
+    "randomSeed": {
+     "type": "number"
+    },
+    "threads": {
+     "type": "number"
+    },
+    "evaluation": {
+     "$ref": "#/definitions/EvaluationSetup",
+     "description": "(1.0.0) how every design of the run was evaluated: one simulation per design (docs/quality.md, Simulation of a design)"
+    },
+    "notes": {
+     "type": "string"
+    },
+    "raw": {
+     "type": "object",
+     "additionalProperties": {},
+     "description": "the source's config as is (mdeo .config fields, harness env)"
+    }
+   },
+   "required": [
+    "populationSize",
+    "generations",
+    "operators"
+   ],
+   "additionalProperties": false
+  },
+  "EvaluationSetup": {
+   "type": "object",
+   "properties": {
+    "profile": {
+     "type": "string",
+     "description": "the load profile variant: `day` (C4's compressed day) or `steady` (the design load)"
+    },
+    "warmUpS": {
+     "type": "number",
+     "description": "measured window [warmUpS, endS] and the per-bin series' bin width, s"
+    },
+    "endS": {
+     "type": "number"
+    },
+    "binS": {
+     "type": "number"
+    },
+    "seed": {
+     "type": "number"
+    },
+    "usageStreams": {
+     "type": "boolean"
+    },
+    "maxPods": {
+     "type": "number",
+     "description": "pods the HPA may create in one simulation (beyond: capped, infeasible)"
+    },
+    "phases": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "name": {
+        "type": "string"
+       },
+       "fromS": {
+        "type": "number"
+       },
+       "volume": {
+        "type": "number"
+       },
+       "mix": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "name",
+       "fromS"
+      ],
+      "additionalProperties": false
+     },
+     "description": "the profile's phases (C's `profiles.<id>.phases`): name and start, s"
+    },
+    "latency": {
+     "type": "object",
+     "properties": {
+      "statistic": {
+       "type": "string"
+      },
+      "factor": {
+       "type": "number"
+      },
+      "minCompletions": {
+       "type": "number"
+      },
+      "source": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "statistic",
+      "source"
+     ],
+     "additionalProperties": false,
+     "description": "C1's policy: the statistic per request type (mean, p50, p90, p95), the factor on the reference's statistic, the reference completions a budget needs"
+    },
+    "budgets": {
+     "type": "object",
+     "additionalProperties": {
+      "type": "object",
+      "properties": {
+       "budgetMs": {
+        "type": "number"
+       },
+       "referenceMs": {
+        "type": "number"
+       },
+       "referenceCount": {
+        "type": "number"
+       }
+      },
+      "required": [
+       "budgetMs"
+      ],
+      "additionalProperties": false
+     },
+     "description": "C1's budget per request type (RequestType ids) under this profile, ms; request types without one are not checked"
+    },
+    "peakCapacity": {
+     "type": "object",
+     "properties": {
+      "limit": {
+       "type": "number"
+      },
+      "binS": {
+       "type": "number"
+      },
+      "containers": {
+       "type": "array",
+       "items": {
+        "type": "string"
+       }
+      }
+     },
+     "required": [
+      "limit",
+      "binS",
+      "containers"
+     ],
+     "additionalProperties": false,
+     "description": "C2: the containers (model entity names) whose per-bin utilisation must stay at most at `limit`"
+    },
+    "pluginVersion": {
+     "type": "string",
+     "description": "the plugin build the run's build directory serves (`<date>+<git hash>`)"
+    }
+   },
+   "required": [
+    "profile",
+    "warmUpS",
+    "endS",
+    "binS",
+    "seed",
+    "usageStreams",
+    "maxPods",
+    "phases",
+    "latency",
+    "budgets",
+    "peakCapacity"
+   ],
+   "additionalProperties": false,
+   "description": "(1.0.0) The evaluation of a run's designs (docs/quality.md, Simulation of a design): one SimOxide simulation of the realised model per design (the plugin's pcmEvaluate) with the model's load profile; read from the run's seed model and its build by the case packet's export-run.ts."
+  },
+  "Generation": {
+   "type": "object",
+   "properties": {
+    "index": {
+     "type": "number"
+    },
+    "evaluated": {
+     "type": "number"
+    },
+    "timeMs": {
+     "type": "number"
+    },
+    "executedTransformations": {
+     "type": "number"
+    },
+    "skippedOperatorSlots": {
+     "type": "number"
+    },
+    "population": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/PopulationPoint"
+     },
+     "description": "the population after this generation; `d` only when the design's decisions are known"
+    }
+   },
+   "required": [
+    "index",
+    "evaluated",
+    "population"
+   ],
+   "additionalProperties": false
+  },
+  "PopulationPoint": {
+   "type": "object",
+   "properties": {
+    "o": {
+     "type": "array",
+     "items": {
+      "type": "number"
+     }
+    },
+    "c": {
+     "type": "array",
+     "items": {
+      "type": "number"
+     }
+    },
+    "d": {
+     "$ref": "#/definitions/Id"
+    }
+   },
+   "required": [
+    "o",
+    "c"
+   ],
+   "additionalProperties": false,
+   "description": "One individual: objective values (order of Run.objectives), constraint violations, optional design id."
+  },
+  "HypervolumeSeries": {
+   "type": "object",
+   "properties": {
+    "method": {
+     "type": "string",
+     "description": "e.g. \"Monte Carlo, 200 000 Halton samples, normalised box\""
+    },
+    "ideal": {
+     "type": "array",
+     "items": {
+      "type": "number"
+     },
+     "description": "normalisation box in the objectives' own units, per objective; minimisation form; (1.5.0) absent when the source computed the values with a box it does not report (the platform's own hypervolume)"
+    },
+    "nadir": {
+     "type": "array",
+     "items": {
+      "type": "number"
+     }
+    },
+    "population": {
+     "type": "array",
+     "items": {
+      "type": [
+       "number",
+       "null"
+      ]
+     },
+     "description": "per generation: hypervolume of the feasible non-dominated points of the population (null: not computed)"
+    },
+    "archive": {
+     "type": "array",
+     "items": {
+      "type": [
+       "number",
+       "null"
+      ]
+     },
+     "description": "per generation: of the archive at that generation (headless runs); may be sampled (null between)"
+    }
+   },
+   "required": [
+    "method",
+    "population"
+   ],
+   "additionalProperties": false
+  },
+  "DesignSummary": {
+   "type": "object",
+   "properties": {
+    "id": {
+     "$ref": "#/definitions/Id"
+    },
+    "runId": {
+     "$ref": "#/definitions/Id"
+    },
+    "hash": {
+     "type": "string",
+     "description": "hash of the canonical decisions (contract/hash.ts); the cache key for details"
+    },
+    "label": {
+     "type": "string"
+    },
+    "objectives": {
+     "type": "array",
+     "items": {
+      "type": "number"
+     }
+    },
+    "constraints": {
+     "type": "array",
+     "items": {
+      "type": "number"
+     }
+    },
+    "feasible": {
+     "type": "boolean"
+    },
+    "rank": {
+     "type": [
+      "number",
+      "null"
+     ],
+     "description": "non-domination rank among the run's feasible designs (0 = front); null if infeasible"
+    },
+    "born": {
+     "type": "number",
+     "description": "generation the design was first seen / left the archive"
+    },
+    "died": {
+     "type": [
+      "number",
+      "null"
+     ]
+    },
+    "inArchive": {
+     "type": "boolean"
+    },
+    "inFinalPopulation": {
+     "type": "boolean"
+    },
+    "reference": {
+     "type": "boolean"
+    },
+    "metrics": {
+     "type": "object",
+     "additionalProperties": {
+      "type": "number"
+     },
+     "description": "values of Run.metrics"
+    },
+    "hasDetail": {
+     "type": "boolean",
+     "description": "precomputed detail available without simulation"
+    },
+    "hasDecisions": {
+     "type": "boolean",
+     "description": "decisions known (false for designs only known by objective values)"
+    }
+   },
+   "required": [
+    "id",
+    "runId",
+    "hash",
+    "objectives",
+    "constraints",
+    "feasible",
+    "metrics",
+    "hasDecisions"
+   ],
+   "additionalProperties": false
+  },
+  "Design": {
+   "type": "object",
+   "properties": {
+    "id": {
+     "$ref": "#/definitions/Id"
+    },
+    "runId": {
+     "$ref": "#/definitions/Id"
+    },
+    "hash": {
+     "type": "string",
+     "description": "hash of the canonical decisions (contract/hash.ts); the cache key for details"
+    },
+    "label": {
+     "type": "string"
+    },
+    "objectives": {
+     "type": "array",
+     "items": {
+      "type": "number"
+     }
+    },
+    "constraints": {
+     "type": "array",
+     "items": {
+      "type": "number"
+     }
+    },
+    "feasible": {
+     "type": "boolean"
+    },
+    "rank": {
+     "type": [
+      "number",
+      "null"
+     ],
+     "description": "non-domination rank among the run's feasible designs (0 = front); null if infeasible"
+    },
+    "born": {
+     "type": "number",
+     "description": "generation the design was first seen / left the archive"
+    },
+    "died": {
+     "type": [
+      "number",
+      "null"
+     ]
+    },
+    "inArchive": {
+     "type": "boolean"
+    },
+    "inFinalPopulation": {
+     "type": "boolean"
+    },
+    "reference": {
+     "type": "boolean"
+    },
+    "metrics": {
+     "type": "object",
+     "additionalProperties": {
+      "type": "number"
+     },
+     "description": "values of Run.metrics"
+    },
+    "hasDetail": {
+     "type": "boolean",
+     "description": "precomputed detail available without simulation"
+    },
+    "hasDecisions": {
+     "type": "boolean",
+     "description": "decisions known (false for designs only known by objective values)"
+    },
+    "decisions": {
+     "$ref": "#/definitions/Decisions"
+    },
+    "rawDecisions": {
+     "type": "object",
+     "additionalProperties": {
+      "type": "string"
+     },
+     "description": "the source's decisions as is, when they cannot be mapped (e.g. layer-2 link maps of older runs)"
+    }
+   },
+   "additionalProperties": false,
+   "required": [
+    "constraints",
+    "feasible",
+    "hasDecisions",
+    "hash",
+    "id",
+    "metrics",
+    "objectives",
+    "runId"
+   ]
+  },
+  "Decisions": {
+   "type": "object",
+   "properties": {
+    "services": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/ServiceDecision"
+     }
+    },
+    "mechanisms": {
+     "type": "object",
+     "additionalProperties": {
+      "$ref": "#/definitions/Mechanism"
+     },
+     "description": "Mechanism per access whose class lives in another service than the operation runs in. Key `${operationId}|${classId}|${mode}`. Accesses within one service have no mechanism and are not listed."
+    },
+    "sagas": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/SagaDecision"
+     },
+     "description": "saga style per business process whose steps span several services"
+    },
+    "databases": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/DatabaseServer"
+     }
+    },
+    "operationPlacement": {
+     "type": "object",
+     "additionalProperties": {
+      "$ref": "#/definitions/Id"
+     },
+     "description": "where an operation runs, if not in the service of its home class"
+    },
+    "effects": {
+     "type": "object",
+     "additionalProperties": {
+      "$ref": "#/definitions/EffectState"
+     },
+     "description": "(1.4.0) per effect step (call site, `Domain.effectSites`): its mechanism and whether it joins the caller's transaction in this design"
+    },
+    "homes": {
+     "type": "object",
+     "additionalProperties": {
+      "$ref": "#/definitions/Id"
+     },
+     "description": "(1.4.0) the chosen home class per operation whose home is a decision (`Domain.homes`)"
+    }
+   },
+   "required": [
+    "services",
+    "mechanisms",
+    "sagas",
+    "databases"
+   ],
+   "additionalProperties": false
+  },
+  "ServiceDecision": {
+   "type": "object",
+   "properties": {
+    "id": {
+     "$ref": "#/definitions/Id"
+    },
+    "name": {
+     "type": "string"
+    },
+    "classes": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/Id"
+     }
+    },
+    "replicas": {
+     "$ref": "#/definitions/ReplicaDecision"
+    },
+    "database": {
+     "$ref": "#/definitions/Id",
+     "description": "database server id"
+    }
+   },
+   "required": [
+    "id",
+    "name",
+    "classes",
+    "replicas",
+    "database"
+   ],
+   "additionalProperties": false
+  },
+  "ReplicaDecision": {
+   "anyOf": [
+    {
+     "type": "object",
+     "properties": {
+      "mode": {
+       "type": "string",
+       "const": "fixed"
+      },
+      "count": {
+       "type": "number"
+      }
+     },
+     "required": [
+      "mode",
+      "count"
+     ],
+     "additionalProperties": false
+    },
+    {
+     "type": "object",
+     "properties": {
+      "mode": {
+       "type": "string",
+       "const": "hpa"
+      },
+      "min": {
+       "type": "number"
+      },
+      "max": {
+       "type": "number"
+      },
+      "targetUtilisation": {
+       "type": "number"
+      }
+     },
+     "required": [
+      "mode",
+      "min",
+      "max",
+      "targetUtilisation"
+     ],
+     "additionalProperties": false
+    }
+   ]
+  },
+  "SagaDecision": {
+   "type": "object",
+   "properties": {
+    "process": {
+     "$ref": "#/definitions/Id"
+    },
+    "style": {
+     "$ref": "#/definitions/SagaStyle"
+    },
+    "orchestrator": {
+     "$ref": "#/definitions/Id",
+     "description": "orchestrating service (orchestration only)"
+    }
+   },
+   "required": [
+    "process",
+    "style"
+   ],
+   "additionalProperties": false
+  },
+  "DatabaseServer": {
+   "type": "object",
+   "properties": {
+    "id": {
+     "$ref": "#/definitions/Id"
+    },
+    "name": {
+     "type": "string"
+    },
+    "placement": {
+     "$ref": "#/definitions/DbPlacement"
+    },
+    "services": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/Id"
+     }
+    }
+   },
+   "required": [
+    "id",
+    "name",
+    "placement",
+    "services"
+   ],
+   "additionalProperties": false
+  },
+  "EffectState": {
+   "type": "object",
+   "properties": {
+    "m": {
+     "$ref": "#/definitions/EffectMechanism"
+    },
+    "joined": {
+     "type": "boolean",
+     "const": true,
+     "description": "in the caller's transaction (realisation shape `joined`): a local call, no envelope, no commit, no message"
+    },
+    "why": {
+     "$ref": "#/definitions/JoinBlocker",
+     "description": "not joined: why (the first that holds, in the order apart, servers, orchestrated; external, chosen)"
+    },
+    "together": {
+     "type": "boolean",
+     "const": true,
+     "description": "caller and provider share a container"
+    }
+   },
+   "required": [
+    "m"
+   ],
+   "additionalProperties": false,
+   "description": "(1.4.0) an effect step in one design"
+  },
+  "EffectMechanism": {
+   "type": "string",
+   "enum": [
+    "inTx",
+    "sync",
+    "async"
+   ],
+   "description": "(1.4.0) an effect step's mechanism: in the caller's transaction, a synchronous step, an asynchronous message"
+  },
+  "JoinBlocker": {
+   "type": "string",
+   "enum": [
+    "apart",
+    "servers",
+    "orchestrated",
+    "external",
+    "chosen"
+   ],
+   "description": "(1.4.0) why an effect step does not join the caller's transaction (core/mdeo/transform/realise/plan-placement.mt `pj`): `apart` caller and provider in different containers, `servers` the two schemas on different database servers, `orchestrated` a step of an orchestrated workflow (a saga step), `external` the trigger is outside the system (a provider callback: async only), `chosen` the design chose another mechanism (sync or async)"
+  },
+  "EffectSite": {
+   "type": "object",
+   "properties": {
+    "id": {
+     "$ref": "#/definitions/Id",
+     "description": "the call site"
+    },
+    "op": {
+     "$ref": "#/definitions/Id",
+     "description": "the trigger operation (A)"
+    },
+    "kind": {
+     "type": "string",
+     "enum": [
+      "write",
+      "event",
+      "callback"
+     ],
+     "description": "how today's code implements it: a write of another class, an event reaction, a provider callback"
+    },
+    "class": {
+     "$ref": "#/definitions/Id",
+     "description": "the class whose work it is (B: the written class, the reaction's or callback's home class)"
+    },
+    "callee": {
+     "$ref": "#/definitions/Id",
+     "description": "the reaction or callback operation (events, callbacks)"
+    },
+    "event": {
+     "$ref": "#/definitions/Id",
+     "description": "the event raised (events)"
+    },
+    "allowed": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/EffectMechanism"
+     }
+    },
+    "home": {
+     "$ref": "#/definitions/Id",
+     "description": "the step sits in a home option's SEFF: the option's class (inert unless chosen)"
+    },
+    "callerSchema": {
+     "$ref": "#/definitions/Id",
+     "description": "the schemas that must share a database server to join (CallSite.callerSchema, providerSchema)"
+    },
+    "providerSchema": {
+     "$ref": "#/definitions/Id"
+    },
+    "callerClass": {
+     "$ref": "#/definitions/Id",
+     "description": "the class whose component makes the call (the caller's container decides `together`)"
+    }
+   },
+   "required": [
+    "id",
+    "op",
+    "kind",
+    "class",
+    "allowed"
+   ],
+   "additionalProperties": false,
+   "description": "(1.4.0) an effect step of the model (docs/model.md, Call sites): operation A causes a change at class B"
+  },
+  "DesignList": {
+   "type": "object",
+   "properties": {
+    "contract": {
+     "type": "string"
+    },
+    "runId": {
+     "$ref": "#/definitions/Id"
+    },
+    "designs": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/DesignSummary"
+     }
+    }
+   },
+   "required": [
+    "contract",
+    "runId",
+    "designs"
+   ],
+   "additionalProperties": false,
+   "description": "GET /api/runs/:id/designs: the summaries (no decisions)"
+  },
+  "DesignFile": {
+   "type": "object",
+   "properties": {
+    "contract": {
+     "type": "string"
+    },
+    "runId": {
+     "$ref": "#/definitions/Id"
+    },
+    "designs": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/Design"
+     }
+    }
+   },
+   "required": [
+    "contract",
+    "runId",
+    "designs"
+   ],
+   "additionalProperties": false,
+   "description": "runs/<run>/designs.json in a bundle: every design with its decisions"
+  },
+  "DesignStreamHeader": {
+   "type": "object",
+   "properties": {
+    "contract": {
+     "type": "string"
+    },
+    "runId": {
+     "$ref": "#/definitions/Id"
+    }
+   },
+   "required": [
+    "contract",
+    "runId"
+   ],
+   "additionalProperties": false,
+   "description": "runs/<run>/designs.jsonl in a bundle (since 0.2.0, preferred over designs.json when present): line 1 is this header, then one `Design` per line (JSON, no line breaks inside a line)."
+  },
+  "Domain": {
+   "type": "object",
+   "properties": {
+    "contract": {
+     "type": "string"
+    },
+    "id": {
+     "$ref": "#/definitions/Id"
+    },
+    "name": {
+     "type": "string"
+    },
+    "version": {
+     "type": "string"
+    },
+    "source": {
+     "type": "string",
+     "description": "where it was extracted from (commit, files)"
+    },
+    "classes": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/DomainClass"
+     }
+    },
+    "references": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/Reference"
+     }
+    },
+    "aggregates": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/Aggregate"
+     }
+    },
+    "operations": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/Operation"
+     }
+    },
+    "events": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/DomainEvent"
+     }
+    },
+    "features": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/Feature"
+     }
+    },
+    "processes": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/BusinessProcess"
+     }
+    },
+    "requests": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/RequestType"
+     },
+     "description": "client request types (GraphQL documents); the gateway plan runs their operations"
+    },
+    "sessions": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/SessionType"
+     }
+    },
+    "loadProfiles": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/LoadProfile"
+     },
+     "description": "load profiles over time (sessions/s and mix), e.g. package C's \"day\" and \"steady\""
+    },
+    "cuts": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "id": {
+        "$ref": "#/definitions/Id"
+       },
+       "name": {
+        "type": "string"
+       },
+       "services": {
+        "type": "array",
+        "items": {
+         "type": "object",
+         "properties": {
+          "name": {
+           "type": "string"
+          },
+          "classes": {
+           "type": "array",
+           "items": {
+            "$ref": "#/definitions/Id"
+           }
+          }
+         },
+         "required": [
+          "name",
+          "classes"
+         ],
+         "additionalProperties": false
+        }
+       }
+      },
+      "required": [
+       "id",
+       "name",
+       "services"
+      ],
+      "additionalProperties": false
+     },
+     "description": "named reference cuts: today's 16 services, a monolith, ..."
+    },
+    "effectSites": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/EffectSite"
+     },
+     "description": "(1.4.0) the model's effect steps; a design's `Decisions.effects` holds their state"
+    },
+    "homes": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "op": {
+        "$ref": "#/definitions/Id"
+       },
+       "options": {
+        "type": "array",
+        "items": {
+         "$ref": "#/definitions/Id"
+        }
+       },
+       "written": {
+        "$ref": "#/definitions/Id"
+       }
+      },
+      "required": [
+       "op",
+       "options",
+       "written"
+      ],
+      "additionalProperties": false
+     },
+     "description": "(1.4.0) operations whose home (entry point) is a decision among the classes they write in their transaction"
+    }
+   },
+   "required": [
+    "contract",
+    "id",
+    "name",
+    "version",
+    "source",
+    "classes",
+    "references",
+    "aggregates",
+    "operations",
+    "events",
+    "features",
+    "processes",
+    "requests",
+    "sessions"
+   ],
+   "additionalProperties": false
+  },
+  "DomainClass": {
+   "type": "object",
+   "properties": {
+    "id": {
+     "$ref": "#/definitions/Id"
+    },
+    "name": {
+     "type": "string"
+    },
+    "aggregate": {
+     "$ref": "#/definitions/Id"
+    },
+    "sizeKb": {
+     "type": "number"
+    },
+    "attributes": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    },
+    "description": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "id",
+    "name"
+   ],
+   "additionalProperties": false
+  },
+  "Reference": {
+   "type": "object",
+   "properties": {
+    "id": {
+     "$ref": "#/definitions/Id"
+    },
+    "from": {
+     "$ref": "#/definitions/Id"
+    },
+    "to": {
+     "$ref": "#/definitions/Id"
+    },
+    "name": {
+     "type": "string"
+    },
+    "kind": {
+     "type": "string",
+     "enum": [
+      "composition",
+      "association",
+      "snapshot"
+     ]
+    },
+    "multiplicity": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "id",
+    "from",
+    "to",
+    "kind"
+   ],
+   "additionalProperties": false
+  },
+  "Aggregate": {
+   "type": "object",
+   "properties": {
+    "id": {
+     "$ref": "#/definitions/Id"
+    },
+    "name": {
+     "type": "string"
+    },
+    "root": {
+     "$ref": "#/definitions/Id"
+    },
+    "classes": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/Id"
+     }
+    }
+   },
+   "required": [
+    "id",
+    "name",
+    "root",
+    "classes"
+   ],
+   "additionalProperties": false
+  },
+  "Operation": {
+   "type": "object",
+   "properties": {
+    "id": {
+     "$ref": "#/definitions/Id"
+    },
+    "name": {
+     "type": "string"
+    },
+    "kind": {
+     "$ref": "#/definitions/OperationKind"
+    },
+    "feature": {
+     "$ref": "#/definitions/Id"
+    },
+    "homeClass": {
+     "$ref": "#/definitions/Id",
+     "description": "the class the operation is anchored on; it runs in this class's service unless placed otherwise"
+    },
+    "trigger": {
+     "$ref": "#/definitions/Id",
+     "description": "event the handler reacts to"
+    },
+    "publishes": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/Id"
+     }
+    },
+    "rate": {
+     "type": "number",
+     "description": "requests per second at the reference load"
+    },
+    "cpuMs": {
+     "type": "number"
+    },
+    "dbMs": {
+     "type": "number"
+    },
+    "budgetMs": {
+     "type": "number",
+     "description": "latency budget, ms (the dummy bundles only)"
+    },
+    "accesses": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/Access"
+     }
+    },
+    "description": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "id",
+    "name",
+    "kind",
+    "homeClass",
+    "accesses"
+   ],
+   "additionalProperties": false
+  },
+  "Access": {
+   "type": "object",
+   "properties": {
+    "class": {
+     "$ref": "#/definitions/Id"
+    },
+    "mode": {
+     "$ref": "#/definitions/AccessMode"
+    },
+    "perExecution": {
+     "type": "number",
+     "description": "accesses per execution"
+    },
+    "level": {
+     "$ref": "#/definitions/ConsistencyLevel",
+     "description": "(1.13.0) reads: how current the data must be (strict: no copy or cache), with the curated rules and reason of its statements at that level; absent: stale-ok"
+    },
+    "rules": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    },
+    "reason": {
+     "type": "string"
+    },
+    "lock": {
+     "type": "boolean",
+     "description": "(1.13.0) one of its statements only locks (a strict read of the locked class)"
+    },
+    "strong": {
+     "type": "boolean",
+     "description": "the older spelling of `level` (needs fresh data: no copy or cache allowed), read by `levelOf`"
+    },
+    "joined": {
+     "type": "boolean",
+     "description": "part of a cross-class join or transaction with the operation's other accesses"
+    }
+   },
+   "required": [
+    "class",
+    "mode"
+   ],
+   "additionalProperties": false
+  },
+  "DomainEvent": {
+   "type": "object",
+   "properties": {
+    "id": {
+     "$ref": "#/definitions/Id"
+    },
+    "name": {
+     "type": "string"
+    },
+    "publishers": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/Id"
+     }
+    },
+    "subscribers": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/Id"
+     }
+    },
+    "class": {
+     "$ref": "#/definitions/Id",
+     "description": "the class whose changes the event carries"
+    }
+   },
+   "required": [
+    "id",
+    "name",
+    "publishers",
+    "subscribers"
+   ],
+   "additionalProperties": false
+  },
+  "Feature": {
+   "type": "object",
+   "properties": {
+    "id": {
+     "$ref": "#/definitions/Id"
+    },
+    "code": {
+     "type": "string"
+    },
+    "name": {
+     "type": "string"
+    },
+    "operations": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/Id"
+     }
+    }
+   },
+   "required": [
+    "id",
+    "code",
+    "name",
+    "operations"
+   ],
+   "additionalProperties": false
+  },
+  "BusinessProcess": {
+   "type": "object",
+   "properties": {
+    "id": {
+     "$ref": "#/definitions/Id"
+    },
+    "name": {
+     "type": "string"
+    },
+    "trigger": {
+     "$ref": "#/definitions/Id"
+    },
+    "steps": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/Id"
+     },
+     "description": "operations in order; a step's writes in another service than the trigger's make the process a saga"
+    },
+    "transaction": {
+     "type": "object",
+     "properties": {
+      "writes": {
+       "type": "array",
+       "items": {
+        "$ref": "#/definitions/Id"
+       }
+      },
+      "home": {
+       "$ref": "#/definitions/Id"
+      }
+     },
+     "required": [
+      "writes"
+     ],
+     "additionalProperties": false,
+     "description": "(1.3.0) a transaction workflow (`tx_<SEFF>`, layer 2's `Workflow.transactional`, docs/model.md Workflows): no business process but the transaction of the trigger, whose transaction-bound writes of other classes are the steps (`steps` stays empty); a saga while one of these classes sits in another service than the trigger"
+    }
+   },
+   "required": [
+    "id",
+    "name",
+    "trigger",
+    "steps"
+   ],
+   "additionalProperties": false
+  },
+  "RequestType": {
+   "type": "object",
+   "properties": {
+    "id": {
+     "$ref": "#/definitions/Id"
+    },
+    "name": {
+     "type": "string"
+    },
+    "document": {
+     "type": "string",
+     "description": "the GraphQL document"
+    },
+    "operations": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/Id"
+     },
+     "description": "operations the gateway plan runs, root first"
+    },
+    "rate": {
+     "type": "number",
+     "description": "requests per second at the reference load"
+    },
+    "budgetMs": {
+     "type": "number",
+     "description": "latency budget, ms (the dummy bundles; a run's budgets are in its `config.evaluation.budgets`)"
+    }
+   },
+   "required": [
+    "id",
+    "name",
+    "operations"
+   ],
+   "additionalProperties": false
+  },
+  "SessionType": {
+   "type": "object",
+   "properties": {
+    "id": {
+     "$ref": "#/definitions/Id"
+    },
+    "name": {
+     "type": "string"
+    },
+    "description": {
+     "type": "string"
+    },
+    "share": {
+     "type": "number",
+     "description": "share of the sessions at the reference mix"
+    },
+    "thinkTimeS": {
+     "type": "number"
+    },
+    "steps": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "request": {
+        "$ref": "#/definitions/Id"
+       },
+       "probability": {
+        "type": "number"
+       },
+       "repeat": {
+        "type": "number"
+       }
+      },
+      "required": [
+       "request"
+      ],
+      "additionalProperties": false
+     },
+     "description": "request types in order of first use; repeat: expected visits per session (may be fractional); probability: optional step"
+    }
+   },
+   "required": [
+    "id",
+    "name",
+    "share",
+    "thinkTimeS",
+    "steps"
+   ],
+   "additionalProperties": false
+  },
+  "LoadProfile": {
+   "type": "object",
+   "properties": {
+    "id": {
+     "$ref": "#/definitions/Id"
+    },
+    "label": {
+     "type": "string"
+    },
+    "t": {
+     "type": "array",
+     "items": {
+      "type": "number"
+     },
+     "description": "sample times, s"
+    },
+    "sessionsPerSecond": {
+     "type": "array",
+     "items": {
+      "type": "number"
+     }
+    },
+    "mix": {
+     "type": "object",
+     "additionalProperties": {
+      "type": "array",
+      "items": {
+       "type": "number"
+      }
+     },
+     "description": "share of each session type over time (keys: SessionType ids)"
+    }
+   },
+   "required": [
+    "id",
+    "label",
+    "t",
+    "sessionsPerSecond",
+    "mix"
+   ],
+   "additionalProperties": false
+  },
+  "DesignDetail": {
+   "type": "object",
+   "properties": {
+    "contract": {
+     "type": "string"
+    },
+    "designHash": {
+     "type": "string"
+    },
+    "designId": {
+     "$ref": "#/definitions/Id"
+    },
+    "runId": {
+     "$ref": "#/definitions/Id"
+    },
+    "origin": {
+     "type": "string",
+     "enum": [
+      "precomputed",
+      "simulated",
+      "synthetic"
+     ],
+     "description": "precomputed (exported with the run), simulated (on demand), synthetic (dummy)"
+    },
+    "simulator": {
+     "type": "object",
+     "properties": {
+      "name": {
+       "type": "string"
+      },
+      "version": {
+       "type": "string",
+       "description": "the plugin build that simulated it (`<date>+<git hash>`)"
+      },
+      "seed": {
+       "type": "number"
+      },
+      "durationS": {
+       "type": "number",
+       "description": "end of the run and start of the measured window, s"
+      },
+      "warmupS": {
+       "type": "number"
+      },
+      "binS": {
+       "type": "number"
+      },
+      "profile": {
+       "type": "string",
+       "description": "the load profile variant (EvaluationSetup.profile)"
+      },
+      "events": {
+       "type": "number"
+      },
+      "simulatedS": {
+       "type": "number"
+      },
+      "wallMs": {
+       "type": "number"
+      }
+     },
+     "required": [
+      "name",
+      "durationS",
+      "binS"
+     ],
+     "additionalProperties": false
+    },
+    "status": {
+     "type": "object",
+     "properties": {
+      "failed": {
+       "type": "boolean"
+      },
+      "capped": {
+       "type": "boolean"
+      },
+      "timedOut": {
+       "type": "boolean"
+      },
+      "message": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "failed",
+      "capped",
+      "timedOut"
+     ],
+     "additionalProperties": false,
+     "description": "a failed simulation, or one stopped at the pod or event limit, makes the design infeasible (C1 1000, C2 1)"
+    },
+    "computedAt": {
+     "type": "string"
+    },
+    "computeMs": {
+     "type": "number"
+    },
+    "load": {
+     "$ref": "#/definitions/LoadProfile",
+     "description": "the load profile simulated: sessions started per second and the session mix per bin"
+    },
+    "phases": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "name": {
+        "type": "string"
+       },
+       "fromS": {
+        "type": "number"
+       },
+       "toS": {
+        "type": "number"
+       }
+      },
+      "required": [
+       "name",
+       "fromS",
+       "toS"
+      ],
+      "additionalProperties": false
+     },
+     "description": "the profile's phases, for shading (EvaluationSetup.phases)"
+    },
+    "operations": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/ResponseStats"
+     }
+    },
+    "requests": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/ResponseStats"
+     }
+    },
+    "sessions": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/ResponseStats"
+     }
+    },
+    "services": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/ServiceTimeline"
+     }
+    },
+    "resources": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/ResourceStats"
+     }
+    },
+    "hpa": {
+     "$ref": "#/definitions/HpaStats",
+     "description": "the HPA over all scaling groups"
+    },
+    "model": {
+     "type": "string",
+     "enum": [
+      "as evaluated",
+      "rebuilt"
+     ],
+     "description": "the simulated model: the one the search evaluated (a reference, a saved solution) or rebuilt from the seed and the design's decision links"
+    },
+    "constraints": {
+     "type": "object",
+     "properties": {
+      "latencyBudget": {
+       "type": "number"
+      },
+      "peakCapacity": {
+       "type": "number"
+      },
+      "statistic": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "latencyBudget",
+      "peakCapacity",
+      "statistic"
+     ],
+     "additionalProperties": false,
+     "description": "C1 and C2 recomputed from this simulation with the run's budgets and limit (compare with the design's values)"
+    }
+   },
+   "required": [
+    "contract",
+    "designHash",
+    "origin",
+    "simulator",
+    "status",
+    "computedAt",
+    "load",
+    "operations",
+    "requests",
+    "sessions",
+    "services",
+    "resources",
+    "hpa"
+   ],
+   "additionalProperties": false,
+   "description": "(1.0.0) The simulation of one design: the plugin's `detail` run of the design's realised model with exactly the request the search evaluated it with (core/tools/design_detail.sh), so its `evaluation` is the search's pcmEvaluate result. Statistics cover the measured window; the per-bin series cover the window in `binS` bins (`t` = bin starts, s)."
+  },
+  "ResponseStats": {
+   "type": "object",
+   "properties": {
+    "key": {
+     "$ref": "#/definitions/Id",
+     "description": "operation, request type or session type id"
+    },
+    "count": {
+     "type": "number"
+    },
+    "failed": {
+     "type": "number"
+    },
+    "meanMs": {
+     "type": "number"
+    },
+    "p50Ms": {
+     "type": "number"
+    },
+    "p90Ms": {
+     "type": "number"
+    },
+    "p95Ms": {
+     "type": "number"
+    },
+    "p99Ms": {
+     "type": "number"
+    },
+    "maxMs": {
+     "type": "number"
+    },
+    "budgetMs": {
+     "type": "number",
+     "description": "C1's budget of a request type (the run's EvaluationSetup.budgets)"
+    },
+    "statisticMs": {
+     "type": "number",
+     "description": "C1's statistic of this series (EvaluationSetup.latency.statistic), ms"
+    },
+    "histogram": {
+     "type": "object",
+     "properties": {
+      "edgesMs": {
+       "type": "array",
+       "items": {
+        "type": "number"
+       }
+      },
+      "counts": {
+       "type": "array",
+       "items": {
+        "type": "number"
+       }
+      }
+     },
+     "required": [
+      "edgesMs",
+      "counts"
+     ],
+     "additionalProperties": false,
+     "description": "log-spaced bins: counts[i] in [edgesMs[i], edgesMs[i+1])"
+    },
+    "overTime": {
+     "type": "object",
+     "properties": {
+      "t": {
+       "type": "array",
+       "items": {
+        "type": "number"
+       }
+      },
+      "meanMs": {
+       "type": "array",
+       "items": {
+        "type": "number"
+       }
+      },
+      "p95Ms": {
+       "type": "array",
+       "items": {
+        "type": "number"
+       }
+      },
+      "throughput": {
+       "type": "array",
+       "items": {
+        "type": "number"
+       }
+      }
+     },
+     "required": [
+      "t",
+      "meanMs",
+      "p95Ms",
+      "throughput"
+     ],
+     "additionalProperties": false,
+     "description": "per bin (completion time): mean, p95, completions per second"
+    }
+   },
+   "required": [
+    "key",
+    "count",
+    "meanMs",
+    "p50Ms",
+    "p90Ms",
+    "p95Ms",
+    "p99Ms",
+    "maxMs",
+    "histogram"
+   ],
+   "additionalProperties": false
+  },
+  "ServiceTimeline": {
+   "type": "object",
+   "properties": {
+    "service": {
+     "$ref": "#/definitions/Id",
+     "description": "a scaling group's container (a service's container, the gateway)"
+    },
+    "label": {
+     "type": "string"
+    },
+    "autoscaled": {
+     "type": "boolean"
+    },
+    "cores": {
+     "type": "number",
+     "description": "cores per pod"
+    },
+    "t": {
+     "type": "array",
+     "items": {
+      "type": "number"
+     }
+    },
+    "utilisation": {
+     "type": "array",
+     "items": {
+      "type": "number"
+     },
+     "description": "CPU utilisation per ready pod, 0..1"
+    },
+    "replicas": {
+     "type": "array",
+     "items": {
+      "type": "number"
+     },
+     "description": "pods (ready + starting), time mean per bin"
+    },
+    "ready": {
+     "type": "array",
+     "items": {
+      "type": "number"
+     },
+     "description": "ready pods, time mean per bin"
+    },
+    "meanReady": {
+     "type": "number"
+    },
+    "peakReady": {
+     "type": "number"
+    },
+    "rescales": {
+     "type": "number"
+    },
+    "createdPods": {
+     "type": "number"
+    }
+   },
+   "required": [
+    "service",
+    "autoscaled",
+    "t",
+    "utilisation",
+    "replicas"
+   ],
+   "additionalProperties": false
+  },
+  "ResourceStats": {
+   "type": "object",
+   "properties": {
+    "id": {
+     "$ref": "#/definitions/Id"
+    },
+    "kind": {
+     "type": "string",
+     "enum": [
+      "cpu",
+      "db",
+      "broker",
+      "gateway"
+     ]
+    },
+    "label": {
+     "type": "string"
+    },
+    "service": {
+     "$ref": "#/definitions/Id"
+    },
+    "database": {
+     "$ref": "#/definitions/Id"
+    },
+    "utilisation": {
+     "type": "number",
+     "description": "mean utilisation over the window, 0..1"
+    },
+    "maxBinUtilisation": {
+     "type": "number",
+     "description": "the largest per-bin utilisation (C2's quantity for a PeakCapacity container)"
+    },
+    "peakCapacity": {
+     "type": "boolean",
+     "description": "a container C2 checks (database servers, broker)"
+    },
+    "waitMs": {
+     "type": "number"
+    },
+    "queueLength": {
+     "type": "number"
+    },
+    "t": {
+     "type": "array",
+     "items": {
+      "type": "number"
+     }
+    },
+    "utilisationOverTime": {
+     "type": "array",
+     "items": {
+      "type": "number"
+     }
+    },
+    "queueOverTime": {
+     "type": "array",
+     "items": {
+      "type": "number"
+     }
+    }
+   },
+   "required": [
+    "id",
+    "kind",
+    "label",
+    "utilisation"
+   ],
+   "additionalProperties": false
+  },
+  "HpaStats": {
+   "type": "object",
+   "properties": {
+    "t": {
+     "type": "array",
+     "items": {
+      "type": "number"
+     }
+    },
+    "pods": {
+     "type": "array",
+     "items": {
+      "type": "number"
+     },
+     "description": "pods of all groups per bin (ready + starting), and ready"
+    },
+    "ready": {
+     "type": "array",
+     "items": {
+      "type": "number"
+     }
+    },
+    "peakPods": {
+     "type": "number"
+    },
+    "createdPods": {
+     "type": "number"
+    },
+    "rescales": {
+     "type": "number"
+    },
+    "reversals": {
+     "type": "number"
+    },
+    "maxPods": {
+     "type": "number"
+    }
+   },
+   "required": [
+    "t",
+    "pods",
+    "ready",
+    "peakPods",
+    "createdPods",
+    "rescales",
+    "reversals"
+   ],
+   "additionalProperties": false
+  },
+  "InputModel": {
+   "type": "object",
+   "properties": {
+    "contract": {
+     "type": "string"
+    },
+    "domainId": {
+     "$ref": "#/definitions/Id"
+    },
+    "generatedAt": {
+     "type": "string"
+    },
+    "commit": {
+     "type": "string",
+     "description": "the commit of the system's repository the extraction was read at"
+    },
+    "timing": {
+     "$ref": "#/definitions/ModelTiming",
+     "description": "(1.1.0) where the model's demands come from, detected from the data (absent: the seed's timings)"
+    },
+    "inputs": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/ModelInput"
+     },
+     "description": "the files the export read, as repo paths of this project; (1.5.0) with their content hash (sha256) and, for a realised seed, the model it was realised from with that model's hash at the time (its `// Source:` line)"
+    },
+    "exportArgs": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     },
+     "description": "(1.5.0) the exporter's arguments, to export again with the same inputs"
+    },
+    "freshness": {
+     "$ref": "#/definitions/ModelFreshness",
+     "description": "(1.5.0) set by the backend when it serves the model: whether the inputs are still the exported ones"
+    },
+    "origin": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/ModelOrigin"
+     },
+     "description": "the files the model comes from (origin), as repo paths"
+    },
+    "classes": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/ModelClass"
+     }
+    },
+    "references": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/ModelReference"
+     }
+    },
+    "operations": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/ModelOperation"
+     }
+    },
+    "events": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/ModelEvent"
+     }
+    },
+    "bindings": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/ModelBinding"
+     }
+    },
+    "processes": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/ModelProcess"
+     }
+    },
+    "requests": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/ModelRequest"
+     },
+     "description": "request types of the usage model (login excluded: the identity provider's token, no SEFF of the system)"
+    },
+    "sessions": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/ModelSession"
+     }
+    },
+    "designSessionsPerS": {
+     "type": "number",
+     "description": "design load: sessions per second of the realistic workload's base mix"
+    },
+    "profiles": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/ModelProfile"
+     },
+     "description": "(1.0.0) the load profiles of the model variants (LoadProfile, LoadStep): what every design is simulated with"
+    },
+    "seffs": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/ModelSeff"
+     },
+     "description": "the SEFFs of the derived model as timed parts (the base model, before the realisation adds middleware)"
+    },
+    "sites": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/ModelSite"
+     },
+     "description": "call sites (decisions: the mechanism of one call)"
+    },
+    "topics": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/ModelTopic"
+     },
+     "description": "(1.2.0) package A's topics with their roles (domain/REPORT.md §5)"
+    },
+    "homes": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "op": {
+        "$ref": "#/definitions/Id"
+       },
+       "decision": {
+        "$ref": "#/definitions/Id"
+       },
+       "options": {
+        "type": "array",
+        "items": {
+         "type": "object",
+         "properties": {
+          "class": {
+           "$ref": "#/definitions/Id"
+          },
+          "seff": {
+           "$ref": "#/definitions/Id"
+          },
+          "seffs": {
+           "type": "array",
+           "items": {
+            "$ref": "#/definitions/Id"
+           }
+          }
+         },
+         "required": [
+          "class"
+         ],
+         "additionalProperties": false
+        }
+       },
+       "written": {
+        "$ref": "#/definitions/Id"
+       },
+       "today": {
+        "$ref": "#/definitions/Id"
+       },
+       "neutral": {
+        "$ref": "#/definitions/Id"
+       },
+       "monolith": {
+        "$ref": "#/definitions/Id"
+       }
+      },
+      "required": [
+       "op",
+       "decision",
+       "options",
+       "written"
+      ],
+      "additionalProperties": false
+     },
+     "description": "(1.4.0) the operations whose home is a decision (layer 2's Home): the candidate classes (each with its SEFF), the class the gateway's call is written to, and the seeds' choices"
+    },
+    "envelopes": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/ModelEnvelope"
+     },
+     "description": "(1.11.0) the receiving envelopes (ReceivingEnvelope): per class component and callee service the envelope a synchronous call across containers into one of `services` (signature names) pays there; `seff` its SEFF (kind envelope)"
+    },
+    "parameters": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/ModelParameter"
+     },
+     "description": "the decision layer's parameters (cost model, reliability, middleware costs, mechanism options, ...)"
+    },
+    "consistency": {
+     "type": "object",
+     "properties": {
+      "levels": {
+       "type": "object",
+       "properties": {
+        "strict": {
+         "type": "string"
+        },
+        "stale-ok": {
+         "type": "string"
+        },
+        "immutable": {
+         "type": "string"
+        }
+       },
+       "additionalProperties": false
+      },
+      "rules": {
+       "type": "object",
+       "additionalProperties": {
+        "type": "string"
+       }
+      },
+      "source": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "levels",
+      "rules"
+     ],
+     "additionalProperties": false,
+     "description": "(1.13.0) the case's texts of the consistency levels and of the rule ids the reads' and calls' `rules` name (e.g. S2: \"invariant guard not re-checked …\"), and where they are curated"
+    },
+    "metamodels": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/Metamodel"
+     }
+    },
+    "notes": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     },
+     "description": "inconsistencies the exporter noticed in its inputs"
+    }
+   },
+   "required": [
+    "contract",
+    "domainId",
+    "generatedAt",
+    "inputs",
+    "origin",
+    "classes",
+    "references",
+    "operations",
+    "events",
+    "bindings",
+    "processes",
+    "requests",
+    "sessions",
+    "designSessionsPerS",
+    "seffs",
+    "sites",
+    "parameters",
+    "metamodels"
+   ],
+   "additionalProperties": false,
+   "description": "The optimisation's input model (family palladio-architecture): how the system enters the optimisation (models/<domainId>.json in a packet, written by the case's exporter, served at GET /api/domains/:id/model). Everything is read from the derived model (its realised seeds), the case's extraction and workload and the metamodel files at export time."
+  },
+  "ModelTiming": {
+   "type": "object",
+   "properties": {
+    "envelope": {
+     "type": "object",
+     "properties": {
+      "source": {
+       "type": "string",
+       "const": "measured-v3"
+      },
+      "file": {
+       "type": "string"
+      },
+      "note": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "source",
+      "file",
+      "note"
+     ],
+     "additionalProperties": false,
+     "description": "(1.4.0) the effect steps' envelope: `measured-v3` the parts' measured `envelope`"
+    },
+    "source": {
+     "type": "string",
+     "const": "campaign-v3"
+    },
+    "label": {
+     "type": "string",
+     "description": "e.g. \"campaign v3, k_c applied\""
+    },
+    "kApplied": {
+     "type": "boolean",
+     "description": "the demands carry the at-load factor k_c of the container that ran them today"
+    },
+    "mapShare": {
+     "type": "number",
+     "description": "the mapping CPU's share of the application CPU, weighted by the request rates (campaign only)"
+    },
+    "note": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "source",
+    "label",
+    "kApplied"
+   ],
+   "additionalProperties": false,
+   "description": "(1.1.0) the timing source of a model family (the case's timing campaign): `campaign-v3` the timing campaign's parts of schema version 3 (own CPU by counters, database CPU and mapping CPU per access, × k_c of today's container, with the request overhead and the measured envelope)."
+  },
+  "ModelInput": {
+   "type": "object",
+   "properties": {
+    "label": {
+     "type": "string"
+    },
+    "path": {
+     "type": "string"
+    },
+    "note": {
+     "type": "string"
+    },
+    "hash": {
+     "type": "string"
+    },
+    "fingerprint": {
+     "type": "string",
+     "description": "a seed: its fingerprint as model data (contract/hash.ts modelFingerprint), to match runs made from it"
+    },
+    "source": {
+     "type": "object",
+     "properties": {
+      "path": {
+       "type": "string"
+      },
+      "hash": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "path",
+      "hash"
+     ],
+     "additionalProperties": false,
+     "description": "a realised seed: the model it was realised from, and what that model was generated from (`// Input:` lines); hashes may be prefixes"
+    },
+    "generatedFrom": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "path": {
+        "type": "string"
+       },
+       "hash": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "path",
+       "hash"
+      ],
+      "additionalProperties": false
+     }
+    }
+   },
+   "required": [
+    "label",
+    "path"
+   ],
+   "additionalProperties": false,
+   "description": "(1.5.0) a file the input model was exported from"
+  },
+  "ModelFreshness": {
+   "type": "object",
+   "properties": {
+    "state": {
+     "type": "string",
+     "enum": [
+      "current",
+      "updating",
+      "failed",
+      "stale"
+     ],
+     "description": "(1.10.0) `stale`: an input changed and the backend may not rebuild the packet (its local configuration allows no `rebuild`)"
+    },
+    "changed": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    },
+    "unrealised": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "seed": {
+        "type": "string"
+       },
+       "source": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "seed",
+       "source"
+      ],
+      "additionalProperties": false
+     }
+    },
+    "ungenerated": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "model": {
+        "type": "string"
+       },
+       "inputs": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       }
+      },
+      "required": [
+       "model",
+       "inputs"
+      ],
+      "additionalProperties": false
+     }
+    },
+    "error": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "state",
+    "changed",
+    "unrealised",
+    "ungenerated"
+   ],
+   "additionalProperties": false,
+   "description": "(1.5.0) the input model against its inputs now: `current` every input as exported; `updating` an input changed and the backend exports again (ask again shortly); `failed` that export failed (`error`). `unrealised`: realised seeds older than the model they were realised from (core/tools/realise-seeds.sh realises them again); `ungenerated`: the models older than what core/generator/derive.py generated them from (the generator, the extraction, the workload, the timings: generate them again, then realise)."
+  },
+  "ModelOrigin": {
+   "type": "object",
+   "properties": {
+    "step": {
+     "type": "string"
+    },
+    "path": {
+     "type": "string"
+    },
+    "what": {
+     "type": "string"
+    },
+    "design": {
+     "type": "string",
+     "description": "the documentation section that describes it"
+    }
+   },
+   "required": [
+    "step",
+    "path",
+    "what"
+   ],
+   "additionalProperties": false
+  },
+  "ModelClass": {
+   "type": "object",
+   "properties": {
+    "id": {
+     "$ref": "#/definitions/Id"
+    },
+    "service": {
+     "type": "string",
+     "description": "today's service (package A)"
+    },
+    "table": {
+     "type": "string"
+    },
+    "storage": {
+     "type": "string"
+    },
+    "attributes": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    },
+    "rowBytes": {
+     "type": "number"
+    },
+    "evidence": {
+     "type": "string",
+     "description": "path:line of its table in the system's repository"
+    },
+    "note": {
+     "type": "string"
+    },
+    "component": {
+     "type": "string",
+     "description": "the PCM assemblies of the class component and of its schema"
+    },
+    "schema": {
+     "type": "string"
+    },
+    "placement": {
+     "type": "object",
+     "additionalProperties": {
+      "type": "object",
+      "properties": {
+       "container": {
+        "type": "string"
+       },
+       "server": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "container",
+       "server"
+      ],
+      "additionalProperties": false
+     },
+     "description": "the seeds' placement: the class component's container and the schema's database server"
+    }
+   },
+   "required": [
+    "id",
+    "service",
+    "attributes"
+   ],
+   "additionalProperties": false
+  },
+  "ModelReference": {
+   "type": "object",
+   "properties": {
+    "id": {
+     "$ref": "#/definitions/Id"
+    },
+    "from": {
+     "$ref": "#/definitions/Id"
+    },
+    "to": {
+     "$ref": "#/definitions/Id"
+    },
+    "name": {
+     "type": "string"
+    },
+    "kind": {
+     "type": "string",
+     "enum": [
+      "composition",
+      "association"
+     ]
+    },
+    "upper": {
+     "type": "number",
+     "description": "upper bound of the target end: 1 or -1 (many)"
+    },
+    "snapshot": {
+     "type": "boolean"
+    },
+    "storage": {
+     "type": "string",
+     "description": "fk, join table, id array, ... (package A)"
+    },
+    "table": {
+     "type": "boolean",
+     "description": "(1.6.0) held in a join table of its own: its links are the source's data, not its rows"
+    },
+    "inverse": {
+     "type": "string",
+     "description": "(1.6.0) the other end's field (Category.products for Product.categories)"
+    },
+    "crossServiceToday": {
+     "type": "boolean"
+    },
+    "evidence": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "id",
+    "from",
+    "to",
+    "name",
+    "kind",
+    "upper",
+    "snapshot"
+   ],
+   "additionalProperties": false
+  },
+  "ModelOperation": {
+   "type": "object",
+   "properties": {
+    "id": {
+     "$ref": "#/definitions/Id"
+    },
+    "name": {
+     "type": "string"
+    },
+    "service": {
+     "type": "string",
+     "description": "today's service"
+    },
+    "kind": {
+     "$ref": "#/definitions/ModelOperationKind"
+    },
+    "modelKind": {
+     "type": "string",
+     "description": "domain.mm's kind: QUERY, COMMAND, REACTION"
+    },
+    "trigger": {
+     "type": "string",
+     "description": "GraphQL field, topic or HTTP route"
+    },
+    "entry": {
+     "type": "string",
+     "description": "path:line of its entry point in the system's repository"
+    },
+    "feature": {
+     "$ref": "#/definitions/Id"
+    },
+    "homeClass": {
+     "$ref": "#/definitions/Id",
+     "description": "its home class: it runs in this class's component, so in the service the cut puts the class in"
+    },
+    "cpuMs": {
+     "type": "number",
+     "description": "own work, ms (the campaign: own CPU × k_c, without the mapping; else the seed's timings)"
+    },
+    "envelopeMs": {
+     "type": "number",
+     "description": "(1.11.0) the part of cpuMs that is the callee's receiving envelope of today's invocation across services (measured inside it): its SEFFs' work is cpuMs - envelopeMs; the envelope block pays it where the call has its hop"
+    },
+    "mapCpuMs": {
+     "type": "number",
+     "description": "(1.1.0) mapping CPU of the home class's own accesses per execution, ms (Σ of their Access.cpuMs): the model folds it into the SEFF's `work` action (work = cpuMs + mapCpuMs); the export shows it as a part `map` (split)"
+    },
+    "accesses": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/ModelAccess"
+     }
+    },
+    "calls": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/ModelCall"
+     }
+    },
+    "effectCalls": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "to": {
+        "type": "string"
+       },
+       "rules": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       "reason": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "to",
+       "rules"
+      ],
+      "additionalProperties": false
+     },
+     "description": "(1.13.0) its effect calls: a change outside the system (a registration with an external provider, `to` the provider's endpoint), which reads nothing: sync only, never cached or copied (rule E1); the provider's callback is a call site of its own (kind callback)"
+    },
+    "raises": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "event": {
+        "$ref": "#/definitions/Id"
+       },
+       "probability": {
+        "type": "number"
+       }
+      },
+      "required": [
+       "event",
+       "probability"
+      ],
+      "additionalProperties": false
+     }
+    },
+    "reactsTo": {
+     "$ref": "#/definitions/Id",
+     "description": "the event it reacts to"
+    },
+    "bindings": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/Id"
+     }
+    },
+    "process": {
+     "type": "object",
+     "properties": {
+      "id": {
+       "$ref": "#/definitions/Id"
+      },
+      "role": {
+       "type": "string",
+       "enum": [
+        "trigger",
+        "step",
+        "compensation"
+       ]
+      }
+     },
+     "required": [
+      "id",
+      "role"
+     ],
+     "additionalProperties": false,
+     "description": "process (saga) it belongs to, with its role"
+    },
+    "seffs": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/Id"
+     },
+     "description": "its SEFFs: its own, and one per request type whose root resolver it is"
+    },
+    "reach": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "request": {
+        "$ref": "#/definitions/Id"
+       },
+       "visits": {
+        "type": "number"
+       }
+      },
+      "required": [
+       "request",
+       "visits"
+      ],
+      "additionalProperties": false
+     },
+     "description": "per request type: executions per request (through plans, calls and events)"
+    },
+    "rate": {
+     "type": "number",
+     "description": "executions per second at the design load"
+    },
+    "note": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "id",
+    "name",
+    "service",
+    "kind",
+    "modelKind",
+    "homeClass",
+    "cpuMs",
+    "accesses",
+    "calls",
+    "raises",
+    "bindings",
+    "seffs",
+    "reach",
+    "rate"
+   ],
+   "additionalProperties": false
+  },
+  "ModelOperationKind": {
+   "type": "string",
+   "enum": [
+    "query",
+    "mutation",
+    "resolver",
+    "reaction",
+    "callback",
+    "job"
+   ]
+  },
+  "ModelAccess": {
+   "type": "object",
+   "properties": {
+    "class": {
+     "$ref": "#/definitions/Id"
+    },
+    "mode": {
+     "$ref": "#/definitions/AccessMode"
+    },
+    "shape": {
+     "type": "string",
+     "description": "ONE, OPTIONAL, LIST, BATCH, PER_ITEM (A7)"
+    },
+    "count": {
+     "type": "number",
+     "description": "statements per execution (expected)"
+    },
+    "rows": {
+     "type": "number"
+    },
+    "level": {
+     "$ref": "#/definitions/ConsistencyLevel",
+     "description": "(1.13.0) reads: the model's Access.level (the strictest of the statements it stands for; the derivation decides its mechanisms by it), with the curated rules and reasons of its statements at that level (none for a read that is not strong: stale-ok without a rule); writes: none"
+    },
+    "rules": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    },
+    "reason": {
+     "type": "string"
+    },
+    "lock": {
+     "type": "boolean",
+     "description": "(1.13.0) one of its statements only locks the class (a strict read: the lock is taken on the current row)"
+    },
+    "strong": {
+     "type": "boolean",
+     "description": "the older spelling of `level`: the extraction's flag that the read decides a write or check (read by `levelOf`)"
+    },
+    "cpuMs": {
+     "type": "number",
+     "description": "mapping CPU (app-side persistence) per execution, ms; 0 under the seed's timings. For another class an InternalAction `map` in that class's access SEFF, for the home class's own data part of the operation's `work`"
+    },
+    "dbMs": {
+     "type": "number",
+     "description": "database time per execution, ms (the campaign's database CPU, or the seed's timings split)"
+    },
+    "local": {
+     "type": "boolean",
+     "description": "the home class's own data (a call into its schema) or another class (through that class's component)"
+    },
+    "today": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     },
+     "description": "how today's code reaches it (local, copy, call, payload)"
+    },
+    "via": {
+     "$ref": "#/definitions/Id",
+     "description": "the reference it reads or writes (its id, e.g. Product.categories); (1.6.0) every access of an association has one: with `class` the reference's source and the reference in a join table, the access touches only the links, not the class's rows. An operation has one access per class, mode and reference; the SEFF's call per class and mode is shared by them"
+    }
+   },
+   "required": [
+    "class",
+    "mode",
+    "shape",
+    "count",
+    "rows",
+    "cpuMs",
+    "dbMs",
+    "local"
+   ],
+   "additionalProperties": false
+  },
+  "ModelCall": {
+   "type": "object",
+   "properties": {
+    "callee": {
+     "$ref": "#/definitions/Id"
+    },
+    "count": {
+     "type": "number"
+    },
+    "level": {
+     "$ref": "#/definitions/ConsistencyLevel",
+     "description": "(1.13.0) the model's Call.level: strict is sync only (no call site, nor its nested fields' calls), stale-ok a call site sync / cache; with the curated rules and reason"
+    },
+    "rules": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    },
+    "reason": {
+     "type": "string"
+    },
+    "nestedIn": {
+     "$ref": "#/definitions/Id",
+     "description": "(1.13.0) a field resolved on this operation's objects in that operation's invocation (one invocation into nested fields): its level, rules and reason are that call's"
+    },
+    "strong": {
+     "type": "boolean",
+     "description": "the older spelling of `level` (strong: sync only), read by `levelOf`"
+    }
+   },
+   "required": [
+    "callee",
+    "count"
+   ],
+   "additionalProperties": false,
+   "description": "a call of another operation's logic"
+  },
+  "ModelEvent": {
+   "type": "object",
+   "properties": {
+    "id": {
+     "$ref": "#/definitions/Id"
+    },
+    "name": {
+     "type": "string"
+    },
+    "payload": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/Id"
+     }
+    },
+    "publishers": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/Id"
+     }
+    },
+    "reactions": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/Id"
+     }
+    }
+   },
+   "required": [
+    "id",
+    "name",
+    "payload",
+    "publishers",
+    "reactions"
+   ],
+   "additionalProperties": false
+  },
+  "ModelBinding": {
+   "type": "object",
+   "properties": {
+    "id": {
+     "$ref": "#/definitions/Id"
+    },
+    "kind": {
+     "type": "string",
+     "enum": [
+      "JOIN",
+      "TRANSACTION",
+      "COMPOSITION"
+     ]
+    },
+    "classes": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/Id"
+     }
+    },
+    "operations": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/Id"
+     }
+    }
+   },
+   "required": [
+    "id",
+    "kind",
+    "classes",
+    "operations"
+   ],
+   "additionalProperties": false
+  },
+  "ModelProcess": {
+   "type": "object",
+   "properties": {
+    "id": {
+     "$ref": "#/definitions/Id"
+    },
+    "trigger": {
+     "$ref": "#/definitions/Id"
+    },
+    "steps": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/Id"
+     }
+    },
+    "compensations": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/Id"
+     }
+    },
+    "styles": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     },
+     "description": "the Workflow decision: allowed coordination styles and the seeds' choices"
+    },
+    "today": {
+     "type": "string"
+    },
+    "neutral": {
+     "type": "string"
+    },
+    "workflow": {
+     "$ref": "#/definitions/Id",
+     "description": "(1.3.0) the layer-2 Workflow: `saga_<Process>`, or `tx_<SEFF>` (= id) for a transaction workflow"
+    },
+    "transaction": {
+     "type": "object",
+     "properties": {
+      "seff": {
+       "$ref": "#/definitions/Id"
+      },
+      "request": {
+       "$ref": "#/definitions/Id"
+      },
+      "sites": {
+       "type": "array",
+       "items": {
+        "$ref": "#/definitions/Id"
+       }
+      },
+      "writes": {
+       "type": "array",
+       "items": {
+        "$ref": "#/definitions/Id"
+       }
+      },
+      "home": {
+       "$ref": "#/definitions/HomeRef"
+      }
+     },
+     "required": [
+      "seff",
+      "sites",
+      "writes"
+     ],
+     "additionalProperties": false,
+     "description": "(1.3.0) a transaction workflow (`Workflow.transactional`; `steps` and `compensations` stay empty): the trigger operation's SEFF (and its request), the steps as call sites (its transaction-bound writes) and their classes. Co-located with the trigger a step is a local call in its transaction (orchestrated: no coordination, no commit of its own); separated it commits on its own, orchestrated after the orchestrator's coordination"
+    }
+   },
+   "required": [
+    "id",
+    "trigger",
+    "steps",
+    "compensations",
+    "styles"
+   ],
+   "additionalProperties": false
+  },
+  "HomeRef": {
+   "type": "object",
+   "properties": {
+    "op": {
+     "$ref": "#/definitions/Id"
+    },
+    "class": {
+     "$ref": "#/definitions/Id"
+    },
+    "written": {
+     "type": "boolean"
+    }
+   },
+   "required": [
+    "op",
+    "class",
+    "written"
+   ],
+   "additionalProperties": false,
+   "description": "(1.4.0) a home option of an operation; its SEFF and its sites are inert while another option is chosen"
+  },
+  "ModelRequest": {
+   "type": "object",
+   "properties": {
+    "id": {
+     "$ref": "#/definitions/Id"
+    },
+    "msa": {
+     "type": "string",
+     "description": "msa's request name"
+    },
+    "document": {
+     "type": "string"
+    },
+    "plan": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "op": {
+        "$ref": "#/definitions/Id"
+       },
+       "via": {
+        "type": "string"
+       },
+       "parent": {
+        "type": "number"
+       }
+      },
+      "required": [
+       "op",
+       "via"
+      ],
+      "additionalProperties": false
+     },
+     "description": "the gateway plan: root resolver first, then the further fields (`via`: PlanVia, root, service, gateway; accepts the older spelling `local`); (1.8.0) a tree in the document's order: `parent` is the index of the entry whose objects the field is resolved on (0: the root's)"
+    },
+    "rate": {
+     "type": "number",
+     "description": "requests per second at the design load"
+    },
+    "budgets": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "profile": {
+        "type": "string"
+       },
+       "statistic": {
+        "type": "string"
+       },
+       "referenceMs": {
+        "type": "number"
+       },
+       "referenceCount": {
+        "type": "number"
+       },
+       "budgetMs": {
+        "type": "number"
+       }
+      },
+      "required": [
+       "profile",
+       "statistic"
+      ],
+      "additionalProperties": false
+     },
+     "description": "(1.0.0) C1 per load profile: today's simulated statistic (the reference) and the budget (factor × it)"
+    },
+    "seff": {
+     "$ref": "#/definitions/Id",
+     "description": "the gateway's SEFF for this request type"
+    },
+    "work": {
+     "type": "object",
+     "properties": {
+      "gateway": {
+       "type": "number"
+      },
+      "app": {
+       "type": "number"
+      },
+      "db": {
+       "type": "number"
+      },
+      "map": {
+       "type": "number"
+      },
+      "wait": {
+       "type": "number"
+      }
+     },
+     "required": [
+      "gateway",
+      "app",
+      "db"
+     ],
+     "additionalProperties": false,
+     "description": "sum of the demands one request makes (no middleware, no queueing), ms of one full core; (1.1.0) `map` the mapping CPU within `app`, `wait` the latency-only waits (DELAY demands; not CPU, in none of the others); (1.4.0) as the neutral seed realises it: a joined effect step without its envelope and commit"
+    }
+   },
+   "required": [
+    "id",
+    "plan",
+    "rate",
+    "seff",
+    "work"
+   ],
+   "additionalProperties": false
+  },
+  "ModelSession": {
+   "type": "object",
+   "properties": {
+    "id": {
+     "$ref": "#/definitions/Id"
+    },
+    "name": {
+     "type": "string"
+    },
+    "description": {
+     "type": "string"
+    },
+    "share": {
+     "type": "number"
+    },
+    "sessionsPerS": {
+     "type": "number"
+    },
+    "thinkTimeS": {
+     "type": "number"
+    },
+    "visits": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "request": {
+        "$ref": "#/definitions/Id"
+       },
+       "visits": {
+        "type": "number"
+       }
+      },
+      "required": [
+       "request",
+       "visits"
+      ],
+      "additionalProperties": false
+     },
+     "description": "expected visits per session per request type"
+    }
+   },
+   "required": [
+    "id",
+    "name",
+    "share",
+    "sessionsPerS",
+    "thinkTimeS",
+    "visits"
+   ],
+   "additionalProperties": false
+  },
+  "ModelProfile": {
+   "type": "object",
+   "properties": {
+    "id": {
+     "type": "string"
+    },
+    "model": {
+     "type": "string",
+     "description": "the realised model it was read from"
+    },
+    "warmUpS": {
+     "type": "number"
+    },
+    "endS": {
+     "type": "number"
+    },
+    "seed": {
+     "type": "number"
+    },
+    "usageStreams": {
+     "type": "boolean"
+    },
+    "maxPods": {
+     "type": "number"
+    },
+    "about": {
+     "type": "string",
+     "description": "C's description of the profile"
+    },
+    "phases": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "name": {
+        "type": "string"
+       },
+       "fromS": {
+        "type": "number"
+       },
+       "volume": {
+        "type": "number"
+       },
+       "mix": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "name",
+       "fromS"
+      ],
+      "additionalProperties": false
+     }
+    },
+    "steps": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "session": {
+        "anyOf": [
+         {
+          "$ref": "#/definitions/Id"
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "timeS": {
+        "type": "number"
+       },
+       "factor": {
+        "type": "number"
+       }
+      },
+      "required": [
+       "session",
+       "timeS",
+       "factor"
+      ],
+      "additionalProperties": false
+     },
+     "description": "per session type (null: every scenario) from `timeS` on its arrival rate is `factor` × the model's"
+    },
+    "baseRates": {
+     "type": "object",
+     "additionalProperties": {
+      "type": "number"
+     },
+     "description": "the model's arrival rate per session type, sessions/s"
+    },
+    "latency": {
+     "type": "object",
+     "properties": {
+      "statistic": {
+       "type": "string"
+      },
+      "factor": {
+       "type": "number"
+      },
+      "minCompletions": {
+       "type": "number"
+      }
+     },
+     "required": [
+      "statistic"
+     ],
+     "additionalProperties": false,
+     "description": "C1's policy in this model (LatencyBudgetPolicy; absent: the p95 against OperationLatencyBudget.ms)"
+    }
+   },
+   "required": [
+    "id",
+    "model",
+    "warmUpS",
+    "endS",
+    "phases",
+    "steps",
+    "baseRates",
+    "latency"
+   ],
+   "additionalProperties": false,
+   "description": "(1.0.0) a model variant's load profile (architecture.mm LoadProfile with its LoadSteps, C's phases)"
+  },
+  "ModelSeff": {
+   "type": "object",
+   "properties": {
+    "id": {
+     "$ref": "#/definitions/Id"
+    },
+    "component": {
+     "type": "string",
+     "description": "the PCM component (a class, `<Class>Db`, Gateway, ...)"
+    },
+    "signature": {
+     "type": "string"
+    },
+    "kind": {
+     "type": "string",
+     "enum": [
+      "gateway",
+      "request",
+      "operation",
+      "access",
+      "db",
+      "cache",
+      "step",
+      "commit",
+      "fetch",
+      "envelope",
+      "other"
+     ],
+     "description": "(1.1.0) cache: a provider's cache as built (CallSite.cachedService), reached only when a design uses it; (1.4.0) step: an effect step's step form `I<B>.<x>_step` (envelope, the work, the commit), commit: its commit `<B>Db.<x>_commit` (the commit wait); (1.7.0) fetch: a federation fetch (CallSite.fetchService), the subgraph's glue resolver's work and then the field, reached only when a design composes the field across containers; (1.11.0) envelope: a component's receiving envelope (ReceivingEnvelope.envelope), called by the realisation after a synchronous call with its hop"
+    },
+    "op": {
+     "$ref": "#/definitions/Id"
+    },
+    "request": {
+     "$ref": "#/definitions/Id"
+    },
+    "class": {
+     "$ref": "#/definitions/Id"
+    },
+    "parts": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/SeffPart"
+     }
+    },
+    "home": {
+     "$ref": "#/definitions/HomeRef",
+     "description": "(1.4.0) the SEFF of a home option (`<Cls>_req<Request>`): the operation, the candidate class, whether it is the written (today's) one"
+    }
+   },
+   "required": [
+    "id",
+    "component",
+    "signature",
+    "kind",
+    "parts"
+   ],
+   "additionalProperties": false
+  },
+  "SeffPart": {
+   "type": "object",
+   "properties": {
+    "t": {
+     "type": "string",
+     "enum": [
+      "work",
+      "call"
+     ]
+    },
+    "name": {
+     "type": "string",
+     "description": "the action's entity name (work, sql, readOrder, eventX, fieldX, root, db, ...)"
+    },
+    "ms": {
+     "type": "number",
+     "description": "work: mean demand, ms of one full core (a DELAY: ms of waiting)"
+    },
+    "resource": {
+     "type": "string"
+    },
+    "kind": {
+     "type": "string",
+     "enum": [
+      "db",
+      "access",
+      "call",
+      "event",
+      "callback",
+      "field",
+      "root",
+      "work",
+      "commit",
+      "other"
+     ],
+     "description": "call: db (own schema), access (another class's component), call, event, callback, field, root; (1.4.0) work and commit: a step form's call into the step's work and into its commit"
+    },
+    "to": {
+     "$ref": "#/definitions/Id",
+     "description": "call: the callee SEFF"
+    },
+    "p": {
+     "type": "number",
+     "description": "expected executions per execution of the SEFF (branch probability, loop count)"
+    },
+    "async": {
+     "type": "boolean",
+     "description": "inside an asynchronous fork (the neutral seed's provider callbacks)"
+    },
+    "site": {
+     "$ref": "#/definitions/Id",
+     "description": "the call site deciding its mechanism"
+    },
+    "split": {
+     "type": "boolean",
+     "description": "(1.1.0) work split by the exporter from the action's demand (the home class's mapping CPU out of `work`), not an action of its own"
+    },
+    "estimate": {
+     "type": "boolean",
+     "description": "(1.4.0) a step form's envelope whose value is an estimate (the model's ReceivingEnvelope.estimate); (1.11.0) on a call part with `envelopeMs`: that value is an estimate"
+    },
+    "envelopeMs": {
+     "type": "number",
+     "description": "(1.11.0) call: a call into an operation of a ReceivingEnvelope: the callee's receiving envelope (ms CPU, k_c applied) that the call pays in the callee's container when it crosses containers synchronously (with its hop); none within a container. The callee's work in the base model is without it."
+    }
+   },
+   "required": [
+    "t",
+    "name"
+   ],
+   "additionalProperties": false,
+   "description": "one part of a SEFF: own work (an InternalAction's demand) or a call (with its multiplicity)"
+  },
+  "ModelSite": {
+   "type": "object",
+   "properties": {
+    "id": {
+     "$ref": "#/definitions/Id"
+    },
+    "op": {
+     "$ref": "#/definitions/Id",
+     "description": "the operation whose SEFF makes the call, and the request for a request's SEFF"
+    },
+    "request": {
+     "$ref": "#/definitions/Id"
+    },
+    "kind": {
+     "type": "string",
+     "description": "the call's kind (as SeffPart.kind) and target: a class (accesses) or an operation"
+    },
+    "class": {
+     "$ref": "#/definitions/Id"
+    },
+    "callee": {
+     "$ref": "#/definitions/Id"
+    },
+    "mode": {
+     "$ref": "#/definitions/AccessMode"
+    },
+    "allowed": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     },
+     "description": "allowed mechanisms: sync, async, cache, copy, join, joinCache"
+    },
+    "neutral": {
+     "type": "string"
+    },
+    "today": {
+     "type": "string"
+    },
+    "monolith": {
+     "type": "string"
+    },
+    "writes": {
+     "type": "boolean"
+    },
+    "event": {
+     "$ref": "#/definitions/Id",
+     "description": "(0.4.0) event sites: the domain event the caller raises, whose reaction `callee` is (one site per raise and reaction)"
+    },
+    "planVia": {
+     "type": "string",
+     "description": "(0.4.0) field sites: today's gateway plan entry of the field (PlanVia: `service` the service that resolves its parent resolves it, `gateway` a federation fetch; accepts the older spelling `local`)"
+    },
+    "copyFeed": {
+     "type": "object",
+     "properties": {
+      "writers": {
+       "type": "array",
+       "items": {
+        "type": "object",
+        "properties": {
+         "op": {
+          "$ref": "#/definitions/Id"
+         },
+         "request": {
+          "$ref": "#/definitions/Id"
+         }
+        },
+        "required": [
+         "op"
+        ],
+        "additionalProperties": false
+       }
+      }
+     },
+     "required": [
+      "writers"
+     ],
+     "additionalProperties": false,
+     "description": "(0.4.0) sites that allow a LocalCopy: who feeds the copy (the copy sync's CopyFeed.writers, as the operations whose writes they are, with the request for a request's SEFF); no writers: the copy comes with the saga message (event-carried)"
+    },
+    "home": {
+     "$ref": "#/definitions/HomeRef",
+     "description": "(1.4.0) a site in a home option's SEFF: inert (no objective changes) while another option is chosen"
+    },
+    "hitRatio": {
+     "type": "number",
+     "description": "(1.1.0) the site's own cache hit ratio (TTL-60 s cache over its key stream); replaces the mechanism's"
+    },
+    "staleShare": {
+     "type": "number",
+     "description": "(1.1.0) the share of its hits whose key was written after the entry was stored; O4 uses it instead of min(1, w·TTL)"
+    },
+    "cachedService": {
+     "type": "string",
+     "description": "(1.1.0) the provider's cached operation (CallSite.cachedService): joinCache is the provider's entity cache"
+    },
+    "cachedSeff": {
+     "$ref": "#/definitions/Id",
+     "description": "(1.1.0) its SEFF (kind cache): hit = the provider's hit CPU, miss = the call's own operation"
+    },
+    "fetchService": {
+     "type": "string",
+     "description": "(1.7.0) the provider's federation fetch (CallSite.fetchService): across containers the gateway's join calls it instead of the field (the subgraph finds the entity it contributes the field to: its `_entities` glue resolver's work)"
+    },
+    "fetchSeff": {
+     "$ref": "#/definitions/Id",
+     "description": "(1.7.0) its SEFF (kind fetch)"
+    },
+    "family": {
+     "type": "string",
+     "enum": [
+      "fetch",
+      "effect"
+     ],
+     "description": "(1.2.0) what the interaction is for: `fetch` gets data of another class, the caller needs the answer (reads of another class, request fields; 1.13.0: calls of another operation with a site); `effect` runs a step of the work in another class, the caller does not (writes of another class, process events, provider callbacks)"
+    },
+    "effect": {
+     "$ref": "#/definitions/SiteEffect",
+     "description": "(1.2.0) effect sites: the attributes the allowed mechanisms and today's follow from"
+    },
+    "copyTopics": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "topic": {
+        "$ref": "#/definitions/Id"
+       },
+       "role": {
+        "$ref": "#/definitions/TopicRole"
+       },
+       "today": {
+        "type": "boolean"
+       }
+      },
+      "required": [
+       "topic",
+       "role",
+       "today"
+      ],
+      "additionalProperties": false
+     },
+     "description": "(1.2.0) sites that allow a LocalCopy: the topics of package A (domain/REPORT.md §5) that feed the reader's copy today (`today`), else the topics that carry the class (what would feed a copy)"
+    }
+   },
+   "required": [
+    "id",
+    "kind",
+    "allowed"
+   ],
+   "additionalProperties": false
+  },
+  "SiteEffect": {
+   "type": "object",
+   "properties": {
+    "bound": {
+     "type": "boolean",
+     "description": "a write in the operation's transaction with its home class: a saga step when the cut separates them"
+    },
+    "p": {
+     "type": "number",
+     "description": "expected executions per execution of the caller (a raise's outcome probability; 1 for writes)"
+    },
+    "cascades": {
+     "type": "object",
+     "properties": {
+      "sites": {
+       "type": "number"
+      },
+      "raises": {
+       "type": "array",
+       "items": {
+        "$ref": "#/definitions/Id"
+       }
+      }
+     },
+     "required": [
+      "sites",
+      "raises"
+     ],
+     "additionalProperties": false,
+     "description": "what follows on the other side: the reaction's own call sites and the events it raises (none for a write)"
+    },
+    "external": {
+     "type": "boolean",
+     "description": "the trigger is outside the system (a provider's callback): async only"
+    },
+    "step": {
+     "type": "object",
+     "properties": {
+      "seff": {
+       "$ref": "#/definitions/Id"
+      },
+      "work": {
+       "$ref": "#/definitions/Id"
+      },
+      "commit": {
+       "$ref": "#/definitions/Id"
+      },
+      "envelopeMs": {
+       "type": "number"
+      },
+      "commitMs": {
+       "type": "number"
+      },
+      "estimate": {
+       "type": "boolean"
+      },
+      "callerSchema": {
+       "$ref": "#/definitions/Id"
+      },
+      "providerSchema": {
+       "$ref": "#/definitions/Id"
+      },
+      "callerClass": {
+       "$ref": "#/definitions/Id"
+      },
+      "providerClass": {
+       "$ref": "#/definitions/Id"
+      }
+     },
+     "required": [
+      "seff",
+      "work",
+      "envelopeMs",
+      "estimate"
+     ],
+     "additionalProperties": false,
+     "description": "(1.4.0) the step as built: the step form's SEFF (envelope, work, commit; what the call reaches unless it joins), the work's SEFF (what a joined call reaches), the commit's SEFF, the envelope's CPU per execution (ms, its container's base rate) and whether that value is an estimate; the schemas that must share a database server"
+    },
+    "joined": {
+     "type": "object",
+     "properties": {
+      "today": {
+       "anyOf": [
+        {
+         "type": "boolean",
+         "const": true
+        },
+        {
+         "$ref": "#/definitions/JoinBlocker"
+        }
+       ]
+      },
+      "neutral": {
+       "anyOf": [
+        {
+         "type": "boolean",
+         "const": true
+        },
+        {
+         "$ref": "#/definitions/JoinBlocker"
+        }
+       ]
+      },
+      "monolith": {
+       "anyOf": [
+        {
+         "type": "boolean",
+         "const": true
+        },
+        {
+         "$ref": "#/definitions/JoinBlocker"
+        }
+       ]
+      }
+     },
+     "additionalProperties": false,
+     "description": "(1.4.0) whether the step joins its caller's transaction in the seeds, and else why not"
+    }
+   },
+   "required": [
+    "bound",
+    "p",
+    "external"
+   ],
+   "additionalProperties": false,
+   "description": "(1.2.0) an effect site's attributes (docs/model.md, Call sites)"
+  },
+  "TopicRole": {
+   "type": "string",
+   "enum": [
+    "replication",
+    "process",
+    "mixed",
+    "unsubscribed"
+   ],
+   "description": "(1.2.0) the role of a topic in package A (domain/REPORT.md §5)"
+  },
+  "ModelTopic": {
+   "type": "object",
+   "properties": {
+    "id": {
+     "$ref": "#/definitions/Id"
+    },
+    "role": {
+     "$ref": "#/definitions/TopicRole"
+    },
+    "publishers": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/Id"
+     }
+    },
+    "payload": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/Id"
+     }
+    },
+    "subscribers": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "op": {
+        "$ref": "#/definitions/Id"
+       },
+       "service": {
+        "type": "string"
+       },
+       "copy": {
+        "type": "boolean"
+       }
+      },
+      "required": [
+       "op",
+       "service",
+       "copy"
+      ],
+      "additionalProperties": false
+     },
+     "description": "`copy`: the subscriber only maintains a copy (not an operation of the model, A2)"
+    }
+   },
+   "required": [
+    "id",
+    "role",
+    "publishers",
+    "payload",
+    "subscribers"
+   ],
+   "additionalProperties": false,
+   "description": "(1.2.0) a topic of package A: replication topics feed copies (part of fetch), process topics are effects"
+  },
+  "ModelEnvelope": {
+   "type": "object",
+   "properties": {
+    "id": {
+     "$ref": "#/definitions/Id"
+    },
+    "component": {
+     "type": "string",
+     "description": "the class component it runs in"
+    },
+    "service": {
+     "type": "string"
+    },
+    "ms": {
+     "type": "number"
+    },
+    "estimate": {
+     "type": "boolean"
+    },
+    "seff": {
+     "$ref": "#/definitions/Id"
+    },
+    "services": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     },
+     "description": "the signatures (entity names) whose synchronous calls across containers pay it"
+    }
+   },
+   "required": [
+    "id",
+    "component",
+    "ms",
+    "estimate",
+    "services"
+   ],
+   "additionalProperties": false,
+   "description": "(1.11.0) a receiving envelope: what `service`'s application spends on a synchronous request it receives across containers"
+  },
+  "ModelParameter": {
+   "type": "object",
+   "properties": {
+    "class": {
+     "type": "string",
+     "description": "the metamodel class (Reliability, CostModel, CachedCall, ...)"
+    },
+    "name": {
+     "type": "string"
+    },
+    "properties": {
+     "type": "object",
+     "additionalProperties": {
+      "type": [
+       "string",
+       "number",
+       "boolean",
+       "null"
+      ]
+     }
+    },
+    "links": {
+     "type": "object",
+     "additionalProperties": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "description": "links to other objects (names), e.g. a ContainerPrice's containers"
+    }
+   },
+   "required": [
+    "class",
+    "name",
+    "properties"
+   ],
+   "additionalProperties": false
+  },
+  "Metamodel": {
+   "type": "object",
+   "properties": {
+    "id": {
+     "$ref": "#/definitions/Id",
+     "description": "domain, architecture, palladio (the microservices layer is part of architecture)"
+    },
+    "title": {
+     "type": "string"
+    },
+    "layer": {
+     "type": "string",
+     "description": "layer 1, layer 2, ..."
+    },
+    "files": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     },
+     "description": "repo paths of the parsed files"
+    },
+    "description": {
+     "type": "string"
+    },
+    "imports": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/Id"
+     }
+    },
+    "enums": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/MmEnum"
+     }
+    },
+    "classes": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/MmClass"
+     }
+    },
+    "references": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/MmReference"
+     }
+    },
+    "views": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/MmView"
+     }
+    },
+    "sections": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    }
+   },
+   "required": [
+    "id",
+    "title",
+    "layer",
+    "files",
+    "description",
+    "imports",
+    "enums",
+    "classes",
+    "references",
+    "views",
+    "sections"
+   ],
+   "additionalProperties": false
+  },
+  "MmEnum": {
+   "type": "object",
+   "properties": {
+    "name": {
+     "type": "string"
+    },
+    "literals": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    },
+    "doc": {
+     "type": "string"
+    },
+    "section": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "name",
+    "literals"
+   ],
+   "additionalProperties": false
+  },
+  "MmClass": {
+   "type": "object",
+   "properties": {
+    "name": {
+     "type": "string"
+    },
+    "abstract": {
+     "type": "boolean"
+    },
+    "supers": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    },
+    "attributes": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/MmAttribute"
+     }
+    },
+    "doc": {
+     "type": "string"
+    },
+    "section": {
+     "type": "string"
+    },
+    "used": {
+     "type": "number",
+     "description": "instances of the class or its subclasses in today's realised seed model"
+    }
+   },
+   "required": [
+    "name",
+    "abstract",
+    "supers",
+    "attributes"
+   ],
+   "additionalProperties": false
+  },
+  "MmAttribute": {
+   "type": "object",
+   "properties": {
+    "name": {
+     "type": "string"
+    },
+    "type": {
+     "type": "string"
+    },
+    "multiplicity": {
+     "type": "string"
+    },
+    "doc": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "name",
+    "type",
+    "multiplicity"
+   ],
+   "additionalProperties": false
+  },
+  "MmReference": {
+   "type": "object",
+   "properties": {
+    "source": {
+     "type": "string"
+    },
+    "name": {
+     "type": "string"
+    },
+    "multiplicity": {
+     "type": "string"
+    },
+    "kind": {
+     "type": "string",
+     "enum": [
+      "containment",
+      "reference",
+      "bidirectional"
+     ]
+    },
+    "target": {
+     "type": "string"
+    },
+    "opposite": {
+     "type": "string"
+    },
+    "oppositeMultiplicity": {
+     "type": "string"
+    },
+    "doc": {
+     "type": "string"
+    },
+    "section": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "source",
+    "name",
+    "multiplicity",
+    "kind",
+    "target"
+   ],
+   "additionalProperties": false
+  },
+  "MmView": {
+   "type": "object",
+   "properties": {
+    "name": {
+     "type": "string"
+    },
+    "classes": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    }
+   },
+   "required": [
+    "name",
+    "classes"
+   ],
+   "additionalProperties": false
+  }
+ },
+ "$id": "https://local/explorer-contract/1.14.0",
+ "title": "Explorer data contract 1.14.0"
+}

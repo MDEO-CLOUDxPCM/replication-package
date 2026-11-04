@@ -1,0 +1,12 @@
+[submodule "misarch-kotlin"]
+	path = misarch-kotlin
+	url = ../misarch-kotlin.git
+	branch = main
+[submodule "misarch-kotlin-measurement"]
+	path = misarch-kotlin-measurement
+	url = ../misarch-kotlin.git
+	branch = timing-mechanisms
+[submodule "palladio-sim-service"]
+	path = palladio-sim-service
+	url = ../palladio-sim-service.git
+	branch = vendored-simoxide

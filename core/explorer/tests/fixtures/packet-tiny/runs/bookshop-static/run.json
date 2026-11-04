@@ -1,0 +1,467 @@
+{
+ "contract": "1.14.0",
+ "id": "bookshop-static",
+ "name": "Bookshop cut search",
+ "description": "a small synthetic run of the dummy search over the bookshop",
+ "source": {
+  "kind": "bundle",
+  "location": "tests/fixtures/packet-tiny",
+  "synthetic": true
+ },
+ "problem": "static",
+ "domainId": "bookshop",
+ "algorithm": "NSGA-II",
+ "status": "completed",
+ "createdAt": "2026-10-30T12:00:00Z",
+ "finishedAt": "2026-10-30T12:01:00Z",
+ "durationMs": 60000,
+ "populationSize": 8,
+ "generations": 4,
+ "evaluated": 32,
+ "designCount": 8,
+ "objectives": [
+  {
+   "key": "cost",
+   "label": "Cost",
+   "unit": "cores",
+   "direction": "minimize",
+   "digits": 1
+  },
+  {
+   "key": "failure",
+   "label": "Failures",
+   "unit": "ppm",
+   "direction": "minimize",
+   "digits": 0
+  },
+  {
+   "key": "inconsistency",
+   "label": "Inconsistency",
+   "direction": "minimize",
+   "digits": 3
+  }
+ ],
+ "constraints": [
+  {
+   "key": "latencyBudget",
+   "label": "Latency budget"
+  }
+ ],
+ "metrics": [
+  {
+   "key": "services",
+   "label": "Services",
+   "better": "none",
+   "digits": 0
+  },
+  {
+   "key": "databases",
+   "label": "Databases",
+   "better": "none",
+   "digits": 0
+  }
+ ],
+ "tags": [
+  "synthetic",
+  "fixture"
+ ],
+ "config": {
+  "populationSize": 8,
+  "generations": 4,
+  "operators": [
+   {
+    "name": "move-class"
+   },
+   {
+    "name": "change-mechanism"
+   }
+  ],
+  "mutationSteps": "interval(1, 3)",
+  "crossover": null,
+  "randomSeed": 7
+ },
+ "history": [
+  {
+   "index": 0,
+   "evaluated": 8,
+   "population": [
+    {
+     "o": [
+      7.2,
+      2053.4,
+      0.10987
+     ],
+     "c": [
+      0
+     ],
+     "d": "145cc41dd95e2b"
+    },
+    {
+     "o": [
+      3.8,
+      4007.4,
+      0
+     ],
+     "c": [
+      0
+     ],
+     "d": "0fef10d73f43bc"
+    },
+    {
+     "o": [
+      23.1,
+      2953.5,
+      0.14911
+     ],
+     "c": [
+      11.95
+     ],
+     "d": "14cb2ebfb41315"
+    },
+    {
+     "o": [
+      20.2,
+      3417.4,
+      0.049703
+     ],
+     "c": [
+      11.65
+     ]
+    },
+    {
+     "o": [
+      6.2,
+      3054.7,
+      0.31914
+     ],
+     "c": [
+      0
+     ]
+    },
+    {
+     "o": [
+      24.2,
+      3057.5,
+      0.5415
+     ],
+     "c": [
+      11.55
+     ]
+    },
+    {
+     "o": [
+      22.4,
+      2154.4,
+      0.14911
+     ],
+     "c": [
+      11.95
+     ]
+    },
+    {
+     "o": [
+      10.7,
+      1797.1,
+      20.927
+     ],
+     "c": [
+      2.415
+     ]
+    }
+   ]
+  },
+  {
+   "index": 1,
+   "evaluated": 16,
+   "population": [
+    {
+     "o": [
+      7.2,
+      2053.4,
+      0.10987
+     ],
+     "c": [
+      0
+     ],
+     "d": "145cc41dd95e2b"
+    },
+    {
+     "o": [
+      3.8,
+      4007.4,
+      0
+     ],
+     "c": [
+      0
+     ],
+     "d": "0fef10d73f43bc"
+    },
+    {
+     "o": [
+      6.2,
+      3054.7,
+      0.31914
+     ],
+     "c": [
+      0
+     ]
+    },
+    {
+     "o": [
+      6.2,
+      3054.7,
+      0.31914
+     ],
+     "c": [
+      0
+     ]
+    },
+    {
+     "o": [
+      6.2,
+      3054.7,
+      0.31914
+     ],
+     "c": [
+      0
+     ]
+    },
+    {
+     "o": [
+      7,
+      3303.3,
+      0.14911
+     ],
+     "c": [
+      0
+     ]
+    },
+    {
+     "o": [
+      7.3,
+      1989.9,
+      0.14911
+     ],
+     "c": [
+      0
+     ]
+    },
+    {
+     "o": [
+      4.5,
+      4007.4,
+      0
+     ],
+     "c": [
+      0
+     ]
+    }
+   ]
+  },
+  {
+   "index": 2,
+   "evaluated": 24,
+   "population": [
+    {
+     "o": [
+      7.2,
+      2053.4,
+      0.10987
+     ],
+     "c": [
+      0
+     ],
+     "d": "145cc41dd95e2b"
+    },
+    {
+     "o": [
+      3.8,
+      4007.4,
+      0
+     ],
+     "c": [
+      0
+     ],
+     "d": "0fef10d73f43bc"
+    },
+    {
+     "o": [
+      7.3,
+      1989.9,
+      0.14911
+     ],
+     "c": [
+      0
+     ]
+    },
+    {
+     "o": [
+      5.5,
+      2139.6,
+      0
+     ],
+     "c": [
+      0
+     ],
+     "d": "1333093a698055"
+    },
+    {
+     "o": [
+      5.2,
+      3245,
+      0.31914
+     ],
+     "c": [
+      0
+     ]
+    },
+    {
+     "o": [
+      3.8,
+      4007.4,
+      0
+     ],
+     "c": [
+      0
+     ],
+     "d": "0fef10d73f43bc"
+    },
+    {
+     "o": [
+      3.8,
+      4007.4,
+      0
+     ],
+     "c": [
+      0
+     ],
+     "d": "0fef10d73f43bc"
+    },
+    {
+     "o": [
+      8.7,
+      1989.9,
+      0.14911
+     ],
+     "c": [
+      0
+     ]
+    }
+   ]
+  },
+  {
+   "index": 3,
+   "evaluated": 32,
+   "population": [
+    {
+     "o": [
+      3.8,
+      4007.4,
+      0
+     ],
+     "c": [
+      0
+     ],
+     "d": "0fef10d73f43bc"
+    },
+    {
+     "o": [
+      3.8,
+      4007.4,
+      0
+     ],
+     "c": [
+      0
+     ],
+     "d": "0fef10d73f43bc"
+    },
+    {
+     "o": [
+      7.9,
+      1945.9,
+      0.10987
+     ],
+     "c": [
+      0
+     ],
+     "d": "05a8a3aa28d085"
+    },
+    {
+     "o": [
+      7.3,
+      1989.9,
+      0.14911
+     ],
+     "c": [
+      0
+     ],
+     "d": "10196bebf903e8"
+    },
+    {
+     "o": [
+      4.5,
+      2507.7,
+      0
+     ],
+     "c": [
+      0
+     ],
+     "d": "0d3088cf0055f2"
+    },
+    {
+     "o": [
+      7.2,
+      2053.4,
+      0.10987
+     ],
+     "c": [
+      0
+     ],
+     "d": "145cc41dd95e2b"
+    },
+    {
+     "o": [
+      5.5,
+      2139.6,
+      0
+     ],
+     "c": [
+      0
+     ],
+     "d": "1333093a698055"
+    },
+    {
+     "o": [
+      7.2,
+      2053.4,
+      0.10987
+     ],
+     "c": [
+      0
+     ],
+     "d": "1e1731645d01e9"
+    }
+   ]
+  }
+ ],
+ "finalPopulation": [
+  "0fef10d73f43bc",
+  "0fef10d73f43bc",
+  "05a8a3aa28d085",
+  "10196bebf903e8",
+  "0d3088cf0055f2",
+  "145cc41dd95e2b",
+  "1333093a698055",
+  "1e1731645d01e9"
+ ],
+ "references": [
+  {
+   "designId": "145cc41dd95e2b",
+   "label": "three services"
+  },
+  {
+   "designId": "0fef10d73f43bc",
+   "label": "monolith"
+  }
+ ]
+}

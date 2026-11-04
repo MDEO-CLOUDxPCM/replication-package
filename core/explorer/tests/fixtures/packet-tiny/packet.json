@@ -1,0 +1,112 @@
+{
+ "contract": "1.14.0",
+ "id": "bookshop",
+ "name": "Bookshop",
+ "description": "a tiny made-up shop: the generic explorer without any case",
+ "domains": [
+  "bookshop"
+ ],
+ "builtAt": "2026-10-30T12:00:00Z",
+ "builtBy": "tsx tests/fixtures/make-packet-tiny.ts",
+ "fingerprint": "b6ab970b3540ce6a",
+ "inputs": [
+  {
+   "label": "the shop description",
+   "path": "inputs/shop.md",
+   "hash": "b6ab970b3540ce6a"
+  }
+ ],
+ "objectives": [
+  {
+   "key": "cost",
+   "label": "Shop cost",
+   "code": "O1",
+   "unit": "cores",
+   "direction": "minimize",
+   "digits": 1
+  },
+  {
+   "key": "failure",
+   "label": "Failures",
+   "code": "O2",
+   "unit": "ppm",
+   "direction": "minimize",
+   "digits": 0
+  },
+  {
+   "key": "inconsistency",
+   "label": "Inconsistency",
+   "code": "O3",
+   "direction": "minimize",
+   "digits": 3
+  }
+ ],
+ "constraints": [
+  {
+   "key": "latencyBudget",
+   "label": "Latency budget",
+   "code": "C1",
+   "direction": "violation"
+  }
+ ],
+ "vocabulary": {
+  "mechanisms": [
+   {
+    "id": "sync",
+    "label": "Remote call",
+    "about": "a call to the owning service",
+    "short": "call"
+   },
+   {
+    "id": "copy",
+    "label": "Local copy",
+    "about": "a copy fed by events",
+    "short": "copy"
+   },
+   {
+    "id": "saga",
+    "label": "Saga step",
+    "about": "a write done as a saga step"
+   }
+  ],
+  "styles": [
+   {
+    "id": "choreography",
+    "label": "Choreography",
+    "about": "the services react to events"
+   },
+   {
+    "id": "orchestration",
+    "label": "Orchestration",
+    "about": "one service drives the steps"
+   }
+  ],
+  "operationKinds": [
+   {
+    "id": "query",
+    "label": "Look-up",
+    "about": "reads only"
+   },
+   {
+    "id": "mutation",
+    "label": "Change",
+    "about": "writes"
+   },
+   {
+    "id": "handler",
+    "label": "Reaction",
+    "about": "runs on an event"
+   }
+  ]
+ },
+ "docs": {
+  "texts": "docs/texts.json",
+  "metrics": "docs/metrics.json"
+ },
+ "capabilities": {
+  "model": false,
+  "verify": false,
+  "performance": true,
+  "simulate": false
+ }
+}

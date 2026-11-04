@@ -1,0 +1,441 @@
+# shipment (Kotlin original). Curated; schema: build.py docstring. Anchors are relative to
+# services/shipment/src/main/kotlin/org/misarch/shipment/.
+service: shipment
+transactional: >-
+  service/*Service.kt @Transactional: every mutation's service method is one transaction, the event is published
+  inside it. The payment-enabled and return/created handlers are one transaction each (service/ShipmentService.kt),
+  guarded by a transaction-scoped advisory lock (ShipmentRepository.lockForTransaction); the provider callback
+  /shipment/{id}/status is one transaction (read, write, link read, publish). The copy handlers are single statements
+  (autocommit).
+
+tables:
+  AddressEntity:
+    kind: copy
+    copyOf:
+      UserAddress: [id, userId, street1, street2, city, postalCode, country, companyName]
+      VendorAddress: [id, street1, street2, city, postalCode, country, companyName]
+    fedBy: [address/user-address/created, address/vendor-address/created]
+    discriminator: userId IS NULL -> VendorAddress
+    own: {version: "BIGSERIAL insertion sequence; the current vendor address is the one with the highest version"}
+    note: >-
+      insert-only (ON CONFLICT DO NOTHING); address/user-address/archived is not subscribed, so archived addresses stay
+      usable here
+  ProductVariantVersionEntity:
+    kind: copy
+    copyOf: {ProductVariantVersion: [id, weight]}
+    fedBy: [catalog/product-variant-version/created]
+  OrderItemEntity:
+    kind: copy
+    copyOf: {OrderItem: [id, count, productVariantVersionId]}
+    fedBy: [payment/payment/payment-enabled]
+    process: true
+    own: {sentWithId: "the Shipment the item was sent with (set when the order shipment is created)"}
+    refs:
+      - {attr: sentWithId, to: Shipment, kind: association, mult: "1", note: "FK to ShipmentEntity"}
+    note: >-
+      written by the payment-enabled saga step from the order in the event payload (count -> column quantity); read by
+      return shipments (findAllById) and the OrderItem resolvers
+  ShipmentMethodEntity: {kind: class, class: ShipmentMethod}
+  ShipmentEntity:
+    kind: class
+    class: Shipment
+    refs:
+      - {attr: shipmentMethodId, to: ShipmentMethod, kind: association, mult: "1"}
+      - {attr: shipmentAddressId, to: UserAddress, kind: association, mult: "1",
+         note: "the order's shipment address; for a return shipment the current VendorAddress (FK to the AddressEntity copy)"}
+      - {attr: orderId, to: Order, kind: association, mult: "0..1", note: "set for order shipments (xor returnId)"}
+      - {attr: returnId, to: Return, kind: association, mult: "0..1", note: "set for return shipments (xor orderId)"}
+  ShipmentToOrderItemEntity: {kind: join, joins: [Shipment, OrderItem], field: sentItems, inverse: sentWith, note: "items of a shipment (order or return shipment)"}
+
+operations:
+  - id: shipment.calculateShipmentFees
+    kind: query
+    trigger: {graphql: Query.calculateShipmentFees}
+    entry: graphql/Query.kt#fun calculateShipmentFees(
+    feature: F15
+    note: "@inaccessible; called by order.createOrder (its result becomes part of the order amount), so the reads are checks"
+    accesses:
+      - {class: ShipmentMethod, mode: read, op: select, shape: batch, rows: "distinct shipment methods of the input", strong: true,
+         via: ShipmentMethodRepository.findAllById, table: ShipmentMethodEntity, today: local,
+         at: service/ShipmentMethodService.kt#repository.findAllById, note: "unknown or archived methods are rejected"}
+      - {class: ProductVariantVersion, mode: read, op: select, shape: perItem, per: "shipment method groups of the input",
+         rows: "variant versions of the group", strong: true, via: ProductVariantVersionRepository.findAllById,
+         table: ProductVariantVersionEntity, today: copy, at: service/ShipmentMethodService.kt#productVariantVersionRepository.findAllById,
+         note: "calculateQuantityAndWeight per group: weights; unknown versions are rejected"}
+
+  - id: shipment.shipmentMethod
+    kind: query
+    trigger: {graphql: Query.shipmentMethod}
+    entry: graphql/Query.kt#fun shipmentMethod(
+    feature: F15
+    accesses:
+      - {class: ShipmentMethod, mode: read, op: select, shape: batch, rows: 1, via: ShipmentMethodRepository.findAllById,
+         table: ShipmentMethodEntity, today: local, at: graphql/Query.kt#ShipmentMethodDataLoader::class, note: DataLoader}
+
+  - id: shipment.shipmentMethods
+    kind: query
+    trigger: {graphql: Query.shipmentMethods}
+    entry: graphql/Query.kt#fun shipmentMethods(
+    feature: F15
+    accesses:
+      - {class: ShipmentMethod, mode: read, op: select, shape: list, rows: "shipment methods (page: first)", via: ShipmentMethodConnection.nodes,
+         table: ShipmentMethodEntity, today: local, at: graphql/Query.kt#ShipmentMethodConnection(}
+      - {class: ShipmentMethod, mode: read, op: count, shape: one, when: totalCount selected, via: ShipmentMethodConnection.totalCount,
+         table: ShipmentMethodEntity, today: local, at: graphql/Query.kt#ShipmentMethodConnection(}
+
+  - id: shipment.createShipmentMethod
+    kind: command
+    trigger: {graphql: Mutation.createShipmentMethod}
+    entry: graphql/Mutation.kt#fun createShipmentMethod(
+    feature: F24
+    transaction: {at: "service/ShipmentMethodService.kt#@Transactional@1", classes: [ShipmentMethod], publishInside: true}
+    accesses:
+      - {class: ShipmentMethod, mode: write, op: insert, shape: one, via: ShipmentMethodRepository.save, table: ShipmentMethodEntity,
+         today: local, at: "service/ShipmentMethodService.kt#repository.save(shipmentMethod)"}
+    publishes:
+      - {topic: shipment/shipment-method/created, at: service/ShipmentMethodService.kt#SHIPMENT_METHOD_CREATED, payload: [ShipmentMethod]}
+
+  - id: shipment.archiveShipmentMethod
+    kind: command
+    trigger: {graphql: Mutation.archiveShipmentMethod}
+    entry: graphql/Mutation.kt#fun archiveShipmentMethod(
+    feature: F24
+    transaction: {at: "service/ShipmentMethodService.kt#@Transactional@2", classes: [ShipmentMethod], publishInside: true}
+    accesses:
+      - {class: ShipmentMethod, mode: read, op: select, shape: one, strong: true, via: ShipmentMethodRepository.findById,
+         table: ShipmentMethodEntity, today: local, at: service/ShipmentMethodService.kt#repository.findById}
+      - {class: ShipmentMethod, mode: write, op: update, shape: one, via: ShipmentMethodRepository.save, table: ShipmentMethodEntity,
+         today: local, at: "service/ShipmentMethodService.kt#repository.save(shipmentMethod)@2", note: "sets archivedAt"}
+    publishes:
+      - {topic: shipment/shipment-method/archived, at: service/ShipmentMethodService.kt#SHIPMENT_METHOD_ARCHIVED, payload: [ShipmentMethod],
+         note: "id only"}
+
+  - id: shipment._entities.Order
+    kind: query
+    trigger: {graphql: _entities(Order)}
+    entry: graphql/federation/OrderResolver.kt#class OrderResolver
+    feature: F23
+    trivial: true
+    note: builds the Order stub from the representation, no database access
+
+  - id: shipment.Order.shipments
+    kind: query
+    trigger: {graphql: Order.shipments}
+    entry: graphql/model/Order.kt#fun shipments(
+    feature: F23
+    accesses:
+      - {class: Shipment, mode: read, op: select, shape: list, rows: "shipments of the order (one per shipment method; page: first)",
+         via: ShipmentConnection.nodes, table: ShipmentEntity, today: local, at: graphql/model/Order.kt#ShipmentConnection(}
+      - {class: Shipment, mode: read, op: count, shape: one, when: totalCount selected, via: ShipmentConnection.totalCount,
+         table: ShipmentEntity, today: local, at: graphql/model/Order.kt#ShipmentConnection(}
+
+  - id: shipment._entities.OrderItem
+    kind: query
+    trigger: {graphql: _entities(OrderItem)}
+    entry: graphql/federation/OrderItemResolver.kt#fun resolve(
+    feature: F23
+    accesses:
+      - {class: OrderItem, mode: read, op: select, shape: optional, via: OrderItemRepository.findById, table: OrderItemEntity,
+         today: copy, own: true, at: graphql/federation/OrderItemResolver.kt#orderItemRepository.findById,
+         note: "one query per representation (no DataLoader); unknown items resolve to a stub without sentWith; only id and the own column sentWithId (OrderItemEntity.toDTO): shipment's own data (DESIGN.md AB67)"}
+
+  - id: shipment.OrderItem.sentWith
+    kind: query
+    trigger: {graphql: OrderItem.sentWith}
+    entry: graphql/model/OrderItem.kt#fun sentWith(
+    feature: F23
+    accesses:
+      - {class: Shipment, mode: read, op: select, shape: batch, rows: 1, when: "sentWithId known", via: ShipmentRepository.findAllById,
+         table: ShipmentEntity, today: local, at: graphql/model/OrderItem.kt#ShipmentDataLoader::class, note: DataLoader}
+
+  - id: shipment._entities.Return
+    kind: query
+    trigger: {graphql: _entities(Return)}
+    entry: graphql/federation/ReturnResolver.kt#class ReturnResolver
+    feature: F26
+    trivial: true
+    note: builds the Return stub from the representation, no database access
+
+  - id: shipment.Return.shipment
+    kind: query
+    trigger: {graphql: Return.shipment}
+    entry: graphql/model/Return.kt#fun shipment(
+    feature: F26
+    accesses:
+      - {class: Shipment, mode: read, op: select, shape: optional, via: ShipmentRepository.findFirstByReturnId, table: ShipmentEntity,
+         today: local, at: service/ShipmentService.kt#repository.findFirstByReturnId(returnId), note: "no DataLoader; index on returnId"}
+
+  - id: shipment._entities.Shipment
+    kind: query
+    trigger: {graphql: _entities(Shipment)}
+    entry: graphql/federation/ShipmentResolver.kt#class ShipmentResolver
+    feature: F23
+    accesses:
+      - {class: Shipment, mode: read, op: select, shape: batch, rows: 1, via: ShipmentRepository.findAllById, table: ShipmentEntity,
+         today: local, at: graphql/federation/ShipmentResolver.kt#ShipmentDataLoader::class}
+
+  - id: shipment.Shipment.order
+    kind: query
+    trigger: {graphql: Shipment.order}
+    entry: graphql/model/Shipment.kt#fun order(
+    feature: F23
+    trivial: true
+    note: builds the Order stub from orderId, no database access
+
+  - id: shipment.Shipment.sentItems
+    kind: query
+    trigger: {graphql: Shipment.sentItems}
+    entry: graphql/model/Shipment.kt#fun sentItems(
+    feature: F23
+    note: >-
+      one SQL statement joins the OrderItem copy with the Shipment-OrderItem join table
+      (OrderItemEntity t INNER JOIN ShipmentToOrderItemEntity j WHERE j.shipmentId = :id)
+    accesses:
+      - {class: OrderItem, mode: read, op: select, shape: list, rows: "items of the shipment (page: first)", via: OrderItemConnection.nodes,
+         table: OrderItemEntity, today: copy, own: true, at: graphql/model/Shipment.kt#OrderItemConnection(,
+         note: "only id and the own column sentWithId (OrderItemEntity.toDTO): shipment's own data (DESIGN.md AB67)"}
+      - {class: Shipment, assoc: OrderItem, mode: read, op: select, shape: list, rows: "items of the shipment (page: first)",
+         table: ShipmentToOrderItemEntity, today: local, at: "graphql/model/Shipment.kt#INNER JOIN ShipmentToOrderItemEntity j ON",
+         note: "same statement as the nodes read (join)"}
+      - {class: OrderItem, mode: read, op: count, shape: one, when: totalCount selected, via: OrderItemConnection.totalCount,
+         table: OrderItemEntity, today: copy, own: true, at: graphql/model/Shipment.kt#OrderItemConnection(,
+         note: "counts the rows of the join with the own data (DESIGN.md AB67)"}
+      - {class: Shipment, assoc: OrderItem, mode: read, op: count, shape: one, when: totalCount selected,
+         table: ShipmentToOrderItemEntity, today: local, at: "graphql/model/Shipment.kt#INNER JOIN ShipmentToOrderItemEntity j ON",
+         note: "same statement as the totalCount read (join)"}
+
+  - id: shipment.Shipment.shipmentAddress
+    kind: query
+    trigger: {graphql: Shipment.shipmentAddress}
+    entry: graphql/model/Shipment.kt#fun shipmentAddress(
+    feature: F23
+    accesses:
+      - {class: UserAddress, alt: VendorAddress, mode: read, op: select, shape: batch, rows: 1, via: AddressRepository.findAllById,
+         table: AddressEntity, today: copy, at: graphql/model/Shipment.kt#AddressDataLoader::class,
+         note: "DataLoader; VendorAddress for return shipments"}
+
+  - id: shipment.Shipment.shipmentMethod
+    kind: query
+    trigger: {graphql: Shipment.shipmentMethod}
+    entry: graphql/model/Shipment.kt#fun shipmentMethod(
+    feature: F23
+    accesses:
+      - {class: ShipmentMethod, mode: read, op: select, shape: batch, rows: 1, via: ShipmentMethodRepository.findAllById,
+         table: ShipmentMethodEntity, today: local, at: graphql/model/Shipment.kt#ShipmentMethodDataLoader::class, note: DataLoader}
+
+  - id: shipment._entities.ShipmentMethod
+    kind: query
+    trigger: {graphql: _entities(ShipmentMethod)}
+    entry: graphql/federation/ShipmentMethodResolver.kt#class ShipmentMethodResolver
+    feature: F15
+    accesses:
+      - {class: ShipmentMethod, mode: read, op: select, shape: batch, rows: 1, via: ShipmentMethodRepository.findAllById,
+         table: ShipmentMethodEntity, today: local, at: graphql/federation/ShipmentMethodResolver.kt#ShipmentMethodDataLoader::class}
+
+  - id: shipment.ShipmentMethod.calculateFees
+    kind: query
+    trigger: {graphql: ShipmentMethod.calculateFees}
+    entry: graphql/model/ShipmentMethod.kt#fun calculateFees(
+    feature: F15
+    note: >-
+      the ShipmentMethod itself comes from the parent resolver; the callgraph misses the call through the injected
+      ShipmentMethodService parameter
+    accesses:
+      - {class: ProductVariantVersion, mode: read, op: select, shape: batch, rows: "variant versions of the items",
+         via: ProductVariantVersionRepository.findAllById, table: ProductVariantVersionEntity, today: copy,
+         at: service/ShipmentMethodService.kt#productVariantVersionRepository.findAllById, note: "calculateQuantityAndWeight: weights"}
+
+  - id: shipment.on:address/user-address/created
+    kind: reaction
+    mechanism: copy
+    trigger: {topic: address/user-address/created}
+    entry: event/EventController.kt#fun onUserCreated(
+    feature: F3
+    accesses:
+      - {class: UserAddress, mode: write, op: insert, shape: one, via: AddressRepository.createAddress, table: AddressEntity,
+         today: copy, at: service/AddressService.kt#repository.createAddress, note: "ON CONFLICT (id) DO NOTHING"}
+
+  - id: shipment.on:address/vendor-address/created
+    kind: reaction
+    mechanism: copy
+    trigger: {topic: address/vendor-address/created}
+    entry: event/EventController.kt#fun onVendorCreated(
+    feature: F3
+    accesses:
+      - {class: VendorAddress, mode: write, op: insert, shape: one, via: AddressRepository.createAddress, table: AddressEntity,
+         today: copy, at: service/AddressService.kt#repository.createAddress, note: "ON CONFLICT (id) DO NOTHING; userId NULL"}
+
+  - id: shipment.on:catalog/product-variant-version/created
+    kind: reaction
+    mechanism: copy
+    trigger: {topic: catalog/product-variant-version/created}
+    entry: event/EventController.kt#fun onProductVariantVersionCreated(
+    feature: F5
+    accesses:
+      - {class: ProductVariantVersion, mode: write, op: insert, shape: one, via: ProductVariantVersionRepository.createProductVariantVersion,
+         table: ProductVariantVersionEntity, today: copy, at: service/ProductVariantVersionService.kt#repository.createProductVariantVersion,
+         note: "ON CONFLICT (id) DO NOTHING"}
+
+  - id: shipment.on:payment/payment/payment-enabled
+    kind: reaction
+    trigger: {topic: payment/payment/payment-enabled}
+    entry: event/EventController.kt#fun onPaymentEnabled(
+    feature: F23
+    sagaStep: {saga: Buy, role: step}
+    note: >-
+      ShipmentRegistrationService: a short transaction stores all shipments of the order, then each is registered at
+      the provider outside any transaction and shipment/created is published after its registration; a failed
+      registration removes that shipment again (discardShipment) and publishes creation-failed instead
+    transaction:
+      - at: "service/ShipmentService.kt#@Transactional@1"
+        classes: [Shipment, OrderItem]
+        publishInside: true
+        note: >-
+          one transaction for all shipments of the order, serialized per order by
+          pg_advisory_xact_lock(hashtext('order:<id>')); only creation-failed of a group whose checks fail is
+          published inside
+      - at: "service/ShipmentService.kt#@Transactional@3"
+        classes: [Shipment, OrderItem]
+        publishInside: true
+        note: "discardShipment: only after a failed registration (prob 0), publishes creation-failed inside"
+    accesses:
+      - {class: Shipment, mode: read, op: lock, shape: one, strong: true, via: ShipmentRepository.lockForTransaction, table: ShipmentEntity,
+         today: local, at: "service/ShipmentService.kt#repository.lockForTransaction(\"order:", note: "advisory lock on the order id, no row lock"}
+      - {class: Shipment, mode: read, op: exists, shape: one, strong: true, via: ShipmentRepository.existsByOrderId, table: ShipmentEntity,
+         today: local, at: service/ShipmentService.kt#repository.existsByOrderId, note: "idempotency: a redelivery ends here"}
+      - {class: Order, mode: read, op: select, shape: one, strong: true, today: payload, topic: payment/payment/payment-enabled,
+         at: service/ShipmentService.kt#val order = paymentEnabledDTO.order, note: "order id, shipmentAddressId"}
+      - {class: OrderItem, mode: read, op: select, shape: list, rows: "items of the order", strong: true, today: payload,
+         topic: payment/payment/payment-enabled, at: service/ShipmentService.kt#order.orderItems.groupBy,
+         note: "id, count, productVariantVersionId, shipmentMethodId (grouped by shipment method)"}
+      - {class: UserAddress, mode: read, op: exists, shape: perItem, per: "shipment method groups of the order", strong: true,
+         via: AddressRepository.existsById, table: AddressEntity, today: copy, at: service/ShipmentService.kt#addressRepository.existsById}
+      - {class: ShipmentMethod, mode: read, op: select, shape: perItem, per: "shipment method groups of the order", strong: true,
+         via: ShipmentMethodRepository.findById, table: ShipmentMethodEntity, today: local,
+         at: service/ShipmentService.kt#shipmentMethodRepository.findById, note: "externalReference and fees for the provider; archived methods are not rejected here"}
+      - {class: ProductVariantVersion, mode: read, op: select, shape: perItem, per: "shipment method groups of the order",
+         rows: "variant versions of the group", strong: true, via: ProductVariantVersionRepository.findAllById,
+         table: ProductVariantVersionEntity, today: copy, at: service/ShipmentMethodService.kt#productVariantVersionRepository.findAllById,
+         note: "calculateQuantityAndWeight: weight for the provider"}
+      - {class: UserAddress, mode: read, op: select, shape: perItem, per: "shipment method groups of the order", strong: true,
+         via: AddressRepository.findById, table: AddressEntity, today: copy, at: service/ShipmentService.kt#addressRepository.findById,
+         note: "address sent to the provider"}
+      - {class: Shipment, mode: write, op: insert, shape: perItem, per: "shipment method groups of the order", table: ShipmentEntity,
+         via: ShipmentRepository.save, today: local, at: "service/ShipmentService.kt#val shipment = repository.save(",
+         note: "status PENDING, id generated by the database"}
+      - {class: OrderItem, mode: write, op: insert, shape: perItem, per: "items of the order", via: OrderItemRepository.createOrderItem,
+         table: OrderItemEntity, today: copy, at: service/ShipmentService.kt#orderItemRepository.createOrderItem,
+         note: "ON CONFLICT DO NOTHING; sentWithId = the new shipment"}
+      - {class: Shipment, assoc: OrderItem, mode: write, op: insert, shape: perItem, per: "items of the order",
+         via: ShipmentToOrderItemRepository.saveAll, table: ShipmentToOrderItemEntity, today: local,
+         at: service/ShipmentService.kt#shipmentToOrderItemRepository.saveAll, note: "saveAll: one INSERT per entity, called once per group"}
+      - {class: Shipment, assoc: OrderItem, mode: write, op: delete, shape: one, prob: 0, when: "the provider fails after all retries",
+         via: ShipmentToOrderItemRepository.deleteByKeyShipmentId, table: ShipmentToOrderItemEntity, today: local,
+         at: service/ShipmentService.kt#shipmentToOrderItemRepository.deleteByKeyShipmentId}
+      - {class: OrderItem, mode: write, op: delete, shape: one, prob: 0, when: "the provider fails after all retries",
+         via: OrderItemRepository.deleteBySentWithId, table: OrderItemEntity, today: copy,
+         at: service/ShipmentService.kt#orderItemRepository.deleteBySentWithId, note: "the order items the shipment stored"}
+      - {class: Shipment, mode: write, op: delete, shape: one, prob: 0, when: "the provider fails after all retries",
+         via: ShipmentRepository.deleteById, table: ShipmentEntity, today: local, at: service/ShipmentService.kt#repository.deleteById(shipmentId)}
+    calls:
+      - {to: simulation.shipment.register, how: http, at: "service/ShipmentRegistrationService.kt#shipmentProviderClient.registerShipment(", shape: perItem,
+         per: "shipment method groups of the order", effect: true, retries: "providerRetries (default 3) + 1 attempts, providerRetryDelay apart",
+         purpose: "register the shipment (id, method reference, quantity, weight, address) with the external provider; after the commit"}
+    publishes:
+      - {topic: shipment/shipment/created, at: service/ShipmentRegistrationService.kt#ShipmentEvents.SHIPMENT_CREATED, payload: [Shipment],
+         per: "shipment method groups of the order", when: "registration succeeded", note: "orderItemIds: the Shipment-OrderItem association"}
+      - {topic: shipment/shipment/creation-failed, at: "service/ShipmentService.kt#ShipmentEvents.SHIPMENT_CREATION_FAILED, ShipmentCreationFailedDTO(@2",
+         payload: [Shipment], prob: 0.001, when: "a check fails (address, method or variant version copy missing) or the provider fails after all retries",
+         note: "instead of shipment/created for that group; order stores an OrderCompensation (prob: the msa assumption for createShipments -> OrderCompensation, misarch-optimization msa/KOTLIN-MODEL.md)"}
+
+  - id: shipment.on:return/return/created
+    kind: reaction
+    trigger: {topic: return/return/created}
+    entry: event/EventController.kt#fun onReturnCreated(
+    feature: F23
+    sagaStep: {saga: Return, role: step}
+    note: >-
+      ShipmentRegistrationService: a short transaction stores the shipment, then it is registered at the provider
+      outside any transaction and shipment/created is published; a failed registration removes it again
+      (discardShipment) and publishes creation-failed instead
+    transaction:
+      - at: "service/ShipmentService.kt#@Transactional@2"
+        classes: [Shipment]
+        publishInside: true
+        note: "serialized per return by pg_advisory_xact_lock(hashtext('return:<id>')); only creation-failed (checks) is published inside"
+      - at: "service/ShipmentService.kt#@Transactional@3"
+        classes: [Shipment, OrderItem]
+        publishInside: true
+        note: "discardShipment: only after a failed registration (prob 0), publishes creation-failed inside"
+    accesses:
+      - {class: Shipment, mode: read, op: lock, shape: one, strong: true, via: ShipmentRepository.lockForTransaction, table: ShipmentEntity,
+         today: local, at: "service/ShipmentService.kt#repository.lockForTransaction(\"return:", note: "advisory lock on the return id, no row lock"}
+      - {class: Shipment, mode: read, op: exists, shape: one, strong: true, via: ShipmentRepository.existsByReturnId, table: ShipmentEntity,
+         today: local, at: service/ShipmentService.kt#repository.existsByReturnId, note: "idempotency"}
+      - {class: Return, mode: read, op: select, shape: one, strong: true, today: payload, topic: return/return/created,
+         at: "service/ShipmentService.kt#suspend fun createShipmentForReturn(returnDTO: ReturnDTO)", note: "return id, orderItemIds"}
+      - {class: VendorAddress, mode: read, op: select, shape: one, strong: true, via: AddressRepository.findCurrentVendorAddress,
+         table: AddressEntity, today: copy, at: service/ShipmentService.kt#addressRepository.findCurrentVendorAddress,
+         note: "WHERE userId IS NULL ORDER BY version DESC LIMIT 1"}
+      - {class: OrderItem, mode: read, op: select, shape: batch, rows: "returned items", strong: true, via: OrderItemRepository.findAllById,
+         table: OrderItemEntity, today: copy, own: true, at: service/ShipmentService.kt#orderItemRepository.findAllById,
+         note: "quantity and variant version of the returned items (copied by the order shipment); rows the payment-enabled handler writes as shipment's own are read as its own (user decision, DESIGN.md AB67.1)"}
+      - {class: ShipmentMethod, mode: read, op: select, shape: list, rows: "all shipment methods", strong: true, via: ShipmentMethodRepository.findAll,
+         table: ShipmentMethodEntity, today: local, at: service/ShipmentMethodService.kt#repository.findAll(),
+         note: "findLeastExpensiveShipmentMethod; archived methods filtered in memory"}
+      - {class: ProductVariantVersion, mode: read, op: select, shape: batch, rows: "variant versions of the returned items", times: 2, strong: true,
+         via: ProductVariantVersionRepository.findAllById, table: ProductVariantVersionEntity, today: copy,
+         at: service/ShipmentMethodService.kt#productVariantVersionRepository.findAllById,
+         note: "calculateQuantityAndWeight runs twice: in findLeastExpensiveShipmentMethod and in checkShipment"}
+      - {class: VendorAddress, mode: read, op: exists, shape: one, strong: true, via: AddressRepository.existsById, table: AddressEntity,
+         today: copy, at: service/ShipmentService.kt#addressRepository.existsById}
+      - {class: ShipmentMethod, mode: read, op: select, shape: one, strong: true, via: ShipmentMethodRepository.findById,
+         table: ShipmentMethodEntity, today: local, at: service/ShipmentService.kt#shipmentMethodRepository.findById}
+      - {class: VendorAddress, mode: read, op: select, shape: one, strong: true, via: AddressRepository.findById, table: AddressEntity,
+         today: copy, at: service/ShipmentService.kt#addressRepository.findById}
+      - {class: Shipment, mode: write, op: insert, shape: one, table: ShipmentEntity, via: ShipmentRepository.save, today: local,
+         at: "service/ShipmentService.kt#val shipment = repository.save(", note: "status PENDING, id generated by the database"}
+      - {class: Shipment, assoc: OrderItem, mode: write, op: insert, shape: perItem, per: "returned items",
+         via: ShipmentToOrderItemRepository.saveAll, table: ShipmentToOrderItemEntity, today: local,
+         at: service/ShipmentService.kt#shipmentToOrderItemRepository.saveAll}
+      - {class: Shipment, assoc: OrderItem, mode: write, op: delete, shape: one, prob: 0, when: "the provider fails after all retries",
+         via: ShipmentToOrderItemRepository.deleteByKeyShipmentId, table: ShipmentToOrderItemEntity, today: local,
+         at: service/ShipmentService.kt#shipmentToOrderItemRepository.deleteByKeyShipmentId}
+      - {class: Shipment, mode: write, op: delete, shape: one, prob: 0, when: "the provider fails after all retries",
+         via: ShipmentRepository.deleteById, table: ShipmentEntity, today: local, at: service/ShipmentService.kt#repository.deleteById(shipmentId)}
+    calls:
+      - {to: simulation.shipment.register, how: http, at: "service/ShipmentRegistrationService.kt#shipmentProviderClient.registerShipment(", shape: one,
+         effect: true, retries: "providerRetries (default 3) + 1 attempts, providerRetryDelay apart",
+         purpose: "register the return shipment with the external provider; after the commit"}
+    publishes:
+      - {topic: shipment/shipment/created, at: service/ShipmentRegistrationService.kt#ShipmentEvents.SHIPMENT_CREATED, payload: [Shipment],
+         when: "registration succeeded", note: "returnId set, orderItemIds: the Shipment-OrderItem association"}
+      - {topic: shipment/shipment/creation-failed, at: "service/ShipmentService.kt#ShipmentEvents.SHIPMENT_CREATION_FAILED, ShipmentCreationFailedDTO(@1",
+         payload: [Shipment], prob: 0, when: "no vendor address, no active method, no known order item or unknown variant version"}
+      - {topic: shipment/shipment/creation-failed, at: "service/ShipmentService.kt#ShipmentEvents.SHIPMENT_CREATION_FAILED, ShipmentCreationFailedDTO(@2",
+         payload: [Shipment], prob: 0, when: "a check in checkShipment fails or the provider fails after all retries"}
+    notReached: [OrderItemRepository.createOrderItem, OrderItemRepository.deleteBySentWithId]
+    notReachedReason: "createShipment stores order items only when the input has an orderId (the order path); a return shipment stores none, so discardShipment's deleteBySentWithId deletes nothing"
+
+  - id: shipment.http:/shipment/{id}/status
+    kind: reaction
+    trigger: {http: '/shipment/{id}/status'}
+    entry: provider/ShipmentProviderController.kt#fun updateShipmentStatus(
+    feature: F23
+    sagaStep: {saga: Buy, role: step}
+    note: >-
+      callback of the simulation (status DELIVERED with SHIPMENT_SUCCESS_RATE, default 0.95, else FAILED); also for return
+      shipments (then part of the Return saga). Any transition is accepted
+    transaction: {at: "service/ShipmentService.kt#@Transactional@4", classes: [Shipment], publishInside: true,
+                  note: "read, write, link read and publish in one transaction (no row lock: last writer wins)"}
+    accesses:
+      - {class: Shipment, mode: read, op: select, shape: one, strong: true, via: ShipmentRepository.findById, table: ShipmentEntity,
+         today: local, at: service/ShipmentService.kt#repository.findById}
+      - {class: Shipment, mode: write, op: update, shape: one, via: ShipmentRepository.save, table: ShipmentEntity, today: local,
+         at: service/ShipmentService.kt#repository.save(shipment)}
+      - {class: Shipment, assoc: OrderItem, mode: read, op: select, shape: list, rows: "items of the shipment", strong: true,
+         via: ShipmentToOrderItemRepository.findByKeyShipmentId, table: ShipmentToOrderItemEntity, today: local,
+         at: service/ShipmentService.kt#shipmentToOrderItemRepository.findByKeyShipmentId, note: "orderItemIds for the event"}
+    publishes:
+      - {topic: shipment/shipment/status-updated, at: service/ShipmentService.kt#ShipmentEvents.SHIPMENT_STATUS_UPDATED, payload: [Shipment],
+         note: "status, orderId, returnId, orderItemIds (the Shipment-OrderItem association)"}

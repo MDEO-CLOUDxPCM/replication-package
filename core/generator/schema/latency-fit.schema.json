@@ -1,0 +1,91 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "latency-fit.schema.json",
+  "title": "Case latency fit",
+  "description": "The latency fit a case provides (MiSArch: timing/latency_fit.json): per database statement, per commit and per publish the latency without CPU, on the database server's DELAY resource. core/generator/derive.py class Structure reads the object under `latency` when present, else the top level; without the file it uses placeholders.",
+  "type": "object",
+  "additionalProperties": true,
+  "if": {
+    "required": [
+      "latency"
+    ]
+  },
+  "then": {
+    "properties": {
+      "latency": {
+        "$ref": "#/$defs/fit"
+      }
+    }
+  },
+  "else": {
+    "$ref": "#/$defs/fit"
+  },
+  "$defs": {
+    "estimate": {
+      "description": "A fitted value: a number, or {value, se} (derive Structure: value; se goes into the source label).",
+      "oneOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "object",
+          "description": "A fitted value with its standard error.",
+          "properties": {
+            "value": {
+              "type": "number",
+              "description": "Estimate (ms)."
+            },
+            "se": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "description": "Standard error (ms)."
+            }
+          },
+          "required": [
+            "value"
+          ],
+          "additionalProperties": true
+        }
+      ]
+    },
+    "fit": {
+      "type": "object",
+      "description": "The latency fit: latency without CPU per statement, commit and publish. Also carries (not read by the generator): commitUnit, unit, model, regime, source, parts, residualSdMs, alternative, points, residuals, readsCheck, dbLatencyPerAccess, skippedSlowSegments, windows.",
+      "properties": {
+        "stmtRoundTripMs": {
+          "$ref": "#/$defs/estimate",
+          "description": "Round trip per database statement, ms (derive Structure.lat, clamped at 0)."
+        },
+        "commitDelayMs": {
+          "$ref": "#/$defs/estimate",
+          "description": "Delay per commit, ms (derive Structure.lat)."
+        },
+        "publishWaitMs": {
+          "$ref": "#/$defs/estimate",
+          "description": "Publisher's wait per publish, ms (derive Structure.lat)."
+        },
+        "headline": {
+          "type": "string",
+          "description": "The commit proxy: one commit per writing handler or per write statement (derive Structure.lat commitUnit; default perWritingHandler).",
+          "enum": [
+            "perWritingHandler",
+            "perWriteStatement"
+          ]
+        },
+        "n": {
+          "type": "integer",
+          "description": "Number of fitted points (derive source label).",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "stmtRoundTripMs",
+        "commitDelayMs",
+        "publishWaitMs"
+      ],
+      "additionalProperties": true
+    }
+  }
+}

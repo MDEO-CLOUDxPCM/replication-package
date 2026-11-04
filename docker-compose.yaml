@@ -1,0 +1,302 @@
+# The mdeo platform for the paper's runs, on one machine: mdeo release 0.2.12 from its published images
+# (ghcr.io/mde-optimiser/mdeo-*:0.2.12) and the Palladio Simulation plugin built from the submodule
+# palladio-sim-service/ (with SimOxide in it; no image of it is pulled). docs/platform.md, "One machine".
+#
+#   git submodule update --init                  # palladio-sim-service/ and misarch-kotlin/
+#   docker compose up -d --build                 # the workbench at http://localhost:4242 (admin / admin)
+#   core/platform/setup-local.sh                 # plugin, project, the paper's files
+#
+# Settings (environment or a .env file beside this file), defaults in brackets:
+#   MDEO_PORT [4242]                  the workbench's port on the host
+#   ADMIN_USERNAME, ADMIN_PASSWORD    the platform's administrator [admin, admin]
+#   OPTIMIZER_THREADS [16]            worker threads of the optimizer node; one evaluation per thread
+#   OPTIMIZER_HEAP [18g]              heap of the optimizer node's worker (parents + offspring of population 175 at about
+#                                     30 MB per model plus the evaluations in flight: 12-15 GB live)
+#   SIM_THREADS [16]                  simulations at once in the plugin (one thread each)
+# Memory: about 20 GB for the optimizer, 2-7 GB for the plugin, 5 GB for the rest; 32 GB of RAM at least.
+# The paper's runs had 8 optimizer nodes of 22 threads and 10 of 18 (at least one thread per design of the
+# population of 175) and a simulation cluster; with
+# fewer threads a generation just takes longer (about 10 min with 16 + 16 threads on 25 cores). More nodes:
+# copies of optimizer-execution-0 with their own NODE_ID and NODE_URL, each listed in the others' PEERS; each node
+# then holds its share of the population, but needs enough heap for the solutions it receives for crossover.
+#
+# Based on mdeo-cloud's infra/docker-compose.yaml (the zero-configuration stack) and the single-server stack of its
+# manager (infra/manager/stack.yaml.tmpl) at v0.2.12; the plugin service is what that stack calls palladio-sim.
+
+name: architecture-optimization
+
+x-postgres: &postgres
+  image: postgres:17-alpine
+  restart: unless-stopped
+  stop_grace_period: 60s
+  environment:
+    POSTGRES_USER: mdeo
+    POSTGRES_PASSWORD: mdeo
+    POSTGRES_DB: mdeo
+  healthcheck:
+    test: ["CMD-SHELL", "pg_isready -U mdeo -d mdeo"]
+    interval: 10s
+    timeout: 5s
+    retries: 5
+    start_period: 30s
+
+x-node-service: &node-service
+  restart: unless-stopped
+  healthcheck:
+    test: ["CMD", "curl", "-f", "http://localhost:3000/"]
+    interval: 10s
+    timeout: 5s
+    retries: 5
+    start_period: 30s
+
+x-jvm-health: &jvm-health
+  test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+  interval: 10s
+  timeout: 5s
+  retries: 5
+  start_period: 30s
+
+x-optimizer: &optimizer
+  image: ghcr.io/mde-optimiser/mdeo-optimizer-execution:0.2.12
+  restart: unless-stopped
+  ulimits:
+    nofile: {soft: 65536, hard: 65536}
+  depends_on:
+    postgres-optimizer:
+      condition: service_healthy
+    backend:
+      condition: service_started
+  healthcheck: *jvm-health
+
+services:
+  postgres-backend:
+    <<: *postgres
+    volumes:
+      - postgres-backend-data:/var/lib/postgresql/data
+
+  postgres-script:
+    <<: *postgres
+    volumes:
+      - postgres-script-data:/var/lib/postgresql/data
+
+  postgres-model-transformation:
+    <<: *postgres
+    volumes:
+      - postgres-model-transformation-data:/var/lib/postgresql/data
+
+  postgres-optimizer:
+    <<: *postgres
+    # every optimizer node keeps a pool of up to 10 connections
+    command: ["postgres", "-c", "max_connections=200"]
+    volumes:
+      - postgres-optimizer-data:/var/lib/postgresql/data
+
+  backend:
+    image: ghcr.io/mde-optimiser/mdeo-backend:0.2.12
+    restart: unless-stopped
+    # The backend registers mdeo's default plugins once, at its start, through the workbench's nginx, and 0.2.12 does
+    # not retry; nginx in turn needs the backend's container to start. So the container starts, and the backend
+    # (the image's entrypoint, java -jar backend.jar) once nginx serves the first manifest.
+    entrypoint: ["/bin/sh", "-c", "until wget -q -O /dev/null http://workbench/plugin/metamodel/; do sleep 2; done; exec java -jar backend.jar"]
+    environment:
+      JAVA_TOOL_OPTIONS: "-Xmx4g -XX:+ExitOnOutOfMemoryError"
+      DATABASE_URL: jdbc:postgresql://postgres-backend:5432/mdeo
+      DATABASE_USER: mdeo
+      DATABASE_PASSWORD: mdeo
+      # every HTTP request arrives through the workbench's nginx
+      TRUSTED_PROXY_HOPS: "1"
+      GIT_SSH_PORT: "2222"
+      GIT_OAUTH_AUTHORIZE_PATH: /oauth/authorize
+      GIT_OAUTH_TOKEN_PATH: /api/oauth/token
+      # only the workbench's HTTP port is published; git goes over HTTP (core/platform/push.sh)
+      GIT_SSH_PUBLICLY_REACHABLE: "false"
+      SESSION_MAX_IDLE_SECONDS: "604800"
+      SESSION_MAX_ABSOLUTE_SECONDS: "15552000"
+      # an execution's token must outlive the run (a day for 450 generations)
+      JWT_EXECUTION_EXPIRATION_SECONDS: "604800"
+      COOKIE_SECURE: "false"
+      COOKIE_SAMESITE: "Lax"
+      CORS_ALLOWED_HOSTS: localhost:${MDEO_PORT:-4242},127.0.0.1:${MDEO_PORT:-4242}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin}
+      PLUGIN_BASE_URL: ""
+      INTERNAL_PLUGIN_BASE_URL: http://workbench:80
+      DEFAULT_PLUGIN_URLS: /plugin/metamodel,/plugin/model,/plugin/script,/plugin/model-transformation,/plugin/config,/plugin/config-optimization,/plugin/config-mdeo,/plugin/csv,/plugin/model-csv
+    depends_on:
+      postgres-backend:
+        condition: service_healthy
+      workbench:
+        condition: service_started
+
+  workbench:
+    image: ghcr.io/mde-optimiser/mdeo-workbench:0.2.12
+    restart: unless-stopped
+    environment:
+      PLUGIN_METAMODEL_SERVICE: http://service-metamodel:3000
+      PLUGIN_MODEL_SERVICE: http://service-model:3000
+      PLUGIN_SCRIPT_SERVICE: http://service-script:3000
+      PLUGIN_MODEL_TRANSFORMATION_SERVICE: http://service-model-transformation:3000
+      PLUGIN_CONFIG_SERVICE: http://service-config:3000
+      PLUGIN_CONFIG_OPTIMIZATION_SERVICE: http://service-config-optimization:3000
+      PLUGIN_CONFIG_MDEO_SERVICE: http://service-config-mdeo:3000
+      PLUGIN_CSV_SERVICE: http://service-csv:3000
+      PLUGIN_MODEL_CSV_SERVICE: http://service-model-csv:3000
+      BACKEND_SERVICE: http://backend:8080
+    ports:
+      - "${MDEO_PORT:-4242}:80"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://127.0.0.1/plugin/metamodel/"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    depends_on:
+      service-metamodel: {condition: service_healthy}
+      service-model: {condition: service_healthy}
+      service-script: {condition: service_healthy}
+      service-model-transformation: {condition: service_healthy}
+      service-config: {condition: service_healthy}
+      service-config-optimization: {condition: service_healthy}
+      service-config-mdeo: {condition: service_healthy}
+      service-csv: {condition: service_healthy}
+      service-model-csv: {condition: service_healthy}
+
+  service-metamodel:
+    <<: *node-service
+    image: ghcr.io/mde-optimiser/mdeo-service-metamodel:0.2.12
+    environment: {PORT: "3000", HOST: 0.0.0.0, BACKEND_API_URL: "http://backend:8080/api", MAX_LANGIUM_INSTANCES: "5"}
+
+  service-model:
+    <<: *node-service
+    image: ghcr.io/mde-optimiser/mdeo-service-model:0.2.12
+    environment: {PORT: "3000", HOST: 0.0.0.0, BACKEND_API_URL: "http://backend:8080/api", MAX_LANGIUM_INSTANCES: "5"}
+
+  service-csv:
+    <<: *node-service
+    image: ghcr.io/mde-optimiser/mdeo-service-csv:0.2.12
+    environment: {PORT: "3000", HOST: 0.0.0.0, BACKEND_API_URL: "http://backend:8080/api", MAX_LANGIUM_INSTANCES: "5"}
+
+  service-model-csv:
+    <<: *node-service
+    image: ghcr.io/mde-optimiser/mdeo-service-model-csv:0.2.12
+    environment: {PORT: "3000", HOST: 0.0.0.0, BACKEND_API_URL: "http://backend:8080/api", MAX_LANGIUM_INSTANCES: "5"}
+
+  service-script:
+    <<: *node-service
+    image: ghcr.io/mde-optimiser/mdeo-service-script:0.2.12
+    environment:
+      PORT: "3000"
+      HOST: 0.0.0.0
+      BACKEND_API_URL: http://backend:8080/api
+      SCRIPT_EXECUTION_SERVICE_URL: http://script-execution:8080
+      MAX_LANGIUM_INSTANCES: "5"
+
+  service-model-transformation:
+    <<: *node-service
+    image: ghcr.io/mde-optimiser/mdeo-service-model-transformation:0.2.12
+    environment:
+      PORT: "3000"
+      HOST: 0.0.0.0
+      BACKEND_API_URL: http://backend:8080/api
+      MODEL_TRANSFORMATION_EXECUTION_SERVICE_URL: http://model-transformation-execution:8080
+      MAX_LANGIUM_INSTANCES: "5"
+
+  service-config:
+    <<: *node-service
+    image: ghcr.io/mde-optimiser/mdeo-service-config:0.2.12
+    environment: {PORT: "3000", HOST: 0.0.0.0, BACKEND_API_URL: "http://backend:8080/api", MAX_LANGIUM_INSTANCES: "5"}
+
+  service-config-optimization:
+    <<: *node-service
+    image: ghcr.io/mde-optimiser/mdeo-service-config-optimization:0.2.12
+    environment: {PORT: "3000", HOST: 0.0.0.0, BACKEND_API_URL: "http://backend:8080/api", MAX_LANGIUM_INSTANCES: "5"}
+
+  service-config-mdeo:
+    <<: *node-service
+    image: ghcr.io/mde-optimiser/mdeo-service-config-mdeo:0.2.12
+    environment:
+      PORT: "3000"
+      HOST: 0.0.0.0
+      BACKEND_API_URL: http://backend:8080/api
+      OPTIMIZER_EXECUTION_SERVICE_URL: http://optimizer-execution-0:8080
+      MAX_LANGIUM_INSTANCES: "5"
+
+  script-execution:
+    image: ghcr.io/mde-optimiser/mdeo-script-execution:0.2.12
+    restart: unless-stopped
+    environment:
+      JAVA_TOOL_OPTIONS: "-Xmx4g -XX:+ExitOnOutOfMemoryError"
+      SERVER_PORT: "8080"
+      DATABASE_URL: jdbc:postgresql://postgres-script:5432/mdeo
+      DATABASE_USER: mdeo
+      DATABASE_PASSWORD: mdeo
+      BACKEND_API_URL: http://backend:8080/api
+      EXECUTION_TIMEOUT_MS: "300000"
+    depends_on:
+      postgres-script: {condition: service_healthy}
+      backend: {condition: service_started}
+    healthcheck: *jvm-health
+
+  model-transformation-execution:
+    image: ghcr.io/mde-optimiser/mdeo-model-transformation-execution:0.2.12
+    restart: unless-stopped
+    environment:
+      JAVA_TOOL_OPTIONS: "-Xmx4g -XX:+ExitOnOutOfMemoryError"
+      SERVER_PORT: "8080"
+      DATABASE_URL: jdbc:postgresql://postgres-model-transformation:5432/mdeo
+      DATABASE_USER: mdeo
+      DATABASE_PASSWORD: mdeo
+      BACKEND_API_URL: http://backend:8080/api
+      EXECUTION_TIMEOUT_MS: "300000"
+    depends_on:
+      postgres-model-transformation: {condition: service_healthy}
+      backend: {condition: service_started}
+    healthcheck: *jvm-health
+
+  optimizer-execution-0:
+    <<: *optimizer
+    environment:
+      # inherited by the worker subprocess every run starts, which does the work
+      JAVA_TOOL_OPTIONS: "-Xmx${OPTIMIZER_HEAP:-18g} -XX:+ExitOnOutOfMemoryError"
+      MALLOC_ARENA_MAX: "2"
+      SERVER_PORT: "8080"
+      DATABASE_URL: jdbc:postgresql://postgres-optimizer:5432/mdeo
+      DATABASE_USER: mdeo
+      DATABASE_PASSWORD: mdeo
+      BACKEND_API_URL: http://backend:8080/api
+      SCRIPT_TIMEOUT_MS: "1000"
+      TRANSFORMATION_TIMEOUT_MS: "1000"
+      WORKER_THREADS: ${OPTIMIZER_THREADS:-16}
+      NODE_ID: "0"
+      NODE_URL: http://optimizer-execution-0:8080
+      PEERS: ""
+
+  # The Palladio Simulation plugin (manifest id palladio-arch-service), built from the submodule. Registered in the
+  # platform as http://palladio-sim:3022/ (core/platform/setup-local.sh).
+  palladio-sim:
+    build:
+      context: ./palladio-sim-service
+      args:
+        BUILD_JOBS: ${BUILD_JOBS:-}
+    image: palladio-sim-service:local
+    restart: unless-stopped
+    init: true
+    stop_grace_period: 10s
+    ulimits:
+      nofile: {soft: 65536, hard: 65536}
+    environment:
+      PORT: "3022"
+      HOST: 0.0.0.0
+      BACKEND_API_URL: http://backend:8080/api
+      SIM_THREADS: ${SIM_THREADS:-16}
+      MAX_SESSIONS: "256"
+      SIM_RESULT_CACHE_SIZE: "4096"
+      PCM_CACHE_MB: "1024"
+      SIM_TIMEOUT_SECONDS: "600"
+      RUST_LOG: info
+
+volumes:
+  postgres-backend-data:
+  postgres-script-data:
+  postgres-model-transformation-data:
+  postgres-optimizer-data:

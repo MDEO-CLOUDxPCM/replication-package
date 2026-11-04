@@ -1,0 +1,252 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "parts.schema.json",
+  "title": "Case timing parts",
+  "description": "The timing campaign's parts a case provides (MiSArch: timing/parts.json, versions 2 and 3; timing/RESULTS.md §12): per domain operation its own CPU and per (class, mode) access its database CPU, mapping CPU and statements, measured on today's cut; the at-load scale k_c per container and the order path's cardinality term. Read by core/generator/derive.py class Timing (and Envelope for `envelope` in version 3). Operations without parts fall back to the domain's seed demands. Also carries (not read by the generator): schema, analysis, counters, generatedBy, domainCommit, windows, requests, fits, middleware, kDb, kAtLoadNoCardinality, overheadOnVsOff, overheadRatios, orderPathCardinality, rateSensitivity, mechanisms, perExecution, rareOperations.",
+  "type": "object",
+  "properties": {
+    "version": {
+      "type": "integer",
+      "description": "Format version; the generator reads 2 and 3 (derive Timing.VERSIONS). 3 moves the per-request rest into byRequest[].requestOverheadCpuMs and may carry `envelope`.",
+      "enum": [
+        2,
+        3
+      ]
+    },
+    "operations": {
+      "type": "object",
+      "description": "domain operation id -> parts (derive Timing).",
+      "additionalProperties": {
+        "$ref": "#/$defs/operation"
+      },
+      "minProperties": 1
+    },
+    "kAtLoad": {
+      "type": "object",
+      "description": "container (<service>, <service>-db, ...) -> at-load scale k_c; default 1 (derive Timing.kof).",
+      "additionalProperties": {
+        "type": "number",
+        "minimum": 0
+      }
+    },
+    "kAtLoadDetail": {
+      "type": "object",
+      "description": "Detail of the k_c estimate. Also carries (not read by the generator): containers, levels, factorial, maxLevel, window.",
+      "properties": {
+        "cardinalityMsPerOrder": {
+          "type": "object",
+          "description": "container -> ms per order of the order path's cardinality term (<service>: app, <service>-db: DB; -dapr and -ecs sidecars are skipped) (derive Timing.__init__).",
+          "additionalProperties": {
+            "type": "number"
+          }
+        }
+      },
+      "required": [
+        "cardinalityMsPerOrder"
+      ],
+      "additionalProperties": true
+    },
+    "envelope": {
+      "type": "object",
+      "description": "Version 3: the envelope (derive Envelope, schema #/$defs/envelope); in version 2 it is ignored and timing/envelope-estimate-v2.json is read instead."
+    }
+  },
+  "if": {
+    "properties": {
+      "version": {
+        "const": 3
+      }
+    },
+    "required": [
+      "version"
+    ]
+  },
+  "then": {
+    "properties": {
+      "envelope": {
+        "$ref": "#/$defs/envelope"
+      }
+    }
+  },
+  "required": [
+    "version",
+    "operations",
+    "kAtLoad",
+    "kAtLoadDetail"
+  ],
+  "additionalProperties": true,
+  "$defs": {
+    "handler": {
+      "type": "object",
+      "description": "A handler (reaction) of the timing campaign, by operation id. Also carries (not read by the generator): topic, types, envelopeCpuMs, envelopeParts, from, flag, workFrom, idempotencyCheck, countersRemainderCpuMs.",
+      "properties": {
+        "service": {
+          "type": "string",
+          "description": "Service of the handler (derive Envelope.by_svc: pooled envelope per service)."
+        },
+        "envelopeAppCpuMs": {
+          "type": "number",
+          "description": "App-side envelope CPU ms (dispatch, decode, idempotency, transaction) (derive Envelope.share, pooled).",
+          "minimum": 0
+        },
+        "workCpuMs": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0,
+          "description": "Work CPU ms (business logic and statements); must be a number for a handler of a reaction the workload reaches (derive Envelope.share)."
+        }
+      },
+      "required": [
+        "service",
+        "envelopeAppCpuMs",
+        "workCpuMs"
+      ],
+      "additionalProperties": true
+    },
+    "callee": {
+      "type": "object",
+      "description": "Callee envelope of a synchronous invocation of a service. Also carries (not read by the generator): dispatchCpuMs, decodeCpuMs, txCpuMs, types, flag.",
+      "properties": {
+        "envelopeAppCpuMs": {
+          "type": "number",
+          "description": "Envelope CPU ms; ignored unless a number (derive Envelope.callee).",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": true
+    },
+    "envelope": {
+      "type": "object",
+      "description": "The receiving envelope of an effect step (timing/README.md §6). Also carries (not read by the generator): schema, version, source, flag, units, senders, requestOverhead, hopsMs, rows.",
+      "properties": {
+        "handlers": {
+          "type": "object",
+          "description": "operation id -> handler (derive Envelope).",
+          "additionalProperties": {
+            "$ref": "#/$defs/handler"
+          },
+          "minProperties": 1
+        },
+        "callees": {
+          "type": "object",
+          "description": "service -> callee envelope (derive Envelope.callee; else the service's handler mean, else all handlers' mean).",
+          "additionalProperties": {
+            "$ref": "#/$defs/callee"
+          }
+        }
+      },
+      "required": [
+        "handlers"
+      ],
+      "additionalProperties": true
+    },
+    "access": {
+      "type": "object",
+      "description": "The campaign's parts of one (class, mode) access of the operation.",
+      "properties": {
+        "class": {
+          "type": "string",
+          "description": "Domain class (derive Timing.access: matched by class and mode, the first entry)."
+        },
+        "mode": {
+          "type": "string",
+          "description": "Read or write (derive Timing.access).",
+          "enum": [
+            "read",
+            "write"
+          ]
+        },
+        "dbMs": {
+          "type": "number",
+          "description": "Database-container CPU ms per execution, x k_c of <service>-db (derive Timing.access; the order path's DB cardinality term goes on the first access with dbMs > 0).",
+          "minimum": 0
+        },
+        "mapCpuMs": {
+          "type": "number",
+          "description": "App-side mapping CPU ms per execution, x k_c of the service (derive Timing.access).",
+          "minimum": 0
+        },
+        "calls": {
+          "type": "number",
+          "description": "Measured statements per execution (derive Timing.access: latency waits, commits).",
+          "minimum": 0
+        },
+        "rows": {
+          "type": "number",
+          "description": "Measured rows over all statements (derive Timing.access, default 0: Access.rows per statement).",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "class",
+        "mode",
+        "dbMs",
+        "mapCpuMs",
+        "calls"
+      ],
+      "additionalProperties": true
+    },
+    "byRequest": {
+      "type": "object",
+      "description": "The operation's parts within one request type. Also carries (not read by the generator): accesses, ownShareOfService, totals.",
+      "properties": {
+        "ownCpuMs": {
+          "type": "number",
+          "description": "Own CPU ms in this request (derive Timing.demand when the operation is the request's root).",
+          "minimum": 0
+        },
+        "requestOverheadCpuMs": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0,
+          "description": "Version 3: the service's per-request rest, charged to the request's root resolver (derive Timing.demand, uncharged_overhead; default 0)."
+        }
+      },
+      "required": [
+        "ownCpuMs"
+      ],
+      "additionalProperties": true
+    },
+    "operation": {
+      "type": "object",
+      "description": "The campaign's parts of one domain operation. Also carries (not read by the generator): service, kind, followUps, approximateTotals, totalsFrom.",
+      "properties": {
+        "ownCpuMs": {
+          "type": "number",
+          "description": "Own CPU ms per execution before k_c (derive Timing.demand, cardinality candidates).",
+          "minimum": 0
+        },
+        "accesses": {
+          "type": "array",
+          "description": "Per (class, mode) parts (derive Timing.access, cardinality candidates).",
+          "items": {
+            "$ref": "#/$defs/access"
+          }
+        },
+        "byRequest": {
+          "type": "object",
+          "description": "request type -> parts in that request, per execution of the operation (MiSArch: executionsPerRequest per request; requestOverheadCpuMs per request) (derive Timing.demand, uncharged_overhead).",
+          "additionalProperties": {
+            "$ref": "#/$defs/byRequest"
+          }
+        },
+        "measuredIn": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Request types it was measured in; createOrder/placeOrder ones may carry the order path's cardinality term (derive Timing.__init__)."
+        }
+      },
+      "required": [
+        "ownCpuMs",
+        "accesses"
+      ],
+      "additionalProperties": true
+    }
+  }
+}

@@ -1,0 +1,491 @@
+{
+ "contract": "1.14.0",
+ "id": "bookshop",
+ "name": "Bookshop",
+ "version": "1",
+ "source": "made up for the tests (tests/fixtures/make-packet-tiny.ts)",
+ "classes": [
+  {
+   "id": "Book",
+   "name": "Book",
+   "aggregate": "Book",
+   "attributes": [
+    "title",
+    "isbn",
+    "price"
+   ],
+   "description": "a title on sale"
+  },
+  {
+   "id": "Author",
+   "name": "Author",
+   "aggregate": "Author",
+   "attributes": [
+    "name"
+   ],
+   "description": "who wrote a book"
+  },
+  {
+   "id": "Customer",
+   "name": "Customer",
+   "aggregate": "Customer",
+   "attributes": [
+    "email",
+    "points"
+   ],
+   "description": "a registered buyer"
+  },
+  {
+   "id": "Basket",
+   "name": "Basket",
+   "aggregate": "Basket",
+   "attributes": [
+    "items"
+   ],
+   "description": "the books a customer is about to buy"
+  },
+  {
+   "id": "Purchase",
+   "name": "Purchase",
+   "aggregate": "Purchase",
+   "attributes": [
+    "placedAt",
+    "total"
+   ],
+   "description": "a placed purchase"
+  },
+  {
+   "id": "PurchaseLine",
+   "name": "PurchaseLine",
+   "aggregate": "Purchase",
+   "attributes": [
+    "quantity"
+   ],
+   "description": "one book of a purchase"
+  }
+ ],
+ "references": [
+  {
+   "id": "r1",
+   "from": "PurchaseLine",
+   "to": "Purchase",
+   "name": "purchase",
+   "kind": "composition",
+   "multiplicity": "1"
+  },
+  {
+   "id": "r2",
+   "from": "PurchaseLine",
+   "to": "Book",
+   "name": "book",
+   "kind": "association",
+   "multiplicity": "1"
+  },
+  {
+   "id": "r3",
+   "from": "Book",
+   "to": "Author",
+   "name": "authors",
+   "kind": "association",
+   "multiplicity": "1..*"
+  },
+  {
+   "id": "r4",
+   "from": "Basket",
+   "to": "Customer",
+   "name": "owner",
+   "kind": "association",
+   "multiplicity": "1"
+  },
+  {
+   "id": "r5",
+   "from": "Basket",
+   "to": "Book",
+   "name": "books",
+   "kind": "association",
+   "multiplicity": "*"
+  },
+  {
+   "id": "r6",
+   "from": "Purchase",
+   "to": "Customer",
+   "name": "buyer",
+   "kind": "association",
+   "multiplicity": "1"
+  }
+ ],
+ "aggregates": [
+  {
+   "id": "Book",
+   "name": "Book",
+   "root": "Book",
+   "classes": [
+    "Book"
+   ]
+  },
+  {
+   "id": "Author",
+   "name": "Author",
+   "root": "Author",
+   "classes": [
+    "Author"
+   ]
+  },
+  {
+   "id": "Customer",
+   "name": "Customer",
+   "root": "Customer",
+   "classes": [
+    "Customer"
+   ]
+  },
+  {
+   "id": "Basket",
+   "name": "Basket",
+   "root": "Basket",
+   "classes": [
+    "Basket"
+   ]
+  },
+  {
+   "id": "Purchase",
+   "name": "Purchase",
+   "root": "Purchase",
+   "classes": [
+    "Purchase",
+    "PurchaseLine"
+   ]
+  }
+ ],
+ "operations": [
+  {
+   "id": "browseBooks",
+   "name": "browseBooks",
+   "kind": "query",
+   "feature": "shelf",
+   "homeClass": "Book",
+   "rate": 40,
+   "cpuMs": 1.2,
+   "dbMs": 0.8,
+   "accesses": [
+    {
+     "class": "Book",
+     "mode": "read",
+     "perExecution": 20
+    },
+    {
+     "class": "Author",
+     "mode": "read",
+     "perExecution": 20
+    }
+   ]
+  },
+  {
+   "id": "bookDetail",
+   "name": "bookDetail",
+   "kind": "query",
+   "feature": "shelf",
+   "homeClass": "Book",
+   "rate": 30,
+   "cpuMs": 0.8,
+   "dbMs": 0.4,
+   "accesses": [
+    {
+     "class": "Book",
+     "mode": "read"
+    },
+    {
+     "class": "Author",
+     "mode": "read"
+    }
+   ]
+  },
+  {
+   "id": "addBook",
+   "name": "addBook",
+   "kind": "mutation",
+   "feature": "shelf",
+   "homeClass": "Book",
+   "rate": 0.1,
+   "cpuMs": 1,
+   "dbMs": 1,
+   "accesses": [
+    {
+     "class": "Book",
+     "mode": "write"
+    },
+    {
+     "class": "Author",
+     "mode": "read"
+    }
+   ]
+  },
+  {
+   "id": "addToBasket",
+   "name": "addToBasket",
+   "kind": "mutation",
+   "feature": "buy",
+   "homeClass": "Basket",
+   "rate": 8,
+   "cpuMs": 0.9,
+   "dbMs": 0.6,
+   "accesses": [
+    {
+     "class": "Basket",
+     "mode": "write"
+    },
+    {
+     "class": "Book",
+     "mode": "read"
+    }
+   ]
+  },
+  {
+   "id": "checkout",
+   "name": "checkout",
+   "kind": "mutation",
+   "feature": "buy",
+   "homeClass": "Purchase",
+   "rate": 3,
+   "cpuMs": 2,
+   "dbMs": 1.5,
+   "publishes": [
+    "purchasePlaced"
+   ],
+   "accesses": [
+    {
+     "class": "Purchase",
+     "mode": "write"
+    },
+    {
+     "class": "PurchaseLine",
+     "mode": "write",
+     "perExecution": 2,
+     "joined": true
+    },
+    {
+     "class": "Basket",
+     "mode": "write"
+    },
+    {
+     "class": "Book",
+     "mode": "read",
+     "perExecution": 2,
+     "level": "strict"
+    },
+    {
+     "class": "Customer",
+     "mode": "read"
+    }
+   ]
+  },
+  {
+   "id": "onPurchasePlaced",
+   "name": "onPurchasePlaced",
+   "kind": "handler",
+   "feature": "buy",
+   "homeClass": "Customer",
+   "trigger": "purchasePlaced",
+   "rate": 3,
+   "cpuMs": 0.5,
+   "dbMs": 0.5,
+   "accesses": [
+    {
+     "class": "Customer",
+     "mode": "write"
+    }
+   ]
+  }
+ ],
+ "events": [
+  {
+   "id": "purchasePlaced",
+   "name": "purchasePlaced",
+   "publishers": [
+    "checkout"
+   ],
+   "subscribers": [
+    "onPurchasePlaced"
+   ],
+   "class": "Purchase"
+  }
+ ],
+ "features": [
+  {
+   "id": "shelf",
+   "code": "S",
+   "name": "Shelf",
+   "operations": [
+    "browseBooks",
+    "bookDetail",
+    "addBook"
+   ]
+  },
+  {
+   "id": "buy",
+   "code": "B",
+   "name": "Buying",
+   "operations": [
+    "addToBasket",
+    "checkout",
+    "onPurchasePlaced"
+   ]
+  }
+ ],
+ "processes": [
+  {
+   "id": "Checkout",
+   "name": "Checkout",
+   "trigger": "checkout",
+   "steps": [
+    "checkout",
+    "onPurchasePlaced"
+   ]
+  }
+ ],
+ "requests": [
+  {
+   "id": "shelf",
+   "name": "shelf",
+   "operations": [
+    "browseBooks"
+   ],
+   "rate": 40,
+   "budgetMs": 6
+  },
+  {
+   "id": "book",
+   "name": "book",
+   "operations": [
+    "bookDetail"
+   ],
+   "rate": 30,
+   "budgetMs": 5
+  },
+  {
+   "id": "basket",
+   "name": "basket",
+   "operations": [
+    "addToBasket"
+   ],
+   "rate": 8,
+   "budgetMs": 11
+  },
+  {
+   "id": "pay",
+   "name": "pay",
+   "operations": [
+    "checkout"
+   ],
+   "rate": 3,
+   "budgetMs": 21
+  },
+  {
+   "id": "newBook",
+   "name": "newBook",
+   "operations": [
+    "addBook"
+   ],
+   "rate": 0.1,
+   "budgetMs": 6
+  }
+ ],
+ "sessions": [
+  {
+   "id": "browser",
+   "name": "Browser",
+   "description": "looks at books",
+   "share": 0.7,
+   "thinkTimeS": 4,
+   "steps": [
+    {
+     "request": "shelf"
+    },
+    {
+     "request": "book",
+     "repeat": 3
+    }
+   ]
+  },
+  {
+   "id": "buyer",
+   "name": "Buyer",
+   "description": "buys a book or two",
+   "share": 0.3,
+   "thinkTimeS": 6,
+   "steps": [
+    {
+     "request": "shelf"
+    },
+    {
+     "request": "book"
+    },
+    {
+     "request": "basket",
+     "repeat": 2
+    },
+    {
+     "request": "pay"
+    }
+   ]
+  },
+  {
+   "id": "clerk",
+   "name": "Clerk",
+   "description": "adds books",
+   "share": 0,
+   "thinkTimeS": 20,
+   "steps": [
+    {
+     "request": "newBook"
+    }
+   ]
+  }
+ ],
+ "cuts": [
+  {
+   "id": "three",
+   "name": "three services",
+   "services": [
+    {
+     "name": "shelf",
+     "classes": [
+      "Book",
+      "Author"
+     ]
+    },
+    {
+     "name": "customers",
+     "classes": [
+      "Customer",
+      "Basket"
+     ]
+    },
+    {
+     "name": "purchases",
+     "classes": [
+      "Purchase",
+      "PurchaseLine"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "monolith",
+   "name": "monolith",
+   "services": [
+    {
+     "name": "shop",
+     "classes": [
+      "Book",
+      "Author",
+      "Customer",
+      "Basket",
+      "Purchase",
+      "PurchaseLine"
+     ]
+    }
+   ]
+  }
+ ]
+}

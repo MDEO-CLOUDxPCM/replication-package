@@ -1,0 +1,114 @@
+{
+ "api": {
+  "durationS": 317,
+  "taxRates": 6,
+  "shipmentMethodsAdded": 12,
+  "categoriesAdded": 275,
+  "media": 49620
+ },
+ "catalog": {
+  "durationS": 24,
+  "products": 49620,
+  "variants": 84310,
+  "versions": 168620,
+  "rows": {
+   "catalog.productvariantentity": 84310,
+   "catalog.productvariantversionentity": 168620,
+   "catalog.categorycharacteristicvalueentity": 1041206,
+   "catalog.productvariantversiontomediaentity": 99240,
+   "return.productvariantversionentity": 168620,
+   "shipment.productvariantversionentity": 168620,
+   "order.product_variants": 84310,
+   "discount.productvariantentity": 84310,
+   "review.product_variants": 84310,
+   "inventory.productvariantpartialentity": 84310,
+   "shoppingcart.productvariantentity": 84310,
+   "wishlist.productvariantentity": 84310,
+   "inventory.productitementity": 1686200,
+   "catalog.productentity": 49620,
+   "discount.productentity": 49620,
+   "review.products": 49620,
+   "catalog.producttocategoryentity": 64376,
+   "discount.producttocategoryentity": 64376
+  },
+  "seedCategoriesShare": 0.08
+ },
+ "users": {
+  "durationS": 5,
+  "users": 99649,
+  "addresses": 129740,
+  "paymentInformations": 238967,
+  "rows": {
+   "user.userentity": 99649,
+   "address.userentity": 99649,
+   "discount.userentity": 99649,
+   "notification.userentity": 99649,
+   "review.users": 99649,
+   "wishlist.userentity": 99649,
+   "shoppingcart.userentity": 99649,
+   "invoice.users": 99649,
+   "address.addressentity": 129740,
+   "invoice.user_address": 129740,
+   "shipment.addressentity": 129740,
+   "order.users": 99649,
+   "payment.paymentinformationentity": 238967
+  }
+ },
+ "discounts": {
+  "durationS": 11,
+  "discountsAdded": 42,
+  "couponsAdded": 478,
+  "rows": {
+   "discount.couponredemptionentity": 9434
+  }
+ },
+ "orders": {
+  "durationS": 49,
+  "orders": 300000,
+  "items": 375215,
+  "failedShipments": 5835,
+  "returns": 8516,
+  "pending": 9072,
+  "discountUsages": 24014,
+  "seedBuyerRecentOrders": 200,
+  "rows": {
+   "order.orders": 300000,
+   "order.order_items": 375215,
+   "payment.paymententity": 290928,
+   "payment.openorderentity": 290928,
+   "invoice.invoices": 290928,
+   "shipment.shipmententity": 299444,
+   "return.orderentity": 290928,
+   "return.shipmententity": 290928,
+   "shipment.orderitementity": 363865,
+   "shipment.shipmenttoorderitementity": 374514,
+   "return.orderitementity": 363865,
+   "inventory.productitementity": 728062,
+   "return.returnentity": 8516,
+   "order.order_item_discounts": 24955,
+   "discount.discountusageentity": 24014
+  }
+ },
+ "misc": {
+  "durationS": 7,
+  "reviews": 49400,
+  "wishlists": 19920,
+  "notifications": 499670,
+  "cartUsers": 5000,
+  "cartLines": 10329,
+  "rows": {
+   "review.reviews": 49400,
+   "wishlist.wishlistentity": 19920,
+   "notification.notificationentity": 499670,
+   "shoppingcart.shoppingcartitementity": 10329
+  }
+ },
+ "pools": {
+  "placed": 200,
+  "prep": "{\"looked\": 200, \"added\": 200, \"returnable\": 200, \"reviewedAdded\": 49400}"
+ },
+ "finish": {
+  "durationS": 27,
+  "pending": "{}"
+ }
+}

@@ -1,0 +1,7 @@
+# the stack's runtime state (written by seed.py, maintain.py, measure.py; snapshotted by ../data/reset.sh)
+/.venv/
+/results-kotlin/seed/
+/results-kotlin/pools.json
+/results-kotlin/tokens.json
+/results-kotlin/raw/
+/results-kotlin/variants/

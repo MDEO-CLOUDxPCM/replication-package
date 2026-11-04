@@ -1,0 +1,107 @@
+{
+ "_doc": "Target data profile of the timing baseline (README.md). Totals include the load generators' pool (seed.py: 200 buyers, 300 products, 24 categories, 3 tax rates, 3 shipment methods, 8 discounts, 2 coupons, 600 reviews, 80 wishlists; run.py setup: 150 factorial buyers, 80 factorial products, sink category/discount, 20 registration coupons). load_baseline.py creates the difference.",
+ "seed": 20261028,
+ "pool": {
+  "seed": {
+   "users": 200,
+   "products": 300,
+   "categories": 24,
+   "taxrates": 3,
+   "shipmentmethods": 3,
+   "discounts": 8,
+   "reviews": 600,
+   "wishlists": 80,
+   "stock": 300
+  },
+  "setup": {
+   "fbuyers": 150,
+   "s60_products": 60,
+   "s600_products": 20
+  }
+ },
+ "shipmentMethods": 15,
+ "taxRates": {
+  "count": 6,
+  "versionsPerRate": 3
+ },
+ "categories": {
+  "count": 300,
+  "characteristicsPerCategory": 5
+ },
+ "products": {
+  "count": 50000,
+  "categoriesPerProduct": [
+   1,
+   2
+  ],
+  "pTwoCategories": 0.3,
+  "variantsPerProduct": {
+   "1": 0.5,
+   "2": 0.3,
+   "3": 0.2
+  },
+  "versionsPerVariant": 2,
+  "priceMedian": 30,
+  "priceSigma": 0.9,
+  "priceMin": 3,
+  "priceMax": 900
+ },
+ "mediaPerProduct": 1,
+ "stockPerVariant": 20,
+ "users": {
+  "count": 100000,
+  "addressesPerUser": 1.3,
+  "creditCardShare": 0.4
+ },
+ "orders": {
+  "perUser": 3,
+  "itemsPerOrder": 1.25,
+  "quantity": [
+   1,
+   3
+  ],
+  "returnShare": 0.03,
+  "pendingShare": 0.03,
+  "failedShipmentShare": 0.02,
+  "historyDays": 365,
+  "recentDaysForPool": 5
+ },
+ "reviews": 50000,
+ "wishlists": {
+  "count": 20000,
+  "entriesMean": 8
+ },
+ "discounts": {
+  "count": 50,
+  "onCategoriesShare": 0.6,
+  "couponBound": 10
+ },
+ "coupons": {
+  "count": 500,
+  "redemptionsPerCoupon": 20
+ },
+ "notificationsPerUser": 5,
+ "openCarts": {
+  "users": 5000,
+  "linesMean": 2
+ },
+ "_profiles": "Top-level values = the LOADED profile: the full profile. 'reduced' = the overrides of a reduced profile (not loaded); load it with a profile file that applies them.",
+ "reduced": {
+  "products": {
+   "count": 20000
+  },
+  "users": {
+   "count": 40000
+  },
+  "orders": {
+   "perUser": 2.5
+  },
+  "reviews": 20000,
+  "wishlists": {
+   "count": 8000
+  },
+  "openCarts": {
+   "users": 2000
+  }
+ }
+}

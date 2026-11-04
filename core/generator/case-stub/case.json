@@ -1,0 +1,23 @@
+{
+  "name": "CASE",
+  "inputs": {
+    "domain": "domain/CASE-domain.json",
+    "sessions": "workload/sessions.json",
+    "platform": "generator/platform.json",
+    "sessionModel": "generator/gen_sessions.py",
+    "parts": "timing/parts.json",
+    "envelopeEstimate": "timing/envelope-estimate.json",
+    "latencyFit": "timing/latency_fit.json",
+    "cacheHits": "mdeo/models/domain-cache-hits.json",
+    "budgets": "mdeo/models/domain-today-p95-day.json",
+    "bounds": "mdeo/models/domain-today-objectives-day.json"
+  },
+  "generator": {
+    "adapter": "generator/adapter.py"
+  },
+  "mdeo": {
+    "models": "mdeo/models",
+    "seeds": "mdeo/seeds",
+    "configs": "mdeo/configs"
+  }
+}

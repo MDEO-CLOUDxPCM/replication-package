@@ -1,0 +1,6 @@
+{"name": "warm_all", "phases": [{"name": "warm", "duration": 240, "rates": {
+ "createShoppingcartItem": 8, "createOrder": 1.5, "placeOrder": 1.3, "orderTracking": 5, "wishlistView": 5,
+ "addToWishlist": 8, "createReview": 8, "adminUpdateProduct": 4, "adminNewPrice": 3, "adminCreateVariant": 0.5,
+ "adminCreateProduct": 0.5, "eventUserCreate": 3, "products": 3, "product": 3, "users": 3, "address": 3,
+ "shipmentMethods": 3, "paymentInformations": 3, "token": 2, "hopApp": 5, "hopEcs": 5, "hopLocalDapr": 5,
+ "hopRemoteDapr": 5}}]}

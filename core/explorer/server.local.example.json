@@ -1,0 +1,4 @@
+{
+  "$comment": "Copy to server.local.json (gitignored): the commands each packet may run on this machine. simulate: a design's detail (the Performance panel); rebuild: the packet again when one of its inputs changed.",
+  "allowCommands": { "misarch": ["simulate", "rebuild"] }
+}

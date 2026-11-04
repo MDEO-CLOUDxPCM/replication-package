@@ -1,0 +1,87 @@
+{
+ "cpuModel": "limit-speed",
+ "stack": "kotlin",
+ "system": {
+  "cpuCriticalFraction": 1.0,
+  "hopLatencyMs": 0.2,
+  "hopCallerCpuMs": 0.766,
+  "hopCalleeCpuMs": 1.095,
+  "gatewayRequestCpuMs": 2.323,
+  "gatewayFetchCpuMs": 1.099,
+  "publishCpuMs": 0.434,
+  "deliverCpuMs": 1.1,
+  "overheadCriticalFraction": 1.0
+ },
+ "overheadCpuScale": 1.0,
+ "overheadCpuScaleNote": "already applied to hopCallerCpuMs, hopCalleeCpuMs, gatewayRequestCpuMs, gatewayFetchCpuMs, publishCpuMs, deliverCpuMs in 'system' (= g x the calibrated values of 'basis'); overheadCriticalFraction (DESIGN E21) is the share of them on the request's path",
+ "config": "ls-fo: limit-speed f 1, g 1, fo 1",
+ "basis": {
+  "demands": "kotlin/demands-atload.json",
+  "demandsSha256": "2b96d04817c1c4bed5f4b4b74d075e4027303dd5542f0def365adc2e19eeee09",
+  "rawWindows": null,
+  "calibratedOverhead": {
+   "hopCallerCpuMs": 0.766,
+   "hopCalleeCpuMs": 1.095,
+   "gatewayRequestCpuMs": 2.323,
+   "gatewayFetchCpuMs": 1.099,
+   "publishCpuMs": 0.434,
+   "deliverCpuMs": 1.1,
+   "hopLatencyMs": 0.2
+  }
+ },
+ "keepFromSeed": {
+  "coresPerReplica": 0.5,
+  "gatewayCores": 2,
+  "brokerCores": 1,
+  "dbCores": 1
+ },
+ "validation": {
+  "point": {
+   "cpuModel": "limit-speed",
+   "f": 1.0,
+   "g": 1.0,
+   "fo": 1.0
+  },
+  "lowRms": 0.2528312803531671,
+  "lowWMeanErr": -0.15932484250589996,
+  "lowRmsAllTypes": 0.3330695905304191,
+  "curveMape": 53.17251312775421,
+  "curveWMeanErr": -54.14739435309023,
+  "curveMapeLow": null,
+  "curveMapeMid": 20.49488689430926,
+  "curveMapeHigh": 59.7080383744432,
+  "curveMapeP95": 67.56863730722014,
+  "utilMape": 38.077575182028845,
+  "orderBusyErr": -15.915268737718431,
+  "saturation": [
+   107.49,
+   "catalog"
+  ],
+  "measSaturation": [
+   96.9,
+   "catalog",
+   0.0092,
+   0.1086
+  ],
+  "variantDirection": [
+   9,
+   17
+  ],
+  "variantLogRatioErr": 0.8203253362527159,
+  "variantCapacity": [
+   114.63,
+   "auth"
+  ],
+  "variantMeasCapacity": [
+   118.18,
+   "shipment",
+   0.0072,
+   0.1458
+  ],
+  "variantMape": 71.54047816872382,
+  "gatewayCpuErrPct": -39.91567797574821,
+  "sidecarsCpuErrPct": -6.55160621505334
+ },
+ "consumers": "msa/tools/gen_model.py --params: the System values, overheadCriticalFraction and cpuModel (as the optional System attributes of msa.mm, DESIGN E21/E23); tools/run-final.sh: SIM_CPU_MODEL=cpuModel for the plugin; regen-calibrated.sh refuses a params file of another stack",
+ "readme": "validation/README.md section 10"
+}

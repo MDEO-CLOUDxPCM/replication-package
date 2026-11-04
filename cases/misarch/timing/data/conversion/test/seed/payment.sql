@@ -1,0 +1,11 @@
+INSERT INTO PaymentInformationEntity (id, paymentMethod, publicMethodDetails, secretMethodDetails, userId)
+    VALUES ('70000000-0000-4000-8000-0000000000a1', 'CREDIT_CARD', '{"cardNumber":"****1111", "cardHolder":"A"}',
+            '{"cvc":"123"}', '70000000-0000-4000-8000-000000000001'),
+           ('70000000-0000-4000-8000-0000000000a2', 'INVOICE', NULL, NULL, '70000000-0000-4000-8000-000000000001');
+INSERT INTO PaymentEntity (id, totalAmount, status, paymentInformation, payedAt, createdAt, updatedAt)
+    VALUES ('70000000-0000-4000-8000-0000000000b1', 3998, 'SUCCEEDED', '70000000-0000-4000-8000-0000000000a1', now(), now(), now()),
+           ('70000000-0000-4000-8000-0000000000b2', 10, 'PENDING', '70000000-0000-4000-8000-0000000000a2', NULL, now(), now());
+UPDATE PaymentEntity SET numberOfRetries = 2 WHERE id = '70000000-0000-4000-8000-0000000000b2';
+INSERT INTO OpenOrderEntity (paymentId, orderJson, orderId)
+    VALUES ('70000000-0000-4000-8000-0000000000b1', '{"id":"70000000-0000-4000-8000-0000000000d1","b":1,"a":2}', '70000000-0000-4000-8000-0000000000d1'),
+           ('70000000-0000-4000-8000-0000000000b2', '{"id":"70000000-0000-4000-8000-0000000000d2"}', '70000000-0000-4000-8000-0000000000d2');

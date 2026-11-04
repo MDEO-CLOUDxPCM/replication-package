@@ -1,0 +1,781 @@
+{
+ "name": "pilot_w1",
+ "config": "off",
+ "block": 1,
+ "rateLevel": "pilot",
+ "types": [
+  "products",
+  "products.anon",
+  "product",
+  "product.anon",
+  "users",
+  "address",
+  "paymentInformations",
+  "shipmentMethods",
+  "notifications",
+  "wishlistView",
+  "login",
+  "registration"
+ ],
+ "prep": [
+  "calibration/.venv/bin/python calibration/scripts/maintain.py --stack kotlin",
+  "calibration/.venv/bin/python requests/run.py cleanup"
+ ],
+ "durationS": 1250,
+ "phases": [
+  {
+   "name": "idle",
+   "duration": 30,
+   "rates": {}
+  },
+  {
+   "name": "products:pre",
+   "duration": 10,
+   "rates": {}
+  },
+  {
+   "name": "products@2.4:warm",
+   "duration": 5,
+   "rates": {
+    "products": 2.4
+   }
+  },
+  {
+   "name": "products@2.4:steady",
+   "duration": 20,
+   "rates": {
+    "products": 2.4
+   }
+  },
+  {
+   "name": "products@2.4:drain",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "products@6:warm",
+   "duration": 5,
+   "rates": {
+    "products": 6.0
+   }
+  },
+  {
+   "name": "products@6:steady",
+   "duration": 20,
+   "rates": {
+    "products": 6.0
+   }
+  },
+  {
+   "name": "products@6:drain",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "products@15:warm",
+   "duration": 5,
+   "rates": {
+    "products": 15.0
+   }
+  },
+  {
+   "name": "products@15:steady",
+   "duration": 20,
+   "rates": {
+    "products": 15.0
+   }
+  },
+  {
+   "name": "products@15:drain",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "products.anon:pre",
+   "duration": 10,
+   "rates": {}
+  },
+  {
+   "name": "products.anon@2.4:warm",
+   "duration": 5,
+   "rates": {
+    "products.anon": 2.4
+   }
+  },
+  {
+   "name": "products.anon@2.4:steady",
+   "duration": 20,
+   "rates": {
+    "products.anon": 2.4
+   }
+  },
+  {
+   "name": "products.anon@2.4:drain",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "products.anon@6:warm",
+   "duration": 5,
+   "rates": {
+    "products.anon": 6.0
+   }
+  },
+  {
+   "name": "products.anon@6:steady",
+   "duration": 20,
+   "rates": {
+    "products.anon": 6.0
+   }
+  },
+  {
+   "name": "products.anon@6:drain",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "products.anon@15:warm",
+   "duration": 5,
+   "rates": {
+    "products.anon": 15.0
+   }
+  },
+  {
+   "name": "products.anon@15:steady",
+   "duration": 20,
+   "rates": {
+    "products.anon": 15.0
+   }
+  },
+  {
+   "name": "products.anon@15:drain",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "product:pre",
+   "duration": 10,
+   "rates": {}
+  },
+  {
+   "name": "product@2:warm",
+   "duration": 5,
+   "rates": {
+    "product": 2.0
+   }
+  },
+  {
+   "name": "product@2:steady",
+   "duration": 20,
+   "rates": {
+    "product": 2.0
+   }
+  },
+  {
+   "name": "product@2:drain",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "product@5:warm",
+   "duration": 5,
+   "rates": {
+    "product": 5.0
+   }
+  },
+  {
+   "name": "product@5:steady",
+   "duration": 20,
+   "rates": {
+    "product": 5.0
+   }
+  },
+  {
+   "name": "product@5:drain",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "product@12.5:warm",
+   "duration": 5,
+   "rates": {
+    "product": 12.5
+   }
+  },
+  {
+   "name": "product@12.5:steady",
+   "duration": 20,
+   "rates": {
+    "product": 12.5
+   }
+  },
+  {
+   "name": "product@12.5:drain",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "product.anon:pre",
+   "duration": 10,
+   "rates": {}
+  },
+  {
+   "name": "product.anon@2:warm",
+   "duration": 5,
+   "rates": {
+    "product.anon": 2.0
+   }
+  },
+  {
+   "name": "product.anon@2:steady",
+   "duration": 20,
+   "rates": {
+    "product.anon": 2.0
+   }
+  },
+  {
+   "name": "product.anon@2:drain",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "product.anon@5:warm",
+   "duration": 5,
+   "rates": {
+    "product.anon": 5.0
+   }
+  },
+  {
+   "name": "product.anon@5:steady",
+   "duration": 20,
+   "rates": {
+    "product.anon": 5.0
+   }
+  },
+  {
+   "name": "product.anon@5:drain",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "product.anon@12.5:warm",
+   "duration": 5,
+   "rates": {
+    "product.anon": 12.5
+   }
+  },
+  {
+   "name": "product.anon@12.5:steady",
+   "duration": 20,
+   "rates": {
+    "product.anon": 12.5
+   }
+  },
+  {
+   "name": "product.anon@12.5:drain",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "users:pre",
+   "duration": 10,
+   "rates": {}
+  },
+  {
+   "name": "users@2.4:warm",
+   "duration": 5,
+   "rates": {
+    "users": 2.4
+   }
+  },
+  {
+   "name": "users@2.4:steady",
+   "duration": 20,
+   "rates": {
+    "users": 2.4
+   }
+  },
+  {
+   "name": "users@2.4:drain",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "users@6:warm",
+   "duration": 5,
+   "rates": {
+    "users": 6.0
+   }
+  },
+  {
+   "name": "users@6:steady",
+   "duration": 20,
+   "rates": {
+    "users": 6.0
+   }
+  },
+  {
+   "name": "users@6:drain",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "users@15:warm",
+   "duration": 5,
+   "rates": {
+    "users": 15.0
+   }
+  },
+  {
+   "name": "users@15:steady",
+   "duration": 20,
+   "rates": {
+    "users": 15.0
+   }
+  },
+  {
+   "name": "users@15:drain",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "address:pre",
+   "duration": 10,
+   "rates": {}
+  },
+  {
+   "name": "address@2:warm",
+   "duration": 5,
+   "rates": {
+    "address": 2.0
+   }
+  },
+  {
+   "name": "address@2:steady",
+   "duration": 20,
+   "rates": {
+    "address": 2.0
+   }
+  },
+  {
+   "name": "address@2:drain",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "address@5:warm",
+   "duration": 5,
+   "rates": {
+    "address": 5.0
+   }
+  },
+  {
+   "name": "address@5:steady",
+   "duration": 20,
+   "rates": {
+    "address": 5.0
+   }
+  },
+  {
+   "name": "address@5:drain",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "address@12.5:warm",
+   "duration": 5,
+   "rates": {
+    "address": 12.5
+   }
+  },
+  {
+   "name": "address@12.5:steady",
+   "duration": 20,
+   "rates": {
+    "address": 12.5
+   }
+  },
+  {
+   "name": "address@12.5:drain",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "paymentInformations:pre",
+   "duration": 10,
+   "rates": {}
+  },
+  {
+   "name": "paymentInformations@2.4:warm",
+   "duration": 5,
+   "rates": {
+    "paymentInformations": 2.4
+   }
+  },
+  {
+   "name": "paymentInformations@2.4:steady",
+   "duration": 20,
+   "rates": {
+    "paymentInformations": 2.4
+   }
+  },
+  {
+   "name": "paymentInformations@2.4:drain",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "paymentInformations@6:warm",
+   "duration": 5,
+   "rates": {
+    "paymentInformations": 6.0
+   }
+  },
+  {
+   "name": "paymentInformations@6:steady",
+   "duration": 20,
+   "rates": {
+    "paymentInformations": 6.0
+   }
+  },
+  {
+   "name": "paymentInformations@6:drain",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "paymentInformations@15:warm",
+   "duration": 5,
+   "rates": {
+    "paymentInformations": 15.0
+   }
+  },
+  {
+   "name": "paymentInformations@15:steady",
+   "duration": 20,
+   "rates": {
+    "paymentInformations": 15.0
+   }
+  },
+  {
+   "name": "paymentInformations@15:drain",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "shipmentMethods:pre",
+   "duration": 10,
+   "rates": {}
+  },
+  {
+   "name": "shipmentMethods@2:warm",
+   "duration": 5,
+   "rates": {
+    "shipmentMethods": 2.0
+   }
+  },
+  {
+   "name": "shipmentMethods@2:steady",
+   "duration": 20,
+   "rates": {
+    "shipmentMethods": 2.0
+   }
+  },
+  {
+   "name": "shipmentMethods@2:drain",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "shipmentMethods@5:warm",
+   "duration": 5,
+   "rates": {
+    "shipmentMethods": 5.0
+   }
+  },
+  {
+   "name": "shipmentMethods@5:steady",
+   "duration": 20,
+   "rates": {
+    "shipmentMethods": 5.0
+   }
+  },
+  {
+   "name": "shipmentMethods@5:drain",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "shipmentMethods@12.5:warm",
+   "duration": 5,
+   "rates": {
+    "shipmentMethods": 12.5
+   }
+  },
+  {
+   "name": "shipmentMethods@12.5:steady",
+   "duration": 20,
+   "rates": {
+    "shipmentMethods": 12.5
+   }
+  },
+  {
+   "name": "shipmentMethods@12.5:drain",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "notifications:pre",
+   "duration": 10,
+   "rates": {}
+  },
+  {
+   "name": "notifications@2:warm",
+   "duration": 5,
+   "rates": {
+    "notifications": 2.0
+   }
+  },
+  {
+   "name": "notifications@2:steady",
+   "duration": 20,
+   "rates": {
+    "notifications": 2.0
+   }
+  },
+  {
+   "name": "notifications@2:drain",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "notifications@5:warm",
+   "duration": 5,
+   "rates": {
+    "notifications": 5.0
+   }
+  },
+  {
+   "name": "notifications@5:steady",
+   "duration": 20,
+   "rates": {
+    "notifications": 5.0
+   }
+  },
+  {
+   "name": "notifications@5:drain",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "notifications@12.5:warm",
+   "duration": 5,
+   "rates": {
+    "notifications": 12.5
+   }
+  },
+  {
+   "name": "notifications@12.5:steady",
+   "duration": 20,
+   "rates": {
+    "notifications": 12.5
+   }
+  },
+  {
+   "name": "notifications@12.5:drain",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "wishlistView:pre",
+   "duration": 10,
+   "rates": {}
+  },
+  {
+   "name": "wishlistView@2:warm",
+   "duration": 5,
+   "rates": {
+    "wishlistView": 2.0
+   }
+  },
+  {
+   "name": "wishlistView@2:steady",
+   "duration": 20,
+   "rates": {
+    "wishlistView": 2.0
+   }
+  },
+  {
+   "name": "wishlistView@2:drain",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "wishlistView@5:warm",
+   "duration": 5,
+   "rates": {
+    "wishlistView": 5.0
+   }
+  },
+  {
+   "name": "wishlistView@5:steady",
+   "duration": 20,
+   "rates": {
+    "wishlistView": 5.0
+   }
+  },
+  {
+   "name": "wishlistView@5:drain",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "wishlistView@12.5:warm",
+   "duration": 5,
+   "rates": {
+    "wishlistView": 12.5
+   }
+  },
+  {
+   "name": "wishlistView@12.5:steady",
+   "duration": 20,
+   "rates": {
+    "wishlistView": 12.5
+   }
+  },
+  {
+   "name": "wishlistView@12.5:drain",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "login:pre",
+   "duration": 10,
+   "rates": {}
+  },
+  {
+   "name": "login@4:warm",
+   "duration": 5,
+   "rates": {
+    "login": 4.0
+   }
+  },
+  {
+   "name": "login@4:steady",
+   "duration": 20,
+   "rates": {
+    "login": 4.0
+   }
+  },
+  {
+   "name": "login@4:drain",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "login@10:warm",
+   "duration": 5,
+   "rates": {
+    "login": 10.0
+   }
+  },
+  {
+   "name": "login@10:steady",
+   "duration": 20,
+   "rates": {
+    "login": 10.0
+   }
+  },
+  {
+   "name": "login@10:drain",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "login@25:warm",
+   "duration": 5,
+   "rates": {
+    "login": 25.0
+   }
+  },
+  {
+   "name": "login@25:steady",
+   "duration": 20,
+   "rates": {
+    "login": 25.0
+   }
+  },
+  {
+   "name": "login@25:drain",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "registration:pre",
+   "duration": 10,
+   "rates": {}
+  },
+  {
+   "name": "registration@1.2:warm",
+   "duration": 5,
+   "rates": {
+    "registration": 1.2
+   }
+  },
+  {
+   "name": "registration@1.2:steady",
+   "duration": 20,
+   "rates": {
+    "registration": 1.2
+   }
+  },
+  {
+   "name": "registration@1.2:drain",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "registration@3:warm",
+   "duration": 5,
+   "rates": {
+    "registration": 3.0
+   }
+  },
+  {
+   "name": "registration@3:steady",
+   "duration": 20,
+   "rates": {
+    "registration": 3.0
+   }
+  },
+  {
+   "name": "registration@3:drain",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "registration@7.5:warm",
+   "duration": 5,
+   "rates": {
+    "registration": 7.5
+   }
+  },
+  {
+   "name": "registration@7.5:steady",
+   "duration": 20,
+   "rates": {
+    "registration": 7.5
+   }
+  },
+  {
+   "name": "registration@7.5:drain",
+   "duration": 5,
+   "rates": {}
+  },
+  {
+   "name": "idle_end",
+   "duration": 20,
+   "rates": {}
+  }
+ ]
+}

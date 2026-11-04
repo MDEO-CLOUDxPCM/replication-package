@@ -1,0 +1,151 @@
+# tax (Kotlin original). Curated; schema: build.py docstring. Anchors are relative to
+# services/tax/src/main/kotlin/org/misarch/tax/.
+service: tax
+transactional: >-
+  service/*Service.kt @Transactional: every mutation's service method runs in one transaction, the events are
+  published inside it (a failed publish rolls the mutation back; fix, docs/fixes/tax.md)
+
+tables:
+  TaxRateEntity:
+    kind: class
+    class: TaxRate
+    refs:
+      - {attr: currentVersionId, to: TaxRateVersion, kind: association, mult: "1", note: "NULL only inside createTaxRate's transaction"}
+  TaxRateVersionEntity:
+    kind: class
+    class: TaxRateVersion
+    refs:
+      - {attr: taxRateId, to: TaxRate, kind: composition, mult: "1"}
+
+operations:
+  - id: tax.taxRate
+    kind: query
+    trigger: {graphql: Query.taxRate}
+    entry: graphql/Query.kt#fun taxRate(
+    feature: F8
+    accesses:
+      - {class: TaxRate, mode: read, op: select, shape: batch, rows: 1, via: TaxRateRepository.findAllById, table: TaxRateEntity,
+         today: local, at: graphql/Query.kt#TaxRateDataLoader::class}
+
+  - id: tax.taxRateVersion
+    kind: query
+    trigger: {graphql: Query.taxRateVersion}
+    entry: graphql/Query.kt#fun taxRateVersion(
+    feature: F8
+    accesses:
+      - {class: TaxRateVersion, mode: read, op: select, shape: batch, rows: 1, via: TaxRateVersionRepository.findAllById,
+         table: TaxRateVersionEntity, today: local, at: graphql/Query.kt#TaxRateVersionDataLoader::class}
+
+  - id: tax.taxRates
+    kind: query
+    trigger: {graphql: Query.taxRates}
+    entry: graphql/Query.kt#fun taxRates(
+    feature: F8
+    accesses:
+      - {class: TaxRate, mode: read, op: select, shape: list, rows: "all tax rates (page: first)", via: TaxRateConnection.nodes,
+         table: TaxRateEntity, today: local, at: graphql/Query.kt#TaxRateConnection(first}
+      - {class: TaxRate, mode: read, op: count, shape: one, when: totalCount selected, via: TaxRateConnection.totalCount,
+         table: TaxRateEntity, today: local, at: graphql/Query.kt#TaxRateConnection(first}
+
+  - id: tax.createTaxRate
+    kind: command
+    trigger: {graphql: Mutation.createTaxRate}
+    entry: graphql/Mutation.kt#fun createTaxRate(
+    feature: F8
+    transaction: {at: "service/TaxRateService.kt#@Transactional@1", classes: [TaxRate, TaxRateVersion], publishInside: true,
+                  note: "insert tax rate, insert initial version, update the tax rate's currentVersionId"}
+    accesses:
+      - {class: TaxRate, mode: write, op: insert, shape: one, via: TaxRateRepository.save, table: TaxRateEntity, today: local,
+         at: service/TaxRateService.kt#repository.save(taxRate)}
+      - {class: TaxRateVersion, mode: read, op: select, shape: one, strong: true, via: TaxRateVersionRepository.findMaxVersionByTaxRateId,
+         table: TaxRateVersionEntity, today: local, at: service/TaxRateVersionService.kt#repository.findMaxVersionByTaxRateId,
+         note: "MAX(version) aggregate over the tax rate's versions (always NULL here: the tax rate is new)"}
+      - {class: TaxRateVersion, mode: write, op: insert, shape: one, via: TaxRateVersionRepository.save, table: TaxRateVersionEntity,
+         today: local, at: service/TaxRateVersionService.kt#repository.save(taxRateVersion)}
+      - {class: TaxRate, mode: write, op: update, shape: one, via: TaxRateRepository.save, table: TaxRateEntity, today: local,
+         at: service/TaxRateService.kt#repository.save(savedTaxRate), note: "sets currentVersionId"}
+    publishes:
+      - {topic: tax/tax-rate/created, at: service/TaxRateService.kt#TaxEvents.TAX_RATE_CREATED, payload: [TaxRate]}
+      - {topic: tax/tax-rate-version/created, at: service/TaxRateService.kt#TaxEvents.TAX_RATE_VERSION_CREATED, payload: [TaxRateVersion]}
+
+  - id: tax.createTaxRateVersion
+    kind: command
+    trigger: {graphql: Mutation.createTaxRateVersion}
+    entry: graphql/Mutation.kt#fun createTaxRateVersion(
+    feature: F8
+    transaction: {at: "service/TaxRateVersionService.kt#@Transactional", classes: [TaxRate, TaxRateVersion], publishInside: true,
+                  note: "the TaxRate row is locked (SELECT ... FOR UPDATE) before MAX(version)+1 is computed (fix, docs/fixes/tax.md)"}
+    accesses:
+      - {class: TaxRate, mode: read, op: lock, shape: one, strong: true, via: TaxRateRepository.lockById, table: TaxRateEntity,
+         today: local, at: service/TaxRateVersionService.kt#taxRateRepository.lockById, note: "existence check + row lock"}
+      - {class: TaxRateVersion, mode: read, op: select, shape: one, strong: true, via: TaxRateVersionRepository.findMaxVersionByTaxRateId,
+         table: TaxRateVersionEntity, today: local, at: service/TaxRateVersionService.kt#repository.findMaxVersionByTaxRateId,
+         note: "MAX(version) aggregate over the tax rate's versions"}
+      - {class: TaxRateVersion, mode: write, op: insert, shape: one, via: TaxRateVersionRepository.save, table: TaxRateVersionEntity,
+         today: local, at: service/TaxRateVersionService.kt#repository.save(taxRateVersion)}
+      - {class: TaxRate, mode: read, op: select, shape: one, strong: true, via: TaxRateRepository.findById, table: TaxRateEntity,
+         today: local, at: service/TaxRateVersionService.kt#taxRateRepository.findById}
+      - {class: TaxRate, mode: write, op: update, shape: one, via: TaxRateRepository.save, table: TaxRateEntity, today: local,
+         at: service/TaxRateVersionService.kt#taxRateRepository.save(taxRate), note: "sets currentVersionId"}
+    publishes:
+      - {topic: tax/tax-rate-version/created, at: service/TaxRateVersionService.kt#TaxEvents.TAX_RATE_VERSION_CREATED, payload: [TaxRateVersion]}
+
+  - id: tax.updateTaxRate
+    kind: command
+    trigger: {graphql: Mutation.updateTaxRate}
+    entry: graphql/Mutation.kt#fun updateTaxRate(
+    feature: F8
+    transaction: {at: "service/TaxRateService.kt#@Transactional@2", classes: [TaxRate], publishInside: false, note: "no event"}
+    accesses:
+      - {class: TaxRate, mode: read, op: select, shape: one, strong: true, via: TaxRateRepository.findById, table: TaxRateEntity,
+         today: local, at: service/TaxRateService.kt#repository.findByIdOrThrow(input.id)}
+      - {class: TaxRate, mode: write, op: update, shape: one, via: TaxRateRepository.save, table: TaxRateEntity, today: local,
+         at: service/TaxRateService.kt#return repository.save(taxRate)}
+    note: name/description only; publishes nothing (no tax/tax-rate/updated topic), so the copies are not updated
+
+  - id: tax._entities.TaxRate
+    kind: query
+    trigger: {graphql: _entities(TaxRate)}
+    entry: graphql/federation/TaxRateResolver.kt#class TaxRateResolver
+    feature: F8
+    accesses:
+      - {class: TaxRate, mode: read, op: select, shape: batch, rows: 1, via: TaxRateRepository.findAllById, table: TaxRateEntity,
+         today: local, at: graphql/federation/TaxRateResolver.kt#TaxRateDataLoader::class}
+
+  - id: tax.TaxRate.currentVersion
+    kind: query
+    trigger: {graphql: TaxRate.currentVersion}
+    entry: graphql/model/TaxRate.kt#fun currentVersion(
+    feature: F8
+    accesses:
+      - {class: TaxRateVersion, mode: read, op: select, shape: batch, rows: 1, via: TaxRateVersionRepository.findAllById,
+         table: TaxRateVersionEntity, today: local, at: graphql/model/TaxRate.kt#TaxRateVersionDataLoader::class}
+
+  - id: tax.TaxRate.versions
+    kind: query
+    trigger: {graphql: TaxRate.versions}
+    entry: graphql/model/TaxRate.kt#fun versions(
+    feature: F8
+    accesses:
+      - {class: TaxRateVersion, mode: read, op: select, shape: list, rows: "versions of the tax rate (page: first)",
+         via: TaxRateVersionConnection.nodes, table: TaxRateVersionEntity, today: local, at: graphql/model/TaxRate.kt#return TaxRateVersionConnection(}
+      - {class: TaxRateVersion, mode: read, op: count, shape: one, when: totalCount selected, via: TaxRateVersionConnection.totalCount,
+         table: TaxRateVersionEntity, today: local, at: graphql/model/TaxRate.kt#return TaxRateVersionConnection(}
+
+  - id: tax._entities.TaxRateVersion
+    kind: query
+    trigger: {graphql: _entities(TaxRateVersion)}
+    entry: graphql/federation/TaxRateVersionResolver.kt#class TaxRateVersionResolver
+    feature: F8
+    accesses:
+      - {class: TaxRateVersion, mode: read, op: select, shape: batch, rows: 1, via: TaxRateVersionRepository.findAllById,
+         table: TaxRateVersionEntity, today: local, at: graphql/federation/TaxRateVersionResolver.kt#TaxRateVersionDataLoader::class}
+
+  - id: tax.TaxRateVersion.taxRate
+    kind: query
+    trigger: {graphql: TaxRateVersion.taxRate}
+    entry: graphql/model/TaxRateVersion.kt#fun taxRate(
+    feature: F8
+    accesses:
+      - {class: TaxRate, mode: read, op: select, shape: batch, rows: 1, via: TaxRateRepository.findAllById, table: TaxRateEntity,
+         today: local, at: graphql/model/TaxRateVersion.kt#TaxRateDataLoader::class}

@@ -1,0 +1,29 @@
+{
+ "name": "warm_timing",
+ "config": "any",
+ "block": "warm",
+ "rateLevel": "warm",
+ "phases": [
+  {
+   "name": "warm",
+   "duration": 240,
+   "rates": {
+    "products": 13.36,
+    "products.anon": 15.345,
+    "product": 13.353,
+    "product.anon": 13.599,
+    "users": 14.645,
+    "address": 8.667,
+    "paymentInformations": 5.562,
+    "shipmentMethods": 7.234,
+    "notifications": 2.158,
+    "wishlistView": 2.273,
+    "login": 11.567,
+    "orderTracking": 5.293,
+    "user.updateUser": 2.468,
+    "adminUpdateProduct": 2.141,
+    "catalog.updateProductVariant": 8.495
+   }
+  }
+ ]
+}

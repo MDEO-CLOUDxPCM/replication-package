@@ -1,0 +1,49 @@
+{
+ "name": "warm_timing",
+ "config": "any",
+ "block": "warm",
+ "rateLevel": "warm",
+ "phases": [
+  {
+   "name": "warm",
+   "duration": 240,
+   "rates": {
+    "products": 2.0,
+    "products.anon": 2.0,
+    "product": 1.667,
+    "product.anon": 1.667,
+    "users": 2.0,
+    "address": 1.667,
+    "paymentInformations": 2.0,
+    "shipmentMethods": 1.667,
+    "notifications": 1.667,
+    "wishlistView": 1.667,
+    "login": 3.333,
+    "createShoppingcartItem": 2.667,
+    "createOrder": 1.0,
+    "placeOrder": 0.9,
+    "orderTracking": 1.667,
+    "createReview": 2.0,
+    "addToWishlist": 2.0,
+    "wishlist.createWishlist": 1.333,
+    "user.updateUser": 1.333,
+    "address.createUserAddress": 1.333,
+    "payment.createCreditCardPaymentInformation": 1.333,
+    "adminUpdateProduct": 1.333,
+    "adminNewPrice": 1.0,
+    "adminCreateVariant": 0.5,
+    "adminCreateProduct": 0.5,
+    "catalog.updateProductVariant": 0.667,
+    "catalog.createCategory": 0.667,
+    "inventory.createProductItemBatch": 0.667,
+    "media.uploadMedia": 0.667,
+    "discount.createDiscount": 0.667,
+    "discount.createCoupon": 0.667,
+    "tax.createTaxRate": 0.667,
+    "tax.createTaxRateVersion": 0.667,
+    "shipment.createShipmentMethod": 0.667,
+    "address.createVendorAddress": 0.667
+   }
+  }
+ ]
+}

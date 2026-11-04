@@ -1,0 +1,209 @@
+{
+ "name": "rerun_on",
+ "config": "on",
+ "block": 3,
+ "rateLevel": "mid",
+ "types": [
+  "user.updateUser",
+  "adminUpdateProduct",
+  "catalog.updateProductVariant",
+  "registration",
+  "createShoppingcartItem",
+  "createOrder",
+  "placeOrder"
+ ],
+ "prep": [
+  "calibration/.venv/bin/python calibration/scripts/maintain.py --stack kotlin",
+  "calibration/.venv/bin/python requests/run.py prep --n 400"
+ ],
+ "durationS": 1005,
+ "phases": [
+  {
+   "name": "idle",
+   "duration": 60,
+   "rates": {}
+  },
+  {
+   "name": "user.updateUser:pre",
+   "duration": 15,
+   "rates": {}
+  },
+  {
+   "name": "user.updateUser:warm",
+   "duration": 20,
+   "rates": {
+    "user.updateUser": 7.404
+   }
+  },
+  {
+   "name": "user.updateUser:steady",
+   "duration": 75,
+   "rates": {
+    "user.updateUser": 7.404
+   }
+  },
+  {
+   "name": "user.updateUser:drain",
+   "duration": 25,
+   "rates": {}
+  },
+  {
+   "name": "adminUpdateProduct:pre",
+   "duration": 15,
+   "rates": {}
+  },
+  {
+   "name": "adminUpdateProduct:warm",
+   "duration": 20,
+   "rates": {
+    "adminUpdateProduct": 6.424
+   }
+  },
+  {
+   "name": "adminUpdateProduct:steady",
+   "duration": 75,
+   "rates": {
+    "adminUpdateProduct": 6.424
+   }
+  },
+  {
+   "name": "adminUpdateProduct:drain",
+   "duration": 20,
+   "rates": {}
+  },
+  {
+   "name": "catalog.updateProductVariant:pre",
+   "duration": 15,
+   "rates": {}
+  },
+  {
+   "name": "catalog.updateProductVariant:warm",
+   "duration": 20,
+   "rates": {
+    "catalog.updateProductVariant": 25.485
+   }
+  },
+  {
+   "name": "catalog.updateProductVariant:steady",
+   "duration": 75,
+   "rates": {
+    "catalog.updateProductVariant": 25.485
+   }
+  },
+  {
+   "name": "catalog.updateProductVariant:drain",
+   "duration": 20,
+   "rates": {}
+  },
+  {
+   "name": "registration:pre",
+   "duration": 15,
+   "rates": {}
+  },
+  {
+   "name": "registration:warm",
+   "duration": 15,
+   "rates": {
+    "registration": 3.0
+   }
+  },
+  {
+   "name": "registration:steady",
+   "duration": 45,
+   "rates": {
+    "registration": 3.0
+   }
+  },
+  {
+   "name": "registration:drain",
+   "duration": 30,
+   "rates": {}
+  },
+  {
+   "name": "createShoppingcartItem:pre",
+   "duration": 15,
+   "rates": {}
+  },
+  {
+   "name": "createShoppingcartItem:warm",
+   "duration": 20,
+   "rates": {
+    "createShoppingcartItem": 40.073
+   }
+  },
+  {
+   "name": "createShoppingcartItem:steady",
+   "duration": 75,
+   "rates": {
+    "createShoppingcartItem": 40.073
+   }
+  },
+  {
+   "name": "createShoppingcartItem:drain",
+   "duration": 20,
+   "rates": {}
+  },
+  {
+   "name": "createOrder:pre",
+   "duration": 15,
+   "rates": {}
+  },
+  {
+   "name": "createOrder:warm",
+   "duration": 20,
+   "rates": {
+    "createOrder": 16.687
+   }
+  },
+  {
+   "name": "createOrder:steady",
+   "duration": 75,
+   "rates": {
+    "createOrder": 16.687
+   }
+  },
+  {
+   "name": "createOrder:drain",
+   "duration": 20,
+   "rates": {}
+  },
+  {
+   "name": "placeOrder:pre",
+   "duration": 15,
+   "rates": {}
+  },
+  {
+   "name": "placeOrder:warm",
+   "duration": 20,
+   "rates": {
+    "placeOrder": 11.351
+   }
+  },
+  {
+   "name": "placeOrder:steady",
+   "duration": 75,
+   "rates": {
+    "placeOrder": 11.351
+   }
+  },
+  {
+   "name": "placeOrder:drain",
+   "duration": 45,
+   "rates": {}
+  },
+  {
+   "name": "idle_end",
+   "duration": 30,
+   "rates": {}
+  }
+ ],
+ "burstTypes": [
+  "user.updateUser",
+  "adminUpdateProduct",
+  "catalog.updateProductVariant",
+  "registration",
+  "createShoppingcartItem",
+  "createOrder",
+  "placeOrder"
+ ]
+}

@@ -1,0 +1,7 @@
+{
+ "verify.title": "Verify the mini model against the shop",
+ "verify.intro.parts": "The mini model has {{n}} parts: {{counts}} ({{source}}@{{commit}}).",
+ "verify.intro.scopes": "**in** ones are modelled; *out* ones are not.",
+ "verify.issues.title": "# Mini issues",
+ "verify.issues.head": "{{tree}} {{commit}}: {{n}} marks"
+}

@@ -1,0 +1,2735 @@
+{
+ "about": "Per call site that allows a cache: hit ratio and the share of stale hits of a TTL cache (60 s) over the session model's key streams, cases/misarch/generator/cache_hits.py (DESIGN.md AB33.2). Keys: products by popularity (zipf: Zipf(s) over the 20 000-product baseline catalog, the default and an assumption; uniform: uniform over the catalog; pool: uniform over the load generator's 300 seeded products), users uniform over 40 000, user-owned data per user.",
+ "ttlSeconds": 60.0,
+ "zipfS": 1.0,
+ "seed": 1,
+ "runs": {
+  "day/zipf": {
+   "meta": {
+    "sessions": 111125,
+    "requests": 599434,
+    "window": [
+     120.0,
+     1320.0
+    ],
+    "unknownClasses": {}
+   },
+   "sites": {
+    "site_CategoryCharacteristicValue_req_adminCreateProduct_fieldCatalog_Product_defaultVariant": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_CategoryCharacteristicValue_req_adminCreateProduct_readCategory": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_CategoryCharacteristicValue_req_adminCreateProduct_readCategoryCharacteristic": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_CategoryCharacteristicValue_req_adminCreateProduct_readMedia": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_CategoryCharacteristicValue_req_adminCreateProduct_readTaxRate": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_CategoryCharacteristicValue_req_adminCreateVariant_readCategory": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_CategoryCharacteristicValue_req_adminCreateVariant_readCategoryCharacteristic": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_CategoryCharacteristicValue_req_adminCreateVariant_readMedia": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_CategoryCharacteristicValue_req_adminCreateVariant_readProduct": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_CategoryCharacteristicValue_req_adminCreateVariant_readTaxRate": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_CategoryCharacteristicValue_req_adminNewPrice_readCategory": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_CategoryCharacteristicValue_req_adminNewPrice_readCategoryCharacteristic": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_CategoryCharacteristicValue_req_adminNewPrice_readMedia": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_CategoryCharacteristicValue_req_adminNewPrice_readProduct": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_CategoryCharacteristicValue_req_adminNewPrice_readTaxRate": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_CouponRedemption_req_discount_registerCoupon_readCoupon": {
+     "lookups": 564,
+     "hits": 355,
+     "staleHits": 218,
+     "hitRatio": 0.6294326241134752,
+     "staleShare": 0.6140845070422535
+    },
+    "site_Coupon_req_discount_createCoupon_readDiscount": {
+     "lookups": 58,
+     "hits": 1,
+     "staleHits": 0,
+     "hitRatio": 0.017241379310344827,
+     "staleShare": 0.0
+    },
+    "site_DiscountUsage_discount_on_inventory_product_item_reservation_succeeded_readDiscount": {
+     "lookups": 10139,
+     "hits": 9295,
+     "staleHits": 215,
+     "hitRatio": 0.9167570766347766,
+     "staleShare": 0.023130715438407747
+    },
+    "site_Discount_discount_findApplicableDiscounts_readCoupon": {
+     "lookups": 10141,
+     "hits": 9777,
+     "staleHits": 5944,
+     "hitRatio": 0.9641061039345232,
+     "staleShare": 0.6079574511608878
+    },
+    "site_Discount_discount_findApplicableDiscounts_readCouponRedemption": {
+     "lookups": 10141,
+     "hits": 223,
+     "staleHits": 0,
+     "hitRatio": 0.0219899418203333,
+     "staleShare": 0.0
+    },
+    "site_Discount_discount_findApplicableDiscounts_readDiscountUsage": {
+     "lookups": 10141,
+     "hits": 223,
+     "staleHits": 178,
+     "hitRatio": 0.0219899418203333,
+     "staleShare": 0.7982062780269058
+    },
+    "site_Discount_discount_findApplicableDiscounts_readProduct": {
+     "lookups": 10141,
+     "hits": 4638,
+     "staleHits": 0,
+     "hitRatio": 0.45735134602110245,
+     "staleShare": 0.0
+    },
+    "site_Discount_discount_findApplicableDiscounts_readProductVariant": {
+     "lookups": 10141,
+     "hits": 4638,
+     "staleHits": 0,
+     "hitRatio": 0.45735134602110245,
+     "staleShare": 0.0
+    },
+    "site_Discount_req_discount_createDiscount_readCategory": {
+     "lookups": 18,
+     "hits": 1,
+     "staleHits": 0,
+     "hitRatio": 0.05555555555555555,
+     "staleShare": 0.0
+    },
+    "site_Discount_req_discount_createDiscount_readProduct": {
+     "lookups": 17,
+     "hits": 2,
+     "staleHits": 0,
+     "hitRatio": 0.11764705882352941,
+     "staleShare": 0.0
+    },
+    "site_Discount_req_discount_createDiscount_readProductVariant": {
+     "lookups": 17,
+     "hits": 2,
+     "staleHits": 0,
+     "hitRatio": 0.11764705882352941,
+     "staleShare": 0.0
+    },
+    "site_Invoice_invoice_on_discount_order_validation_succeeded_readUser": {
+     "lookups": 10139,
+     "hits": 222,
+     "staleHits": 0,
+     "hitRatio": 0.02189565045862511,
+     "staleShare": 0.0
+    },
+    "site_Invoice_invoice_on_discount_order_validation_succeeded_readUserAddress": {
+     "lookups": 10139,
+     "hits": 222,
+     "staleHits": 0,
+     "hitRatio": 0.02189565045862511,
+     "staleShare": 0.0
+    },
+    "site_Invoice_invoice_on_discount_order_validation_succeeded_readVendorAddress": {
+     "lookups": 10139,
+     "hits": 10119,
+     "staleHits": 1488,
+     "hitRatio": 0.9980274188776014,
+     "staleShare": 0.1470501037651942
+    },
+    "site_OrderCompensation_order_on_shipment_shipment_creation_failed_readOrder": {
+     "lookups": 9,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_OrderCompensation_order_on_shipment_shipment_creation_failed_readOrderItem": {
+     "lookups": 9,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_OrderItem_req_createOrder_callDiscount_findApplicableDiscounts": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_OrderItem_req_createOrder_callInventory_entities_ProductVariant": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_OrderItem_req_createOrder_callShipment_calculateShipmentFees": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_OrderItem_req_createOrder_readCoupon": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_OrderItem_req_createOrder_readProductVariant": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_OrderItem_req_createOrder_readProductVariantVersion": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_OrderItem_req_createOrder_readShipmentMethod": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_OrderItem_req_createOrder_readTaxRate": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_OrderItem_req_createOrder_readTaxRateVersion": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_OrderItem_req_createOrder_readUser": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_OrderItem_req_createOrder_readUserAddress": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_Order_req_createOrder_callDiscount_findApplicableDiscounts": {
+     "lookups": 10141,
+     "hits": 1,
+     "staleHits": 0,
+     "hitRatio": 9.860960457548565e-05,
+     "staleShare": 0.0
+    },
+    "site_Order_req_createOrder_callInventory_entities_ProductVariant": {
+     "lookups": 12635,
+     "hits": 6067,
+     "staleHits": 5208,
+     "hitRatio": 0.48017411950929956,
+     "staleShare": 0.8584143728366573
+    },
+    "site_Order_req_createOrder_callShipment_calculateShipmentFees": {
+     "lookups": 10141,
+     "hits": 1,
+     "staleHits": 0,
+     "hitRatio": 9.860960457548565e-05,
+     "staleShare": 0.0
+    },
+    "site_Order_req_createOrder_readCoupon": {
+     "lookups": 10141,
+     "hits": 9776,
+     "staleHits": 5908,
+     "hitRatio": 0.9640074943299477,
+     "staleShare": 0.6043371522094927
+    },
+    "site_Order_req_createOrder_readProductVariant": {
+     "lookups": 10141,
+     "hits": 4638,
+     "staleHits": 0,
+     "hitRatio": 0.45735134602110245,
+     "staleShare": 0.0
+    },
+    "site_Order_req_createOrder_readProductVariantVersion": {
+     "lookups": 10141,
+     "hits": 4638,
+     "staleHits": 0,
+     "hitRatio": 0.45735134602110245,
+     "staleShare": 0.0
+    },
+    "site_Order_req_createOrder_readShipmentMethod": {
+     "lookups": 10141,
+     "hits": 9866,
+     "staleHits": 55,
+     "hitRatio": 0.9728823587417414,
+     "staleShare": 0.005574700993310359
+    },
+    "site_Order_req_createOrder_readTaxRate": {
+     "lookups": 10141,
+     "hits": 10026,
+     "staleHits": 555,
+     "hitRatio": 0.9886598954738192,
+     "staleShare": 0.05535607420706164
+    },
+    "site_Order_req_createOrder_readTaxRateVersion": {
+     "lookups": 10141,
+     "hits": 10024,
+     "staleHits": 514,
+     "hitRatio": 0.9884626762646682,
+     "staleShare": 0.05127693535514764
+    },
+    "site_Order_req_createOrder_readUser": {
+     "lookups": 10141,
+     "hits": 223,
+     "staleHits": 0,
+     "hitRatio": 0.0219899418203333,
+     "staleShare": 0.0
+    },
+    "site_Order_req_createOrder_readUserAddress": {
+     "lookups": 10141,
+     "hits": 223,
+     "staleHits": 0,
+     "hitRatio": 0.0219899418203333,
+     "staleShare": 0.0
+    },
+    "site_Order_req_orderTracking_fieldOrder_Order_orderItems": {
+     "lookups": 6196,
+     "hits": 1062,
+     "staleHits": 0,
+     "hitRatio": 0.17140090380890896,
+     "staleShare": 0.0
+    },
+    "site_Order_req_orderTracking_fieldShipment_Order_shipments": {
+     "lookups": 6196,
+     "hits": 1062,
+     "staleHits": 59,
+     "hitRatio": 0.17140090380890896,
+     "staleShare": 0.05555555555555555
+    },
+    "site_Order_req_placeOrder_readOrderItem": {
+     "lookups": 10139,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_Payment_payment_http_payment_update_payment_status_readPaymentInformation": {
+     "lookups": 10139,
+     "hits": 222,
+     "staleHits": 0,
+     "hitRatio": 0.02189565045862511,
+     "staleShare": 0.0
+    },
+    "site_Payment_payment_on_discount_order_validation_succeeded_readPaymentInformation": {
+     "lookups": 10139,
+     "hits": 222,
+     "staleHits": 0,
+     "hitRatio": 0.02189565045862511,
+     "staleShare": 0.0
+    },
+    "site_ProductItem_inventory_entities_ProductVariant_call_order_createOrder_callInventory_ProductVariant_inventoryCount": {
+     "lookups": 12635,
+     "hits": 6067,
+     "staleHits": 5208,
+     "hitRatio": 0.48017411950929956,
+     "staleShare": 0.8584143728366573
+    },
+    "site_ProductItem_req_inventory_createProductItemBatch_readProductVariant": {
+     "lookups": 128,
+     "hits": 24,
+     "staleHits": 0,
+     "hitRatio": 0.1875,
+     "staleShare": 0.0
+    },
+    "site_ProductVariantVersion_req_adminCreateProduct_fieldCatalog_Product_defaultVariant": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_ProductVariantVersion_req_adminCreateProduct_readCategory": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_ProductVariantVersion_req_adminCreateProduct_readCategoryCharacteristic": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_ProductVariantVersion_req_adminCreateProduct_readMedia": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_ProductVariantVersion_req_adminCreateProduct_readTaxRate": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_ProductVariantVersion_req_adminCreateVariant_readCategory": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_ProductVariantVersion_req_adminCreateVariant_readCategoryCharacteristic": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_ProductVariantVersion_req_adminCreateVariant_readMedia": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_ProductVariantVersion_req_adminCreateVariant_readProduct": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_ProductVariantVersion_req_adminCreateVariant_readTaxRate": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_ProductVariantVersion_req_adminNewPrice_readCategory": {
+     "lookups": 159,
+     "hits": 4,
+     "staleHits": 0,
+     "hitRatio": 0.025157232704402517,
+     "staleShare": 0.0
+    },
+    "site_ProductVariantVersion_req_adminNewPrice_readCategoryCharacteristic": {
+     "lookups": 159,
+     "hits": 4,
+     "staleHits": 0,
+     "hitRatio": 0.025157232704402517,
+     "staleShare": 0.0
+    },
+    "site_ProductVariantVersion_req_adminNewPrice_readMedia": {
+     "lookups": 117,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_ProductVariantVersion_req_adminNewPrice_readProduct": {
+     "lookups": 117,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_ProductVariantVersion_req_adminNewPrice_readTaxRate": {
+     "lookups": 117,
+     "hits": 58,
+     "staleHits": 0,
+     "hitRatio": 0.49572649572649574,
+     "staleShare": 0.0
+    },
+    "site_ProductVariant_catalog_Product_defaultVariant_req_product_fieldReview_ProductVariant_averageRating": {
+     "lookups": 234194,
+     "hits": 169370,
+     "staleHits": 26531,
+     "hitRatio": 0.7232038395518245,
+     "staleShare": 0.15664521461888173
+    },
+    "site_ProductVariant_catalog_entities_ProductVariant_req_wishlistView_fieldCatalog_ProductVariant_currentVersion": {
+     "lookups": 9267,
+     "hits": 4415,
+     "staleHits": 0,
+     "hitRatio": 0.47642171144922846,
+     "staleShare": 0.0
+    },
+    "site_ProductVariant_catalog_entities_ProductVariant_req_wishlistView_fieldCatalog_ProductVariant_product": {
+     "lookups": 9267,
+     "hits": 4415,
+     "staleHits": 1,
+     "hitRatio": 0.47642171144922846,
+     "staleShare": 0.00022650056625141563
+    },
+    "site_ProductVariant_req_adminCreateProduct_fieldCatalog_Product_defaultVariant": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_ProductVariant_req_adminCreateProduct_readCategory": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_ProductVariant_req_adminCreateProduct_readCategoryCharacteristic": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_ProductVariant_req_adminCreateProduct_readMedia": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_ProductVariant_req_adminCreateProduct_readTaxRate": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_ProductVariant_req_adminCreateVariant_readCategory": {
+     "lookups": 53,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_ProductVariant_req_adminCreateVariant_readCategoryCharacteristic": {
+     "lookups": 53,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_ProductVariant_req_adminCreateVariant_readMedia": {
+     "lookups": 43,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_ProductVariant_req_adminCreateVariant_readProduct": {
+     "lookups": 43,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_ProductVariant_req_adminCreateVariant_readTaxRate": {
+     "lookups": 43,
+     "hits": 12,
+     "staleHits": 1,
+     "hitRatio": 0.27906976744186046,
+     "staleShare": 0.08333333333333333
+    },
+    "site_ProductVariant_req_adminNewPrice_readCategory": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_ProductVariant_req_adminNewPrice_readCategoryCharacteristic": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_ProductVariant_req_adminNewPrice_readMedia": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_ProductVariant_req_adminNewPrice_readProduct": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_ProductVariant_req_adminNewPrice_readTaxRate": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_Product_catalog_Product_categories_readCategory": {
+     "lookups": 308969,
+     "hits": 303117,
+     "staleHits": 4,
+     "hitRatio": 0.9810595885024064,
+     "staleShare": 1.319622456015334e-05
+    },
+    "site_Product_req_adminCreateProduct_fieldCatalog_Product_defaultVariant": {
+     "lookups": 52,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_Product_req_adminCreateProduct_readCategory": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_Product_req_adminCreateProduct_readCategoryCharacteristic": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_Product_req_adminCreateProduct_readMedia": {
+     "lookups": 52,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_Product_req_adminCreateProduct_readTaxRate": {
+     "lookups": 52,
+     "hits": 13,
+     "staleHits": 0,
+     "hitRatio": 0.25,
+     "staleShare": 0.0
+    },
+    "site_Product_req_adminUpdateProduct_readProductVariant": {
+     "lookups": 114,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_Product_req_product_fieldCatalog_Product_categories": {
+     "lookups": 234194,
+     "hits": 169370,
+     "staleHits": 4,
+     "hitRatio": 0.7232038395518245,
+     "staleShare": 2.3616933341205645e-05
+    },
+    "site_Product_req_product_fieldCatalog_Product_defaultVariant": {
+     "lookups": 234194,
+     "hits": 169370,
+     "staleHits": 24,
+     "hitRatio": 0.7232038395518245,
+     "staleShare": 0.00014170160004723387
+    },
+    "site_Product_req_product_fieldCatalog_Product_variants": {
+     "lookups": 234194,
+     "hits": 169370,
+     "staleHits": 24,
+     "hitRatio": 0.7232038395518245,
+     "staleShare": 0.00014170160004723387
+    },
+    "site_Return_req_return_createReturn_readOrder": {
+     "lookups": 299,
+     "hits": 3,
+     "staleHits": 0,
+     "hitRatio": 0.010033444816053512,
+     "staleShare": 0.0
+    },
+    "site_Return_req_return_createReturn_readOrderItem": {
+     "lookups": 299,
+     "hits": 3,
+     "staleHits": 0,
+     "hitRatio": 0.010033444816053512,
+     "staleShare": 0.0
+    },
+    "site_Return_req_return_createReturn_readProductVariantVersion": {
+     "lookups": 10,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_Return_req_return_createReturn_readShipment": {
+     "lookups": 299,
+     "hits": 3,
+     "staleHits": 3,
+     "hitRatio": 0.010033444816053512,
+     "staleShare": 1.0
+    },
+    "site_Review_req_createReview_readProductVariant": {
+     "lookups": 539,
+     "hits": 105,
+     "staleHits": 0,
+     "hitRatio": 0.19480519480519481,
+     "staleShare": 0.0
+    },
+    "site_Review_req_createReview_readUser": {
+     "lookups": 539,
+     "hits": 9,
+     "staleHits": 0,
+     "hitRatio": 0.016697588126159554,
+     "staleShare": 0.0
+    },
+    "site_ShipmentMethod_shipment_calculateShipmentFees_readProductVariantVersion": {
+     "lookups": 10141,
+     "hits": 4638,
+     "staleHits": 0,
+     "hitRatio": 0.45735134602110245,
+     "staleShare": 0.0
+    },
+    "site_Shipment_shipment_on_payment_payment_payment_enabled_readProductVariantVersion": {
+     "lookups": 9962,
+     "hits": 5627,
+     "staleHits": 0,
+     "hitRatio": 0.5648464163822525,
+     "staleShare": 0.0
+    },
+    "site_Shipment_shipment_on_payment_payment_payment_enabled_readShipmentMethod": {
+     "lookups": 9962,
+     "hits": 9680,
+     "staleHits": 70,
+     "hitRatio": 0.9716924312387071,
+     "staleShare": 0.007231404958677686
+    },
+    "site_Shipment_shipment_on_payment_payment_payment_enabled_readUserAddress": {
+     "lookups": 9962,
+     "hits": 2514,
+     "staleHits": 0,
+     "hitRatio": 0.25235896406344105,
+     "staleShare": 0.0
+    },
+    "site_Shipment_shipment_on_return_return_created_readProductVariantVersion": {
+     "lookups": 10,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_Shipment_shipment_on_return_return_created_readShipmentMethod": {
+     "lookups": 299,
+     "hits": 168,
+     "staleHits": 1,
+     "hitRatio": 0.5618729096989966,
+     "staleShare": 0.005952380952380952
+    },
+    "site_Shipment_shipment_on_return_return_created_readVendorAddress": {
+     "lookups": 299,
+     "hits": 281,
+     "staleHits": 27,
+     "hitRatio": 0.939799331103679,
+     "staleShare": 0.09608540925266904
+    },
+    "site_ShoppingCartItem_req_createShoppingcartItem_readProductVariant": {
+     "lookups": 33690,
+     "hits": 18814,
+     "staleHits": 2,
+     "hitRatio": 0.5584446423271,
+     "staleShare": 0.00010630381630700542
+    },
+    "site_ShoppingCart_req_createShoppingcartItem_readProductVariant": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_UserAddress_req_address_createUserAddress_readUser": {
+     "lookups": 512,
+     "hits": 9,
+     "staleHits": 0,
+     "hitRatio": 0.017578125,
+     "staleShare": 0.0
+    },
+    "site_User_req_address_fieldAddress_User_addresses": {
+     "lookups": 27475,
+     "hits": 1229,
+     "staleHits": 37,
+     "hitRatio": 0.04473157415832575,
+     "staleShare": 0.030105777054515868
+    },
+    "site_User_req_notifications_fieldNotification_User_notifications": {
+     "lookups": 2667,
+     "hits": 209,
+     "staleHits": 0,
+     "hitRatio": 0.07836520434945632,
+     "staleShare": 0.0
+    },
+    "site_User_req_paymentInformations_fieldPayment_User_paymentInformations": {
+     "lookups": 10689,
+     "hits": 255,
+     "staleHits": 20,
+     "hitRatio": 0.023856300870053325,
+     "staleShare": 0.0784313725490196
+    },
+    "site_Wishlist_req_addToWishlist_readProductVariant": {
+     "lookups": 1077,
+     "hits": 255,
+     "staleHits": 0,
+     "hitRatio": 0.23676880222841226,
+     "staleShare": 0.0
+    },
+    "site_Wishlist_req_wishlistView_fieldWishlist_Wishlist_productVariants": {
+     "lookups": 2644,
+     "hits": 197,
+     "staleHits": 4,
+     "hitRatio": 0.07450832072617247,
+     "staleShare": 0.02030456852791878
+    },
+    "site_Wishlist_req_wishlist_createWishlist_readProductVariant": {
+     "lookups": 11,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_Wishlist_req_wishlist_createWishlist_readUser": {
+     "lookups": 255,
+     "hits": 1,
+     "staleHits": 0,
+     "hitRatio": 0.00392156862745098,
+     "staleShare": 0.0
+    },
+    "site_Wishlist_wishlist_Wishlist_productVariants_req_wishlistView_fieldCatalog_entities_ProductVariant": {
+     "lookups": 9267,
+     "hits": 4415,
+     "staleHits": 0,
+     "hitRatio": 0.47642171144922846,
+     "staleShare": 0.0
+    },
+    "site_Wishlist_wishlist_Wishlist_productVariants_req_wishlistView_readProductVariant": {
+     "lookups": 118,
+     "hits": 14,
+     "staleHits": 0,
+     "hitRatio": 0.11864406779661017,
+     "staleShare": 0.0
+    }
+   }
+  },
+  "day/uniform": {
+   "meta": {
+    "sessions": 111125,
+    "requests": 599434,
+    "window": [
+     120.0,
+     1320.0
+    ],
+    "unknownClasses": {}
+   },
+   "sites": {
+    "site_CategoryCharacteristicValue_req_adminCreateProduct_fieldCatalog_Product_defaultVariant": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_CategoryCharacteristicValue_req_adminCreateProduct_readCategory": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_CategoryCharacteristicValue_req_adminCreateProduct_readCategoryCharacteristic": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_CategoryCharacteristicValue_req_adminCreateProduct_readMedia": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_CategoryCharacteristicValue_req_adminCreateProduct_readTaxRate": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_CategoryCharacteristicValue_req_adminCreateVariant_readCategory": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_CategoryCharacteristicValue_req_adminCreateVariant_readCategoryCharacteristic": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_CategoryCharacteristicValue_req_adminCreateVariant_readMedia": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_CategoryCharacteristicValue_req_adminCreateVariant_readProduct": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_CategoryCharacteristicValue_req_adminCreateVariant_readTaxRate": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_CategoryCharacteristicValue_req_adminNewPrice_readCategory": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_CategoryCharacteristicValue_req_adminNewPrice_readCategoryCharacteristic": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_CategoryCharacteristicValue_req_adminNewPrice_readMedia": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_CategoryCharacteristicValue_req_adminNewPrice_readProduct": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_CategoryCharacteristicValue_req_adminNewPrice_readTaxRate": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_CouponRedemption_req_discount_registerCoupon_readCoupon": {
+     "lookups": 564,
+     "hits": 355,
+     "staleHits": 226,
+     "hitRatio": 0.6294326241134752,
+     "staleShare": 0.6366197183098592
+    },
+    "site_Coupon_req_discount_createCoupon_readDiscount": {
+     "lookups": 58,
+     "hits": 1,
+     "staleHits": 0,
+     "hitRatio": 0.017241379310344827,
+     "staleShare": 0.0
+    },
+    "site_DiscountUsage_discount_on_inventory_product_item_reservation_succeeded_readDiscount": {
+     "lookups": 10139,
+     "hits": 9295,
+     "staleHits": 198,
+     "hitRatio": 0.9167570766347766,
+     "staleShare": 0.021301775147928994
+    },
+    "site_Discount_discount_findApplicableDiscounts_readCoupon": {
+     "lookups": 10141,
+     "hits": 9777,
+     "staleHits": 5730,
+     "hitRatio": 0.9641061039345232,
+     "staleShare": 0.5860693464252839
+    },
+    "site_Discount_discount_findApplicableDiscounts_readCouponRedemption": {
+     "lookups": 10141,
+     "hits": 223,
+     "staleHits": 0,
+     "hitRatio": 0.0219899418203333,
+     "staleShare": 0.0
+    },
+    "site_Discount_discount_findApplicableDiscounts_readDiscountUsage": {
+     "lookups": 10141,
+     "hits": 223,
+     "staleHits": 178,
+     "hitRatio": 0.0219899418203333,
+     "staleShare": 0.7982062780269058
+    },
+    "site_Discount_discount_findApplicableDiscounts_readProduct": {
+     "lookups": 10141,
+     "hits": 398,
+     "staleHits": 0,
+     "hitRatio": 0.03924662262104329,
+     "staleShare": 0.0
+    },
+    "site_Discount_discount_findApplicableDiscounts_readProductVariant": {
+     "lookups": 10141,
+     "hits": 398,
+     "staleHits": 0,
+     "hitRatio": 0.03924662262104329,
+     "staleShare": 0.0
+    },
+    "site_Discount_req_discount_createDiscount_readCategory": {
+     "lookups": 19,
+     "hits": 2,
+     "staleHits": 0,
+     "hitRatio": 0.10526315789473684,
+     "staleShare": 0.0
+    },
+    "site_Discount_req_discount_createDiscount_readProduct": {
+     "lookups": 17,
+     "hits": 2,
+     "staleHits": 0,
+     "hitRatio": 0.11764705882352941,
+     "staleShare": 0.0
+    },
+    "site_Discount_req_discount_createDiscount_readProductVariant": {
+     "lookups": 17,
+     "hits": 2,
+     "staleHits": 0,
+     "hitRatio": 0.11764705882352941,
+     "staleShare": 0.0
+    },
+    "site_Invoice_invoice_on_discount_order_validation_succeeded_readUser": {
+     "lookups": 10139,
+     "hits": 222,
+     "staleHits": 0,
+     "hitRatio": 0.02189565045862511,
+     "staleShare": 0.0
+    },
+    "site_Invoice_invoice_on_discount_order_validation_succeeded_readUserAddress": {
+     "lookups": 10139,
+     "hits": 222,
+     "staleHits": 0,
+     "hitRatio": 0.02189565045862511,
+     "staleShare": 0.0
+    },
+    "site_Invoice_invoice_on_discount_order_validation_succeeded_readVendorAddress": {
+     "lookups": 10139,
+     "hits": 10119,
+     "staleHits": 1488,
+     "hitRatio": 0.9980274188776014,
+     "staleShare": 0.1470501037651942
+    },
+    "site_OrderCompensation_order_on_shipment_shipment_creation_failed_readOrder": {
+     "lookups": 11,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_OrderCompensation_order_on_shipment_shipment_creation_failed_readOrderItem": {
+     "lookups": 11,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_OrderItem_req_createOrder_callDiscount_findApplicableDiscounts": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_OrderItem_req_createOrder_callInventory_entities_ProductVariant": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_OrderItem_req_createOrder_callShipment_calculateShipmentFees": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_OrderItem_req_createOrder_readCoupon": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_OrderItem_req_createOrder_readProductVariant": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_OrderItem_req_createOrder_readProductVariantVersion": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_OrderItem_req_createOrder_readShipmentMethod": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_OrderItem_req_createOrder_readTaxRate": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_OrderItem_req_createOrder_readTaxRateVersion": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_OrderItem_req_createOrder_readUser": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_OrderItem_req_createOrder_readUserAddress": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_Order_req_createOrder_callDiscount_findApplicableDiscounts": {
+     "lookups": 10141,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_Order_req_createOrder_callInventory_entities_ProductVariant": {
+     "lookups": 12676,
+     "hits": 638,
+     "staleHits": 411,
+     "hitRatio": 0.05033133480593247,
+     "staleShare": 0.6442006269592476
+    },
+    "site_Order_req_createOrder_callShipment_calculateShipmentFees": {
+     "lookups": 10141,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_Order_req_createOrder_readCoupon": {
+     "lookups": 10141,
+     "hits": 9776,
+     "staleHits": 5555,
+     "hitRatio": 0.9640074943299477,
+     "staleShare": 0.5682283142389526
+    },
+    "site_Order_req_createOrder_readProductVariant": {
+     "lookups": 10141,
+     "hits": 398,
+     "staleHits": 0,
+     "hitRatio": 0.03924662262104329,
+     "staleShare": 0.0
+    },
+    "site_Order_req_createOrder_readProductVariantVersion": {
+     "lookups": 10141,
+     "hits": 398,
+     "staleHits": 0,
+     "hitRatio": 0.03924662262104329,
+     "staleShare": 0.0
+    },
+    "site_Order_req_createOrder_readShipmentMethod": {
+     "lookups": 10141,
+     "hits": 9866,
+     "staleHits": 73,
+     "hitRatio": 0.9728823587417414,
+     "staleShare": 0.007399148591121021
+    },
+    "site_Order_req_createOrder_readTaxRate": {
+     "lookups": 10141,
+     "hits": 10026,
+     "staleHits": 799,
+     "hitRatio": 0.9886598954738192,
+     "staleShare": 0.07969279872331937
+    },
+    "site_Order_req_createOrder_readTaxRateVersion": {
+     "lookups": 10141,
+     "hits": 10024,
+     "staleHits": 494,
+     "hitRatio": 0.9884626762646682,
+     "staleShare": 0.04928172386272945
+    },
+    "site_Order_req_createOrder_readUser": {
+     "lookups": 10141,
+     "hits": 223,
+     "staleHits": 0,
+     "hitRatio": 0.0219899418203333,
+     "staleShare": 0.0
+    },
+    "site_Order_req_createOrder_readUserAddress": {
+     "lookups": 10141,
+     "hits": 223,
+     "staleHits": 0,
+     "hitRatio": 0.0219899418203333,
+     "staleShare": 0.0
+    },
+    "site_Order_req_orderTracking_fieldOrder_Order_orderItems": {
+     "lookups": 6196,
+     "hits": 1062,
+     "staleHits": 0,
+     "hitRatio": 0.17140090380890896,
+     "staleShare": 0.0
+    },
+    "site_Order_req_orderTracking_fieldShipment_Order_shipments": {
+     "lookups": 6196,
+     "hits": 1062,
+     "staleHits": 59,
+     "hitRatio": 0.17140090380890896,
+     "staleShare": 0.05555555555555555
+    },
+    "site_Order_req_placeOrder_readOrderItem": {
+     "lookups": 10139,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_Payment_payment_http_payment_update_payment_status_readPaymentInformation": {
+     "lookups": 10139,
+     "hits": 222,
+     "staleHits": 0,
+     "hitRatio": 0.02189565045862511,
+     "staleShare": 0.0
+    },
+    "site_Payment_payment_on_discount_order_validation_succeeded_readPaymentInformation": {
+     "lookups": 10139,
+     "hits": 222,
+     "staleHits": 0,
+     "hitRatio": 0.02189565045862511,
+     "staleShare": 0.0
+    },
+    "site_ProductItem_inventory_entities_ProductVariant_call_order_createOrder_callInventory_ProductVariant_inventoryCount": {
+     "lookups": 12676,
+     "hits": 638,
+     "staleHits": 411,
+     "hitRatio": 0.05033133480593247,
+     "staleShare": 0.6442006269592476
+    },
+    "site_ProductItem_req_inventory_createProductItemBatch_readProductVariant": {
+     "lookups": 128,
+     "hits": 24,
+     "staleHits": 0,
+     "hitRatio": 0.1875,
+     "staleShare": 0.0
+    },
+    "site_ProductVariantVersion_req_adminCreateProduct_fieldCatalog_Product_defaultVariant": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_ProductVariantVersion_req_adminCreateProduct_readCategory": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_ProductVariantVersion_req_adminCreateProduct_readCategoryCharacteristic": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_ProductVariantVersion_req_adminCreateProduct_readMedia": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_ProductVariantVersion_req_adminCreateProduct_readTaxRate": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_ProductVariantVersion_req_adminCreateVariant_readCategory": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_ProductVariantVersion_req_adminCreateVariant_readCategoryCharacteristic": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_ProductVariantVersion_req_adminCreateVariant_readMedia": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_ProductVariantVersion_req_adminCreateVariant_readProduct": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_ProductVariantVersion_req_adminCreateVariant_readTaxRate": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_ProductVariantVersion_req_adminNewPrice_readCategory": {
+     "lookups": 149,
+     "hits": 6,
+     "staleHits": 0,
+     "hitRatio": 0.040268456375838924,
+     "staleShare": 0.0
+    },
+    "site_ProductVariantVersion_req_adminNewPrice_readCategoryCharacteristic": {
+     "lookups": 149,
+     "hits": 6,
+     "staleHits": 0,
+     "hitRatio": 0.040268456375838924,
+     "staleShare": 0.0
+    },
+    "site_ProductVariantVersion_req_adminNewPrice_readMedia": {
+     "lookups": 117,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_ProductVariantVersion_req_adminNewPrice_readProduct": {
+     "lookups": 117,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_ProductVariantVersion_req_adminNewPrice_readTaxRate": {
+     "lookups": 117,
+     "hits": 58,
+     "staleHits": 4,
+     "hitRatio": 0.49572649572649574,
+     "staleShare": 0.06896551724137931
+    },
+    "site_ProductVariant_catalog_Product_defaultVariant_req_product_fieldReview_ProductVariant_averageRating": {
+     "lookups": 234194,
+     "hits": 88471,
+     "staleHits": 61,
+     "hitRatio": 0.37776800430412394,
+     "staleShare": 0.0006894914717817138
+    },
+    "site_ProductVariant_catalog_entities_ProductVariant_req_wishlistView_fieldCatalog_ProductVariant_currentVersion": {
+     "lookups": 9267,
+     "hits": 954,
+     "staleHits": 0,
+     "hitRatio": 0.10294593719650372,
+     "staleShare": 0.0
+    },
+    "site_ProductVariant_catalog_entities_ProductVariant_req_wishlistView_fieldCatalog_ProductVariant_product": {
+     "lookups": 9267,
+     "hits": 954,
+     "staleHits": 0,
+     "hitRatio": 0.10294593719650372,
+     "staleShare": 0.0
+    },
+    "site_ProductVariant_req_adminCreateProduct_fieldCatalog_Product_defaultVariant": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_ProductVariant_req_adminCreateProduct_readCategory": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_ProductVariant_req_adminCreateProduct_readCategoryCharacteristic": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_ProductVariant_req_adminCreateProduct_readMedia": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_ProductVariant_req_adminCreateProduct_readTaxRate": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_ProductVariant_req_adminCreateVariant_readCategory": {
+     "lookups": 55,
+     "hits": 1,
+     "staleHits": 0,
+     "hitRatio": 0.01818181818181818,
+     "staleShare": 0.0
+    },
+    "site_ProductVariant_req_adminCreateVariant_readCategoryCharacteristic": {
+     "lookups": 55,
+     "hits": 1,
+     "staleHits": 0,
+     "hitRatio": 0.01818181818181818,
+     "staleShare": 0.0
+    },
+    "site_ProductVariant_req_adminCreateVariant_readMedia": {
+     "lookups": 43,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_ProductVariant_req_adminCreateVariant_readProduct": {
+     "lookups": 43,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_ProductVariant_req_adminCreateVariant_readTaxRate": {
+     "lookups": 43,
+     "hits": 12,
+     "staleHits": 0,
+     "hitRatio": 0.27906976744186046,
+     "staleShare": 0.0
+    },
+    "site_ProductVariant_req_adminNewPrice_readCategory": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_ProductVariant_req_adminNewPrice_readCategoryCharacteristic": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_ProductVariant_req_adminNewPrice_readMedia": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_ProductVariant_req_adminNewPrice_readProduct": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_ProductVariant_req_adminNewPrice_readTaxRate": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_Product_catalog_Product_categories_readCategory": {
+     "lookups": 304181,
+     "hits": 298182,
+     "staleHits": 5,
+     "hitRatio": 0.980278189630516,
+     "staleShare": 1.6768282458364355e-05
+    },
+    "site_Product_req_adminCreateProduct_fieldCatalog_Product_defaultVariant": {
+     "lookups": 52,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_Product_req_adminCreateProduct_readCategory": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_Product_req_adminCreateProduct_readCategoryCharacteristic": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_Product_req_adminCreateProduct_readMedia": {
+     "lookups": 52,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_Product_req_adminCreateProduct_readTaxRate": {
+     "lookups": 52,
+     "hits": 13,
+     "staleHits": 0,
+     "hitRatio": 0.25,
+     "staleShare": 0.0
+    },
+    "site_Product_req_adminUpdateProduct_readProductVariant": {
+     "lookups": 114,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_Product_req_product_fieldCatalog_Product_categories": {
+     "lookups": 234194,
+     "hits": 88471,
+     "staleHits": 9,
+     "hitRatio": 0.37776800430412394,
+     "staleShare": 0.00010172824993500695
+    },
+    "site_Product_req_product_fieldCatalog_Product_defaultVariant": {
+     "lookups": 234194,
+     "hits": 88471,
+     "staleHits": 18,
+     "hitRatio": 0.37776800430412394,
+     "staleShare": 0.0002034564998700139
+    },
+    "site_Product_req_product_fieldCatalog_Product_variants": {
+     "lookups": 234194,
+     "hits": 88471,
+     "staleHits": 18,
+     "hitRatio": 0.37776800430412394,
+     "staleShare": 0.0002034564998700139
+    },
+    "site_Return_req_return_createReturn_readOrder": {
+     "lookups": 299,
+     "hits": 3,
+     "staleHits": 0,
+     "hitRatio": 0.010033444816053512,
+     "staleShare": 0.0
+    },
+    "site_Return_req_return_createReturn_readOrderItem": {
+     "lookups": 299,
+     "hits": 3,
+     "staleHits": 0,
+     "hitRatio": 0.010033444816053512,
+     "staleShare": 0.0
+    },
+    "site_Return_req_return_createReturn_readProductVariantVersion": {
+     "lookups": 10,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_Return_req_return_createReturn_readShipment": {
+     "lookups": 299,
+     "hits": 3,
+     "staleHits": 3,
+     "hitRatio": 0.010033444816053512,
+     "staleShare": 1.0
+    },
+    "site_Review_req_createReview_readProductVariant": {
+     "lookups": 539,
+     "hits": 2,
+     "staleHits": 0,
+     "hitRatio": 0.0037105751391465678,
+     "staleShare": 0.0
+    },
+    "site_Review_req_createReview_readUser": {
+     "lookups": 539,
+     "hits": 9,
+     "staleHits": 0,
+     "hitRatio": 0.016697588126159554,
+     "staleShare": 0.0
+    },
+    "site_ShipmentMethod_shipment_calculateShipmentFees_readProductVariantVersion": {
+     "lookups": 10141,
+     "hits": 398,
+     "staleHits": 0,
+     "hitRatio": 0.03924662262104329,
+     "staleShare": 0.0
+    },
+    "site_Shipment_shipment_on_payment_payment_payment_enabled_readProductVariantVersion": {
+     "lookups": 9886,
+     "hits": 2566,
+     "staleHits": 0,
+     "hitRatio": 0.259558972284038,
+     "staleShare": 0.0
+    },
+    "site_Shipment_shipment_on_payment_payment_payment_enabled_readShipmentMethod": {
+     "lookups": 9886,
+     "hits": 9609,
+     "staleHits": 78,
+     "hitRatio": 0.9719805785959943,
+     "staleShare": 0.008117389946924758
+    },
+    "site_Shipment_shipment_on_payment_payment_payment_enabled_readUserAddress": {
+     "lookups": 9886,
+     "hits": 2480,
+     "staleHits": 0,
+     "hitRatio": 0.25085980173983413,
+     "staleShare": 0.0
+    },
+    "site_Shipment_shipment_on_return_return_created_readProductVariantVersion": {
+     "lookups": 10,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_Shipment_shipment_on_return_return_created_readShipmentMethod": {
+     "lookups": 299,
+     "hits": 168,
+     "staleHits": 0,
+     "hitRatio": 0.5618729096989966,
+     "staleShare": 0.0
+    },
+    "site_Shipment_shipment_on_return_return_created_readVendorAddress": {
+     "lookups": 299,
+     "hits": 281,
+     "staleHits": 27,
+     "hitRatio": 0.939799331103679,
+     "staleShare": 0.09608540925266904
+    },
+    "site_ShoppingCartItem_req_createShoppingcartItem_readProductVariant": {
+     "lookups": 33690,
+     "hits": 3586,
+     "staleHits": 0,
+     "hitRatio": 0.10644108043929949,
+     "staleShare": 0.0
+    },
+    "site_ShoppingCart_req_createShoppingcartItem_readProductVariant": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_UserAddress_req_address_createUserAddress_readUser": {
+     "lookups": 512,
+     "hits": 9,
+     "staleHits": 0,
+     "hitRatio": 0.017578125,
+     "staleShare": 0.0
+    },
+    "site_User_req_address_fieldAddress_User_addresses": {
+     "lookups": 27475,
+     "hits": 1229,
+     "staleHits": 37,
+     "hitRatio": 0.04473157415832575,
+     "staleShare": 0.030105777054515868
+    },
+    "site_User_req_notifications_fieldNotification_User_notifications": {
+     "lookups": 2667,
+     "hits": 209,
+     "staleHits": 0,
+     "hitRatio": 0.07836520434945632,
+     "staleShare": 0.0
+    },
+    "site_User_req_paymentInformations_fieldPayment_User_paymentInformations": {
+     "lookups": 10689,
+     "hits": 255,
+     "staleHits": 20,
+     "hitRatio": 0.023856300870053325,
+     "staleShare": 0.0784313725490196
+    },
+    "site_Wishlist_req_addToWishlist_readProductVariant": {
+     "lookups": 1077,
+     "hits": 1,
+     "staleHits": 0,
+     "hitRatio": 0.0009285051067780873,
+     "staleShare": 0.0
+    },
+    "site_Wishlist_req_wishlistView_fieldWishlist_Wishlist_productVariants": {
+     "lookups": 2644,
+     "hits": 197,
+     "staleHits": 4,
+     "hitRatio": 0.07450832072617247,
+     "staleShare": 0.02030456852791878
+    },
+    "site_Wishlist_req_wishlist_createWishlist_readProductVariant": {
+     "lookups": 11,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_Wishlist_req_wishlist_createWishlist_readUser": {
+     "lookups": 255,
+     "hits": 1,
+     "staleHits": 0,
+     "hitRatio": 0.00392156862745098,
+     "staleShare": 0.0
+    },
+    "site_Wishlist_wishlist_Wishlist_productVariants_req_wishlistView_fieldCatalog_entities_ProductVariant": {
+     "lookups": 9267,
+     "hits": 954,
+     "staleHits": 0,
+     "hitRatio": 0.10294593719650372,
+     "staleShare": 0.0
+    },
+    "site_Wishlist_wishlist_Wishlist_productVariants_req_wishlistView_readProductVariant": {
+     "lookups": 118,
+     "hits": 2,
+     "staleHits": 0,
+     "hitRatio": 0.01694915254237288,
+     "staleShare": 0.0
+    }
+   }
+  },
+  "day/pool": {
+   "meta": {
+    "sessions": 111125,
+    "requests": 599434,
+    "window": [
+     120.0,
+     1320.0
+    ],
+    "unknownClasses": {}
+   },
+   "sites": {
+    "site_CategoryCharacteristicValue_req_adminCreateProduct_fieldCatalog_Product_defaultVariant": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_CategoryCharacteristicValue_req_adminCreateProduct_readCategory": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_CategoryCharacteristicValue_req_adminCreateProduct_readCategoryCharacteristic": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_CategoryCharacteristicValue_req_adminCreateProduct_readMedia": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_CategoryCharacteristicValue_req_adminCreateProduct_readTaxRate": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_CategoryCharacteristicValue_req_adminCreateVariant_readCategory": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_CategoryCharacteristicValue_req_adminCreateVariant_readCategoryCharacteristic": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_CategoryCharacteristicValue_req_adminCreateVariant_readMedia": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_CategoryCharacteristicValue_req_adminCreateVariant_readProduct": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_CategoryCharacteristicValue_req_adminCreateVariant_readTaxRate": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_CategoryCharacteristicValue_req_adminNewPrice_readCategory": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_CategoryCharacteristicValue_req_adminNewPrice_readCategoryCharacteristic": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_CategoryCharacteristicValue_req_adminNewPrice_readMedia": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_CategoryCharacteristicValue_req_adminNewPrice_readProduct": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_CategoryCharacteristicValue_req_adminNewPrice_readTaxRate": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_CouponRedemption_req_discount_registerCoupon_readCoupon": {
+     "lookups": 564,
+     "hits": 355,
+     "staleHits": 232,
+     "hitRatio": 0.6294326241134752,
+     "staleShare": 0.6535211267605634
+    },
+    "site_Coupon_req_discount_createCoupon_readDiscount": {
+     "lookups": 58,
+     "hits": 1,
+     "staleHits": 0,
+     "hitRatio": 0.017241379310344827,
+     "staleShare": 0.0
+    },
+    "site_DiscountUsage_discount_on_inventory_product_item_reservation_succeeded_readDiscount": {
+     "lookups": 10139,
+     "hits": 9295,
+     "staleHits": 249,
+     "hitRatio": 0.9167570766347766,
+     "staleShare": 0.02678859601936525
+    },
+    "site_Discount_discount_findApplicableDiscounts_readCoupon": {
+     "lookups": 10141,
+     "hits": 9777,
+     "staleHits": 5749,
+     "hitRatio": 0.9641061039345232,
+     "staleShare": 0.5880126828270431
+    },
+    "site_Discount_discount_findApplicableDiscounts_readCouponRedemption": {
+     "lookups": 10141,
+     "hits": 223,
+     "staleHits": 0,
+     "hitRatio": 0.0219899418203333,
+     "staleShare": 0.0
+    },
+    "site_Discount_discount_findApplicableDiscounts_readDiscountUsage": {
+     "lookups": 10141,
+     "hits": 223,
+     "staleHits": 178,
+     "hitRatio": 0.0219899418203333,
+     "staleShare": 0.7982062780269058
+    },
+    "site_Discount_discount_findApplicableDiscounts_readProduct": {
+     "lookups": 10141,
+     "hits": 6995,
+     "staleHits": 0,
+     "hitRatio": 0.6897741840055222,
+     "staleShare": 0.0
+    },
+    "site_Discount_discount_findApplicableDiscounts_readProductVariant": {
+     "lookups": 10141,
+     "hits": 6995,
+     "staleHits": 121,
+     "hitRatio": 0.6897741840055222,
+     "staleShare": 0.017298070050035738
+    },
+    "site_Discount_req_discount_createDiscount_readCategory": {
+     "lookups": 17,
+     "hits": 1,
+     "staleHits": 0,
+     "hitRatio": 0.058823529411764705,
+     "staleShare": 0.0
+    },
+    "site_Discount_req_discount_createDiscount_readProduct": {
+     "lookups": 17,
+     "hits": 2,
+     "staleHits": 0,
+     "hitRatio": 0.11764705882352941,
+     "staleShare": 0.0
+    },
+    "site_Discount_req_discount_createDiscount_readProductVariant": {
+     "lookups": 17,
+     "hits": 2,
+     "staleHits": 0,
+     "hitRatio": 0.11764705882352941,
+     "staleShare": 0.0
+    },
+    "site_Invoice_invoice_on_discount_order_validation_succeeded_readUser": {
+     "lookups": 10139,
+     "hits": 222,
+     "staleHits": 0,
+     "hitRatio": 0.02189565045862511,
+     "staleShare": 0.0
+    },
+    "site_Invoice_invoice_on_discount_order_validation_succeeded_readUserAddress": {
+     "lookups": 10139,
+     "hits": 222,
+     "staleHits": 0,
+     "hitRatio": 0.02189565045862511,
+     "staleShare": 0.0
+    },
+    "site_Invoice_invoice_on_discount_order_validation_succeeded_readVendorAddress": {
+     "lookups": 10139,
+     "hits": 10119,
+     "staleHits": 1488,
+     "hitRatio": 0.9980274188776014,
+     "staleShare": 0.1470501037651942
+    },
+    "site_OrderCompensation_order_on_shipment_shipment_creation_failed_readOrder": {
+     "lookups": 8,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_OrderCompensation_order_on_shipment_shipment_creation_failed_readOrderItem": {
+     "lookups": 8,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_OrderItem_req_createOrder_callDiscount_findApplicableDiscounts": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_OrderItem_req_createOrder_callInventory_entities_ProductVariant": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_OrderItem_req_createOrder_callShipment_calculateShipmentFees": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_OrderItem_req_createOrder_readCoupon": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_OrderItem_req_createOrder_readProductVariant": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_OrderItem_req_createOrder_readProductVariantVersion": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_OrderItem_req_createOrder_readShipmentMethod": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_OrderItem_req_createOrder_readTaxRate": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_OrderItem_req_createOrder_readTaxRateVersion": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_OrderItem_req_createOrder_readUser": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_OrderItem_req_createOrder_readUserAddress": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_Order_req_createOrder_callDiscount_findApplicableDiscounts": {
+     "lookups": 10141,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_Order_req_createOrder_callInventory_entities_ProductVariant": {
+     "lookups": 12666,
+     "hits": 9245,
+     "staleHits": 7349,
+     "hitRatio": 0.729906837201958,
+     "staleShare": 0.7949161709031909
+    },
+    "site_Order_req_createOrder_callShipment_calculateShipmentFees": {
+     "lookups": 10141,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_Order_req_createOrder_readCoupon": {
+     "lookups": 10141,
+     "hits": 9776,
+     "staleHits": 5921,
+     "hitRatio": 0.9640074943299477,
+     "staleShare": 0.6056669394435352
+    },
+    "site_Order_req_createOrder_readProductVariant": {
+     "lookups": 10141,
+     "hits": 6995,
+     "staleHits": 121,
+     "hitRatio": 0.6897741840055222,
+     "staleShare": 0.017298070050035738
+    },
+    "site_Order_req_createOrder_readProductVariantVersion": {
+     "lookups": 10141,
+     "hits": 6995,
+     "staleHits": 97,
+     "hitRatio": 0.6897741840055222,
+     "staleShare": 0.013867047891350966
+    },
+    "site_Order_req_createOrder_readShipmentMethod": {
+     "lookups": 10141,
+     "hits": 9866,
+     "staleHits": 68,
+     "hitRatio": 0.9728823587417414,
+     "staleShare": 0.006892357591729171
+    },
+    "site_Order_req_createOrder_readTaxRate": {
+     "lookups": 10141,
+     "hits": 10026,
+     "staleHits": 491,
+     "hitRatio": 0.9886598954738192,
+     "staleShare": 0.04897267105525634
+    },
+    "site_Order_req_createOrder_readTaxRateVersion": {
+     "lookups": 10141,
+     "hits": 10024,
+     "staleHits": 423,
+     "hitRatio": 0.9884626762646682,
+     "staleShare": 0.04219872306464485
+    },
+    "site_Order_req_createOrder_readUser": {
+     "lookups": 10141,
+     "hits": 223,
+     "staleHits": 0,
+     "hitRatio": 0.0219899418203333,
+     "staleShare": 0.0
+    },
+    "site_Order_req_createOrder_readUserAddress": {
+     "lookups": 10141,
+     "hits": 223,
+     "staleHits": 0,
+     "hitRatio": 0.0219899418203333,
+     "staleShare": 0.0
+    },
+    "site_Order_req_orderTracking_fieldOrder_Order_orderItems": {
+     "lookups": 6196,
+     "hits": 1062,
+     "staleHits": 0,
+     "hitRatio": 0.17140090380890896,
+     "staleShare": 0.0
+    },
+    "site_Order_req_orderTracking_fieldShipment_Order_shipments": {
+     "lookups": 6196,
+     "hits": 1062,
+     "staleHits": 59,
+     "hitRatio": 0.17140090380890896,
+     "staleShare": 0.05555555555555555
+    },
+    "site_Order_req_placeOrder_readOrderItem": {
+     "lookups": 10139,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_Payment_payment_http_payment_update_payment_status_readPaymentInformation": {
+     "lookups": 10139,
+     "hits": 222,
+     "staleHits": 0,
+     "hitRatio": 0.02189565045862511,
+     "staleShare": 0.0
+    },
+    "site_Payment_payment_on_discount_order_validation_succeeded_readPaymentInformation": {
+     "lookups": 10139,
+     "hits": 222,
+     "staleHits": 0,
+     "hitRatio": 0.02189565045862511,
+     "staleShare": 0.0
+    },
+    "site_ProductItem_inventory_entities_ProductVariant_call_order_createOrder_callInventory_ProductVariant_inventoryCount": {
+     "lookups": 12666,
+     "hits": 9245,
+     "staleHits": 7349,
+     "hitRatio": 0.729906837201958,
+     "staleShare": 0.7949161709031909
+    },
+    "site_ProductItem_req_inventory_createProductItemBatch_readProductVariant": {
+     "lookups": 128,
+     "hits": 25,
+     "staleHits": 0,
+     "hitRatio": 0.1953125,
+     "staleShare": 0.0
+    },
+    "site_ProductVariantVersion_req_adminCreateProduct_fieldCatalog_Product_defaultVariant": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_ProductVariantVersion_req_adminCreateProduct_readCategory": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_ProductVariantVersion_req_adminCreateProduct_readCategoryCharacteristic": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_ProductVariantVersion_req_adminCreateProduct_readMedia": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_ProductVariantVersion_req_adminCreateProduct_readTaxRate": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_ProductVariantVersion_req_adminCreateVariant_readCategory": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_ProductVariantVersion_req_adminCreateVariant_readCategoryCharacteristic": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_ProductVariantVersion_req_adminCreateVariant_readMedia": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_ProductVariantVersion_req_adminCreateVariant_readProduct": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_ProductVariantVersion_req_adminCreateVariant_readTaxRate": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_ProductVariantVersion_req_adminNewPrice_readCategory": {
+     "lookups": 158,
+     "hits": 12,
+     "staleHits": 0,
+     "hitRatio": 0.0759493670886076,
+     "staleShare": 0.0
+    },
+    "site_ProductVariantVersion_req_adminNewPrice_readCategoryCharacteristic": {
+     "lookups": 158,
+     "hits": 12,
+     "staleHits": 0,
+     "hitRatio": 0.0759493670886076,
+     "staleShare": 0.0
+    },
+    "site_ProductVariantVersion_req_adminNewPrice_readMedia": {
+     "lookups": 117,
+     "hits": 3,
+     "staleHits": 0,
+     "hitRatio": 0.02564102564102564,
+     "staleShare": 0.0
+    },
+    "site_ProductVariantVersion_req_adminNewPrice_readProduct": {
+     "lookups": 117,
+     "hits": 3,
+     "staleHits": 0,
+     "hitRatio": 0.02564102564102564,
+     "staleShare": 0.0
+    },
+    "site_ProductVariantVersion_req_adminNewPrice_readTaxRate": {
+     "lookups": 117,
+     "hits": 58,
+     "staleHits": 1,
+     "hitRatio": 0.49572649572649574,
+     "staleShare": 0.017241379310344827
+    },
+    "site_ProductVariant_catalog_Product_defaultVariant_req_product_fieldReview_ProductVariant_averageRating": {
+     "lookups": 234194,
+     "hits": 228217,
+     "staleHits": 10536,
+     "hitRatio": 0.974478423870808,
+     "staleShare": 0.04616658706406622
+    },
+    "site_ProductVariant_catalog_entities_ProductVariant_req_wishlistView_fieldCatalog_ProductVariant_currentVersion": {
+     "lookups": 9267,
+     "hits": 6168,
+     "staleHits": 93,
+     "hitRatio": 0.6655875687924895,
+     "staleShare": 0.015077821011673152
+    },
+    "site_ProductVariant_catalog_entities_ProductVariant_req_wishlistView_fieldCatalog_ProductVariant_product": {
+     "lookups": 9267,
+     "hits": 6168,
+     "staleHits": 61,
+     "hitRatio": 0.6655875687924895,
+     "staleShare": 0.009889753566796368
+    },
+    "site_ProductVariant_req_adminCreateProduct_fieldCatalog_Product_defaultVariant": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_ProductVariant_req_adminCreateProduct_readCategory": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_ProductVariant_req_adminCreateProduct_readCategoryCharacteristic": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_ProductVariant_req_adminCreateProduct_readMedia": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_ProductVariant_req_adminCreateProduct_readTaxRate": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_ProductVariant_req_adminCreateVariant_readCategory": {
+     "lookups": 62,
+     "hits": 2,
+     "staleHits": 0,
+     "hitRatio": 0.03225806451612903,
+     "staleShare": 0.0
+    },
+    "site_ProductVariant_req_adminCreateVariant_readCategoryCharacteristic": {
+     "lookups": 62,
+     "hits": 2,
+     "staleHits": 0,
+     "hitRatio": 0.03225806451612903,
+     "staleShare": 0.0
+    },
+    "site_ProductVariant_req_adminCreateVariant_readMedia": {
+     "lookups": 43,
+     "hits": 1,
+     "staleHits": 0,
+     "hitRatio": 0.023255813953488372,
+     "staleShare": 0.0
+    },
+    "site_ProductVariant_req_adminCreateVariant_readProduct": {
+     "lookups": 43,
+     "hits": 1,
+     "staleHits": 0,
+     "hitRatio": 0.023255813953488372,
+     "staleShare": 0.0
+    },
+    "site_ProductVariant_req_adminCreateVariant_readTaxRate": {
+     "lookups": 43,
+     "hits": 12,
+     "staleHits": 1,
+     "hitRatio": 0.27906976744186046,
+     "staleShare": 0.08333333333333333
+    },
+    "site_ProductVariant_req_adminNewPrice_readCategory": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_ProductVariant_req_adminNewPrice_readCategoryCharacteristic": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_ProductVariant_req_adminNewPrice_readMedia": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_ProductVariant_req_adminNewPrice_readProduct": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_ProductVariant_req_adminNewPrice_readTaxRate": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_Product_catalog_Product_categories_readCategory": {
+     "lookups": 317096,
+     "hits": 312702,
+     "staleHits": 12,
+     "hitRatio": 0.9861429977041652,
+     "staleShare": 3.837519427442101e-05
+    },
+    "site_Product_req_adminCreateProduct_fieldCatalog_Product_defaultVariant": {
+     "lookups": 52,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_Product_req_adminCreateProduct_readCategory": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_Product_req_adminCreateProduct_readCategoryCharacteristic": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_Product_req_adminCreateProduct_readMedia": {
+     "lookups": 52,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_Product_req_adminCreateProduct_readTaxRate": {
+     "lookups": 52,
+     "hits": 13,
+     "staleHits": 0,
+     "hitRatio": 0.25,
+     "staleShare": 0.0
+    },
+    "site_Product_req_adminUpdateProduct_readProductVariant": {
+     "lookups": 114,
+     "hits": 2,
+     "staleHits": 0,
+     "hitRatio": 0.017543859649122806,
+     "staleShare": 0.0
+    },
+    "site_Product_req_product_fieldCatalog_Product_categories": {
+     "lookups": 234194,
+     "hits": 228217,
+     "staleHits": 32,
+     "hitRatio": 0.974478423870808,
+     "staleShare": 0.00014021742464408873
+    },
+    "site_Product_req_product_fieldCatalog_Product_defaultVariant": {
+     "lookups": 234194,
+     "hits": 228217,
+     "staleHits": 3716,
+     "hitRatio": 0.974478423870808,
+     "staleShare": 0.016282748436794805
+    },
+    "site_Product_req_product_fieldCatalog_Product_variants": {
+     "lookups": 234194,
+     "hits": 228217,
+     "staleHits": 3716,
+     "hitRatio": 0.974478423870808,
+     "staleShare": 0.016282748436794805
+    },
+    "site_Return_req_return_createReturn_readOrder": {
+     "lookups": 299,
+     "hits": 3,
+     "staleHits": 0,
+     "hitRatio": 0.010033444816053512,
+     "staleShare": 0.0
+    },
+    "site_Return_req_return_createReturn_readOrderItem": {
+     "lookups": 299,
+     "hits": 3,
+     "staleHits": 0,
+     "hitRatio": 0.010033444816053512,
+     "staleShare": 0.0
+    },
+    "site_Return_req_return_createReturn_readProductVariantVersion": {
+     "lookups": 10,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_Return_req_return_createReturn_readShipment": {
+     "lookups": 299,
+     "hits": 3,
+     "staleHits": 3,
+     "hitRatio": 0.010033444816053512,
+     "staleShare": 1.0
+    },
+    "site_Review_req_createReview_readProductVariant": {
+     "lookups": 539,
+     "hits": 64,
+     "staleHits": 2,
+     "hitRatio": 0.11873840445269017,
+     "staleShare": 0.03125
+    },
+    "site_Review_req_createReview_readUser": {
+     "lookups": 539,
+     "hits": 9,
+     "staleHits": 0,
+     "hitRatio": 0.016697588126159554,
+     "staleShare": 0.0
+    },
+    "site_ShipmentMethod_shipment_calculateShipmentFees_readProductVariantVersion": {
+     "lookups": 10141,
+     "hits": 6995,
+     "staleHits": 97,
+     "hitRatio": 0.6897741840055222,
+     "staleShare": 0.013867047891350966
+    },
+    "site_Shipment_shipment_on_payment_payment_payment_enabled_readProductVariantVersion": {
+     "lookups": 9913,
+     "hits": 7118,
+     "staleHits": 74,
+     "hitRatio": 0.7180470089781096,
+     "staleShare": 0.010396178701882551
+    },
+    "site_Shipment_shipment_on_payment_payment_payment_enabled_readShipmentMethod": {
+     "lookups": 9913,
+     "hits": 9635,
+     "staleHits": 62,
+     "hitRatio": 0.9719560173509533,
+     "staleShare": 0.006434872859366891
+    },
+    "site_Shipment_shipment_on_payment_payment_payment_enabled_readUserAddress": {
+     "lookups": 9913,
+     "hits": 2460,
+     "staleHits": 0,
+     "hitRatio": 0.24815898315343488,
+     "staleShare": 0.0
+    },
+    "site_Shipment_shipment_on_return_return_created_readProductVariantVersion": {
+     "lookups": 10,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_Shipment_shipment_on_return_return_created_readShipmentMethod": {
+     "lookups": 299,
+     "hits": 168,
+     "staleHits": 1,
+     "hitRatio": 0.5618729096989966,
+     "staleShare": 0.005952380952380952
+    },
+    "site_Shipment_shipment_on_return_return_created_readVendorAddress": {
+     "lookups": 299,
+     "hits": 281,
+     "staleHits": 27,
+     "hitRatio": 0.939799331103679,
+     "staleShare": 0.09608540925266904
+    },
+    "site_ShoppingCartItem_req_createShoppingcartItem_readProductVariant": {
+     "lookups": 33690,
+     "hits": 29077,
+     "staleHits": 533,
+     "hitRatio": 0.8630750964677946,
+     "staleShare": 0.01833063933693297
+    },
+    "site_ShoppingCart_req_createShoppingcartItem_readProductVariant": {
+     "lookups": 0,
+     "hits": 0,
+     "staleHits": 0,
+     "hitRatio": 0.0,
+     "staleShare": 0.0
+    },
+    "site_UserAddress_req_address_createUserAddress_readUser": {
+     "lookups": 512,
+     "hits": 9,
+     "staleHits": 0,
+     "hitRatio": 0.017578125,
+     "staleShare": 0.0
+    },
+    "site_User_req_address_fieldAddress_User_addresses": {
+     "lookups": 27475,
+     "hits": 1229,
+     "staleHits": 37,
+     "hitRatio": 0.04473157415832575,
+     "staleShare": 0.030105777054515868
+    },
+    "site_User_req_notifications_fieldNotification_User_notifications": {
+     "lookups": 2667,
+     "hits": 209,
+     "staleHits": 0,
+     "hitRatio": 0.07836520434945632,
+     "staleShare": 0.0
+    },
+    "site_User_req_paymentInformations_fieldPayment_User_paymentInformations": {
+     "lookups": 10689,
+     "hits": 255,
+     "staleHits": 20,
+     "hitRatio": 0.023856300870053325,
+     "staleShare": 0.0784313725490196
+    },
+    "site_Wishlist_req_addToWishlist_readProductVariant": {
+     "lookups": 1077,
+     "hits": 235,
+     "staleHits": 2,
+     "hitRatio": 0.2181987000928505,
+     "staleShare": 0.00851063829787234
+    },
+    "site_Wishlist_req_wishlistView_fieldWishlist_Wishlist_productVariants": {
+     "lookups": 2644,
+     "hits": 197,
+     "staleHits": 6,
+     "hitRatio": 0.07450832072617247,
+     "staleShare": 0.030456852791878174
+    },
+    "site_Wishlist_req_wishlist_createWishlist_readProductVariant": {
+     "lookups": 11,
+     "hits": 1,
+     "staleHits": 0,
+     "hitRatio": 0.09090909090909091,
+     "staleShare": 0.0
+    },
+    "site_Wishlist_req_wishlist_createWishlist_readUser": {
+     "lookups": 255,
+     "hits": 1,
+     "staleHits": 0,
+     "hitRatio": 0.00392156862745098,
+     "staleShare": 0.0
+    },
+    "site_Wishlist_wishlist_Wishlist_productVariants_req_wishlistView_fieldCatalog_entities_ProductVariant": {
+     "lookups": 9267,
+     "hits": 6168,
+     "staleHits": 138,
+     "hitRatio": 0.6655875687924895,
+     "staleShare": 0.02237354085603113
+    },
+    "site_Wishlist_wishlist_Wishlist_productVariants_req_wishlistView_readProductVariant": {
+     "lookups": 118,
+     "hits": 6,
+     "staleHits": 0,
+     "hitRatio": 0.05084745762711865,
+     "staleShare": 0.0
+    }
+   }
+  }
+ }
+}

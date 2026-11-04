@@ -1,0 +1,133 @@
+# CPU buckets of a service container (README.md §3.1), applied to async-profiler folded stacks by profile_buckets.py.
+#
+# Frames are written as async-profiler prints them: Java frames slash-separated (org/misarch/order/Foo.bar),
+# native frames as C++/C names (CompileBroker::compiler_thread_loop). A pattern matches a frame if the frame starts
+# with it; a pattern starting with "~" matches anywhere in the frame.
+#
+# Matching: each sample's stack is scanned from the leaf towards the root. Every frame is classified by the first
+# bucket below (file order) that has a matching pattern; frames no bucket matches (JDK, Kotlin stdlib, coroutines,
+# Reactor core, Spring core, JIT stubs) are transparent and the scan goes on. The first frame of a `strong` bucket
+# decides the sample. A `weak` bucket (Netty and Reactor Netty transport) only remembers itself as the fallback and
+# the scan goes on, so transport frames under the R2DBC driver count as db-driver and transport frames under the
+# WebClient count as dapr-client, while bare event-loop work stays http. A stack without a strong match takes its
+# first weak bucket, else it is `unmatched` (reported; target < 5 % of the CPU after the idle baseline).
+#
+# part: what the bucket feeds in parts.py (§3.3)
+#   access       app side of the accesses (P = db-driver + mapping, split by the alpha/beta fit)
+#   own          the operation's own work
+#   middleware   already in the calibrated hop/publish costs (parts.json `middleware`): subtracted, not double-counted
+#   shared       per-request overhead (gc: GC and JVM threads; jit: compiler threads) spread over the window's requests
+#                in proportion (GC stays a real cost, jit flags a cold segment)
+#   instrumentation  cost of the "on" configuration itself (spans incl. the instrumentation build's TimingSpans and the OTLP export via okhttp, profiler): excluded from the share denominator
+buckets:
+  # JIT compiler threads (C1, C2, the code cache sweeper): a warm-up cost, kept apart from GC, so a
+  # steady segment with a jit share above ~3 % is flagged as not warm (profile_buckets.py `jitFlag`).
+  - name: jit
+    part: shared
+    strength: strong
+    frames:
+      - "CompileBroker::"
+      - "C2Compiler::"
+      - "Compilation::"
+      - "Compile::"
+      - ~CompilerThread
+      - ~SweeperThread
+  # GC and the other JVM runtime threads (VM thread, safepoints, service and monitor-deflation threads): a real
+  # per-request cost (allocation), spread over the requests like the jit bucket.
+  - name: gc
+    part: shared
+    strength: strong
+    frames:
+      - VM_SerialCollectForAllocation
+      - VM_GenCollect
+      - VM_G1
+      - "~CollectedHeap::"
+      - ~GCTask
+      - "~WorkerThread::"
+      - "ConcurrentGCThread::"
+      - G1
+      - "SerialHeap::"
+      - "GenCollectedHeap::"
+      - "DefNewGeneration::"
+      - "TenuredGeneration::"
+      - "MarkSweep::"
+      - "VMThread::"
+      - "VM_Operation::"
+      - "SafepointSynchronize::"
+      - "MonitorDeflationThread::"
+      - "ServiceThread::"
+  - name: instrumentation
+    part: instrumentation
+    strength: strong
+    frames:
+      - io/opentelemetry/
+      - org/misarch/common/timing/
+      - okhttp3/
+      - okio/
+      - one/profiler/
+      - "Profiler::"
+      - "ITimer::"
+  - name: db-driver
+    part: access
+    strength: strong
+    frames:
+      - io/r2dbc/postgresql/
+      - io/r2dbc/pool/
+      - io/r2dbc/spi/
+      - org/postgresql/
+  - name: mapping
+    part: access
+    strength: strong
+    frames:
+      - org/springframework/data/r2dbc/
+      - org/springframework/data/relational/
+      - org/springframework/data/mapping/
+      - org/springframework/data/repository/
+      - org/springframework/data/convert/
+      - org/springframework/r2dbc/
+      - org/springframework/transaction/
+      - ~/persistence/
+  - name: dapr-client
+    part: middleware
+    strength: strong
+    frames:
+      - org/misarch/common/event/EventPublisher
+      - org/misarch/common/event/DaprServiceInvoker
+      - org/springframework/web/reactive/function/client/
+      - reactor/netty/http/client/
+  - name: serialisation
+    part: own
+    strength: strong
+    frames:
+      - tools/jackson/
+      - com/fasterxml/jackson/
+  - name: graphql
+    part: own
+    strength: strong
+    frames:
+      - graphql/
+      - com/expediagroup/graphql/
+      - org/dataloader/
+  - name: resolver
+    part: own
+    strength: strong
+    frames:
+      - org/misarch/
+  - name: http
+    part: own
+    strength: strong
+    frames:
+      - reactor/netty/http/server/
+      - org/springframework/web/reactive/
+      - org/springframework/web/server/
+      - org/springframework/http/
+      - io/micrometer/
+  - name: http
+    part: own
+    strength: weak
+    frames:
+      - reactor/netty/
+      - io/netty/
+      - ~libnetty_transport_native_epoll
+      - epoll_
+      - accept4

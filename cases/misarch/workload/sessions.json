@@ -1,0 +1,480 @@
+{
+  "version": 1,
+  "about": "Session usage model of MiSArch (work package C1; WORKLOAD.md). Operation names are the msa model's (misarch-optimization/msa/models/misarch-kotlin.m) until work package A maps them to the extracted GraphQL operations; 'login' is Keycloak's password grant (the Gatling 'Get Access Token'). Times in seconds. Distributions are StoEx strings as SimOxide evaluates them. Step language: {call}, {think} (a named think time), {delay} (a StoEx), {loop, body}, {branch: [{p, body}]}, {use} (a fragment). Generator: workload/gen_sessions.py.",
+  "sources": {
+    "G": "MiSArch Gatling scenarios (Ceres experiment-executor templates template_buyProcessScenario.kt and template_abortedBuyProcessScenario.kt; misarch-optimization/02-misarch-experiments-workload.md §2.1): request order, pauses U(4,10) s after the product list, U(0.05,0.15) s between the requests of one page, U(4,7) s after the cart and after the payment data, U(8,12) s before placeOrder.",
+    "C": "Ceres realistic 30-min run and its 12-h load trace template_realisticUserSteps.csv (02 §2.2, §3.1): 34 % buy / 66 % aborted sessions; arrivals per second have index of dispersion 0.96 (Poisson-like); 60-s windows peak at 1.9 x the mean, 5-min windows at 1.5 x, hours vary by ±15 %.",
+    "R2": "Round 2 (msa gen_model.py GATLING_RATES, EXTENDED_RATES, KOTLIN_BUY_SHARE = 0.3433; misarch-optimization/calibration/plans/mix_gatling.json): per session one token, products, product, users, address, createShoppingcartItem, and 0.3433 x the four buy requests; assumed rates for operations the load tests never call. Design load 64.2 sessions/s = 0.6 x the measured saturation 107 sessions/s.",
+    "TPCW": "TPC Benchmark W (TPC-W) specification v1.8, 2002, clause 5 (web interaction mixes): browsing mix 95 % browse / 5 % order interactions, shopping mix 80/20, ordering mix 50/50; think times negative-exponential with mean 7 s (clause 5.3.1.1). Per-page shares as reproduced by Kaszo et al. 2006 (https://conf.uni-obuda.hu/huci2006/43_Kaszo.pdf).",
+    "CBMG": "D. A. Menasce, V. A. F. Almeida, R. Fonseca, M. A. Mendes: A methodology for workload characterization of e-commerce sites. ACM EC 1999 (customer behaviour model graphs: sessions as probabilistic state machines; customer classes, e.g. occasional vs heavy buyers).",
+    "BAY": "Baymard Institute: average documented online shopping cart abandonment rate 70.19 % (49 studies, 2023) / 70.22 % (2025), https://baymard.com/lists/cart-abandonment-rate.",
+    "VEND": "Vendor e-commerce benchmarks (e.g. Littledata, Dynamic Yield, via https://www.smartinsights.com/ecommerce/ecommerce-analytics/typical-average-add-cart-conversion-rates/): about 5-7 % of sessions add to cart, 1.4-3 % convert. Not peer reviewed; used only as an order of magnitude.",
+    "BURST": "N. Mi, G. Casale, L. Cherkasova, E. Smirni: Injecting realistic burstiness to a traditional client-server benchmark. ICAC 2009, 149-158 (burstiness injected into TPC-W, controlled by the index of dispersion); N. Mi et al.: Burstiness in multi-tier applications: symptoms, causes, and new models. Middleware 2008.",
+    "SPIKE": "P. Bodik, A. Fox, M. J. Franklin, M. I. Jordan, D. A. Patterson: Characterizing, modeling, and generating workload spikes for stateful services. ACM SoCC 2010 (spikes: a steep volume increase together with a shift of what is requested).",
+    "DLIM": "J. von Kistowski, N. Herbst, S. Kounev, H. Groenda, C. Stier, S. Lehrig: Modeling and extracting load intensity profiles. ACM TAAS 11(4), 2017 (load intensity = seasonal part + trend + bursts + noise; DLIM/LIMBO, used with Palladio/SimuLizar).",
+    "A": "Assumption of this package (flagged in WORKLOAD.md)."
+  },
+  "think": {
+    "list": {"dist": "UniDouble(4.0, 10.0)", "src": "G (mean 7 s = TPCW's mean think time)"},
+    "product": {"dist": "UniDouble(4.0, 10.0)", "src": "A (like a list page; TPCW mean 7 s)"},
+    "sub": {"dist": "UniDouble(0.05, 0.15)", "src": "G (requests of one page)"},
+    "checkout": {"dist": "UniDouble(4.0, 7.0)", "src": "G"},
+    "confirm": {"dist": "UniDouble(8.0, 12.0)", "src": "G"},
+    "account": {"dist": "UniDouble(4.0, 10.0)", "src": "A"},
+    "admin": {"dist": "UniDouble(10.0, 30.0)", "src": "A"}
+  },
+  "fragments": {
+    "checkout": {
+      "src": "G (buy part of buyProcessScenario); parameters: section cardinalities",
+      "steps": [
+        {"think": "checkout"},
+        {"call": "shipmentMethods"},
+        {"call": "paymentInformations"},
+        {"think": "checkout"},
+        {
+          "call": "createOrder",
+          "params": {
+            "items.NUMBER_OF_ELEMENTS": "${items}",
+            "quantity.VALUE": "@quantityPerItem",
+            "coupons.NUMBER_OF_ELEMENTS": "@couponsPerOrder",
+            "paymentMethod.VALUE": "@paymentMethod"
+          }
+        },
+        {"think": "confirm"},
+        {
+          "call": "placeOrder",
+          "params": {"items.NUMBER_OF_ELEMENTS": "${items}", "quantity.VALUE": "@quantityPerItem"}
+        }
+      ],
+      "args": ["items"]
+    },
+    "cartStart": {
+      "src": "G (product page with user and addresses, then the cart), CBMG (a few product views first), A (registration share)",
+      "steps": [
+        {"call": "products"},
+        {"loop": "IntPMF[(0;0.3)(1;0.4)(2;0.2)(3;0.1)]", "body": [{"think": "list"}, {"call": "product"}]},
+        {"think": "product"},
+        {"branch": [{"p": 0.03, "body": [{"call": "registration"}]}, {"p": 0.97, "body": []}]},
+        {"call": "login"},
+        {"call": "product"},
+        {"think": "sub"},
+        {"call": "users"},
+        {"think": "sub"},
+        {"call": "address"},
+        {"think": "sub"},
+        {"call": "createShoppingcartItem"}
+      ]
+    },
+    "secondItem": {
+      "src": "A (25 % of cart sessions add a second item)",
+      "steps": [{"think": "product"}, {"call": "product"}, {"think": "sub"}, {"call": "createShoppingcartItem"}]
+    }
+  },
+  "classes": {
+    "browser": {
+      "about": "Anonymous window shopper: the product list, then product pages, sometimes back to the list (search/browse). MiSArch serves public products without a token (catalog Query.products: anonymous users see public products), so no login.",
+      "src": "CBMG, TPCW (browse interactions), A (view counts)",
+      "steps": [
+        {"call": "products"},
+        {
+          "loop": "IntPMF[(1;0.35)(2;0.25)(3;0.15)(4;0.10)(5;0.08)(6;0.07)]",
+          "body": [
+            {"think": "list"},
+            {"call": "product"},
+            {
+              "branch": [{"p": 0.3, "body": [{"think": "product"}, {"call": "products"}]}, {"p": 0.7, "body": []}]
+            }
+          ]
+        }
+      ]
+    },
+    "cartAbandoner": {
+      "about": "Puts items into the cart and leaves (Gatling abortedBuyProcessScenario, with browsing first).",
+      "src": "G, C, BAY",
+      "steps": [
+        {"use": "cartStart"},
+        {"branch": [{"p": 0.25, "body": [{"use": "secondItem"}]}, {"p": 0.75, "body": []}]}
+      ]
+    },
+    "buyer": {
+      "about": "Puts items into the cart and buys (Gatling buyProcessScenario, with browsing first).",
+      "src": "G, C",
+      "steps": [
+        {"use": "cartStart"},
+        {
+          "branch": [
+            {"p": 0.75, "body": [{"use": "checkout", "args": {"items": "1"}}]},
+            {"p": 0.25, "body": [{"use": "secondItem"}, {"use": "checkout", "args": {"items": "2"}}]}
+          ]
+        }
+      ]
+    },
+    "account": {
+      "about": "Returning customer: logs in and does one to three account tasks; the tasks' weights are round 2's assumed rates of these operations.",
+      "src": "R2 (EXTENDED_RATES as weights), A (tasks per session, task sequences)",
+      "steps": [
+        {"call": "login"},
+        {"call": "users"},
+        {
+          "loop": "IntPMF[(1;0.6)(2;0.3)(3;0.1)]",
+          "body": [
+            {"think": "account"},
+            {
+              "branch": [
+                {"p": 0.1, "name": "orderTracking", "body": [{"call": "orderTracking"}]},
+                {"p": 0.05, "name": "notifications", "body": [{"call": "notifications"}]},
+                {"p": 0.05, "name": "wishlistView", "body": [{"call": "wishlistView"}]},
+                {
+                  "p": 0.02,
+                  "name": "wishlistAdd",
+                  "body": [{"call": "product"}, {"think": "sub"}, {"call": "addToWishlist"}]
+                },
+                {"p": 0.005, "name": "wishlistCreate", "body": [{"call": "wishlist.createWishlist"}]},
+                {
+                  "p": 0.01,
+                  "name": "review",
+                  "body": [{"call": "orderTracking"}, {"think": "account"}, {"call": "createReview"}]
+                },
+                {
+                  "p": 0.005,
+                  "name": "return",
+                  "body": [{"call": "orderTracking"}, {"think": "account"}, {"call": "return.createReturn"}]
+                },
+                {"p": 0.005, "name": "profile", "body": [{"call": "user.updateUser"}]},
+                {
+                  "p": 0.01,
+                  "name": "address",
+                  "body": [{"call": "address"}, {"think": "sub"}, {"call": "address.createUserAddress"}]
+                },
+                {
+                  "p": 0.01,
+                  "name": "payment",
+                  "body": [
+                    {"call": "paymentInformations"},
+                    {"think": "sub"},
+                    {"call": "payment.createCreditCardPaymentInformation"}
+                  ]
+                },
+                {"p": 0.01, "name": "coupon", "body": [{"call": "discount.registerCoupon"}]}
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "admin": {
+      "about": "Employee maintaining the catalogue, stock, prices, discounts, taxes and shipment methods; weights are round 2's assumed admin rates. Its own scenario with a constant rate: admin work does not follow the customers' load (R2 scaled it with the load).",
+      "src": "R2 (EXTENDED_RATES as weights), A (session length, think time, constant rate)",
+      "steps": [
+        {"call": "login"},
+        {
+          "loop": "IntPMF[(1;0.4)(2;0.3)(3;0.2)(5;0.1)]",
+          "body": [
+            {"think": "admin"},
+            {
+              "branch": [
+                {"p": 0.01, "body": [{"call": "inventory.createProductItemBatch"}]},
+                {"p": 0.002, "body": [{"call": "adminNewPrice"}]},
+                {"p": 0.002, "body": [{"call": "adminUpdateProduct"}]},
+                {"p": 0.001, "body": [{"call": "adminCreateProduct"}]},
+                {"p": 0.001, "body": [{"call": "adminCreateVariant"}]},
+                {"p": 0.001, "body": [{"call": "catalog.updateProductVariant"}]},
+                {"p": 0.001, "body": [{"call": "media.uploadMedia"}]},
+                {"p": 0.001, "body": [{"call": "discount.createDiscount"}]},
+                {"p": 0.001, "body": [{"call": "discount.createCoupon"}]},
+                {"p": 0.0001, "body": [{"call": "catalog.createCategory"}]},
+                {"p": 0.0001, "body": [{"call": "tax.createTaxRate"}]},
+                {"p": 0.0001, "body": [{"call": "tax.createTaxRateVersion"}]},
+                {"p": 0.0001, "body": [{"call": "shipment.createShipmentMethod"}]},
+                {"p": 0.0001, "body": [{"call": "address.createVendorAddress"}]}
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "gatling": {
+      "about": "Round 2's workload as one session: the Gatling buy/aborted scenario (buy share 0.3433), then with probability 0.199 one of the operations round 2 added with assumed rates (weights = those rates). Its per-operation rates equal round 2's exactly (gen_sessions.py --check verifies).",
+      "src": "G, R2",
+      "steps": [
+        {"call": "login"},
+        {"call": "products"},
+        {"think": "list"},
+        {"call": "product"},
+        {"think": "sub"},
+        {"call": "users"},
+        {"think": "sub"},
+        {"call": "address"},
+        {"think": "sub"},
+        {"call": "createShoppingcartItem"},
+        {
+          "branch": [
+            {
+              "p": 0.3433,
+              "body": [
+                {
+                  "use": "checkout",
+                  "args": {"items": "1"},
+                  "with": {"quantityPerItem": "1", "couponsPerOrder": "0"}
+                }
+              ]
+            },
+            {"p": 0.6567, "body": []}
+          ]
+        },
+        {
+          "branch": [
+            {"p": 0.801051585, "body": []},
+            {
+              "p": 0.198948415,
+              "body": [
+                {"think": "account"},
+                {
+                  "branch": [
+                    {"p": 0.1, "body": [{"call": "orderTracking"}]},
+                    {"p": 0.05, "body": [{"call": "notifications"}]},
+                    {"p": 0.05, "body": [{"call": "wishlistView"}]},
+                    {"p": 0.02, "body": [{"call": "addToWishlist"}]},
+                    {"p": 0.01, "body": [{"call": "address.createUserAddress"}]},
+                    {"p": 0.01, "body": [{"call": "discount.registerCoupon"}]},
+                    {"p": 0.01, "body": [{"call": "payment.createCreditCardPaymentInformation"}]},
+                    {"p": 0.01, "body": [{"call": "createReview"}]},
+                    {"p": 0.005, "body": [{"call": "registration"}]},
+                    {"p": 0.005, "body": [{"call": "user.updateUser"}]},
+                    {"p": 0.005, "body": [{"call": "wishlist.createWishlist"}]},
+                    {"p": 0.005, "body": [{"call": "return.createReturn"}]}
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "gatlingAdmin": {
+      "about": "Round 2's admin operations, one per session, no login, at round 2's assumed rates.",
+      "src": "R2",
+      "steps": [
+        {
+          "branch": [
+            {"p": 0.01, "body": [{"call": "inventory.createProductItemBatch"}]},
+            {"p": 0.002, "body": [{"call": "adminNewPrice"}]},
+            {"p": 0.002, "body": [{"call": "adminUpdateProduct"}]},
+            {"p": 0.001, "body": [{"call": "adminCreateProduct"}]},
+            {"p": 0.001, "body": [{"call": "adminCreateVariant"}]},
+            {"p": 0.001, "body": [{"call": "catalog.updateProductVariant"}]},
+            {"p": 0.001, "body": [{"call": "media.uploadMedia"}]},
+            {"p": 0.001, "body": [{"call": "discount.createDiscount"}]},
+            {"p": 0.001, "body": [{"call": "discount.createCoupon"}]},
+            {"p": 0.0001, "body": [{"call": "catalog.createCategory"}]},
+            {"p": 0.0001, "body": [{"call": "tax.createTaxRate"}]},
+            {"p": 0.0001, "body": [{"call": "tax.createTaxRateVersion"}]},
+            {"p": 0.0001, "body": [{"call": "shipment.createShipmentMethod"}]},
+            {"p": 0.0001, "body": [{"call": "address.createVendorAddress"}]}
+          ]
+        }
+      ]
+    }
+  },
+  "browseOperations": ["products", "product", "wishlistView", "notifications"],
+  "workloads": {
+    "round2": {
+      "about": "Round 2's load as sessions: same operation rates at every load level (validation against the measured system and the round-2 models).",
+      "customers": {"gatling": 1.0},
+      "designSessions": 64.2,
+      "admin": {"class": "gatlingAdmin", "rate": "scales", "sessionsPerSecondAtLoadFactor1": 0.0205}
+    },
+    "realistic": {
+      "about": "Session classes with a mix per phase; the design load is the number of sessions at which the shopping mix sends as many client requests (logins included, admin excluded) as round 2 at 64.2 sessions/s.",
+      "mixes": {
+        "browsing": {
+          "src": "TPCW browsing mix (95/5)",
+          "shares": {"browser": 0.88, "cartAbandoner": 0.06, "buyer": 0.025, "account": 0.035}
+        },
+        "shopping": {
+          "src": "TPCW shopping mix (80/20); buyers / cart sessions = 1/3 (G, C, BAY)",
+          "shares": {"browser": 0.64, "cartAbandoner": 0.18, "buyer": 0.09, "account": 0.09}
+        },
+        "ordering": {
+          "src": "TPCW ordering mix (50/50); a sale converts more of its carts (A: 1/2)",
+          "shares": {"browser": 0.24, "cartAbandoner": 0.27, "buyer": 0.27, "account": 0.22}
+        }
+      },
+      "baseMix": "shopping",
+      "requestsEquivalentTo": "round2",
+      "admin": {
+        "class": "admin",
+        "rate": "constant",
+        "operationsPerSecond": "round 2's admin operations at the design load"
+      }
+    }
+  },
+  "profiles": {
+    "day": {
+      "about": "A compressed day (DLIM: seasonal part + bursts): a low browsing night, a morning ramp, midday shopping with a short burst (C: 60-s peaks of 1.9 x), a sale spike with the ordering mix (SPIKE: volume and mix change together; BURST), an evening peak, a browsing decline. volume = sessions relative to the realistic workload's design sessions; admin stays constant. The first 120 s warm up and are not measured.",
+      "warmUpSeconds": 120.0,
+      "endSeconds": 1320.0,
+      "phases": [
+        {"from": 0.0, "volume": 0.6, "mix": "browsing", "name": "night"},
+        {"from": 300.0, "volume": 0.8, "mix": "shopping", "name": "morning"},
+        {"from": 420.0, "volume": 1.0, "mix": "shopping", "name": "midday"},
+        {"from": 600.0, "volume": 1.6, "mix": "shopping", "name": "burst"},
+        {"from": 660.0, "volume": 1.0, "mix": "shopping", "name": "afternoon"},
+        {"from": 780.0, "volume": 1.3, "mix": "ordering", "name": "sale"},
+        {"from": 900.0, "volume": 1.3, "mix": "shopping", "name": "evening"},
+        {"from": 1080.0, "volume": 1.0, "mix": "browsing", "name": "late"},
+        {"from": 1200.0, "volume": 0.6, "mix": "browsing", "name": "night2"}
+      ]
+    },
+    "steady": {
+      "about": "The base mix at the design load throughout (stationary comparison with round 2's static evaluation).",
+      "warmUpSeconds": 120.0,
+      "endSeconds": 720.0,
+      "phases": [{"from": 0.0, "volume": 1.0, "mix": "shopping", "name": "steady"}]
+    }
+  },
+  "requests": {
+    "addToWishlist": {"msa": "updateWishlist", "operations": ["wishlist.updateWishlist"], "roundTwoRequest": "addToWishlist"},
+    "address": {
+      "msa": "currentUserAddresses",
+      "operations": ["user.currentUser", "address._entities.User", "address.User.addresses"],
+      "roundTwoRequest": "address"
+    },
+    "address.createUserAddress": {"msa": "createUserAddress", "operations": ["address.createUserAddress"]},
+    "address.createVendorAddress": {"msa": "createVendorAddress", "operations": ["address.createVendorAddress"]},
+    "adminCreateProduct": {
+      "msa": "createProduct",
+      "operations": ["catalog.createProduct", "catalog.Product.defaultVariant"],
+      "roundTwoRequest": "adminCreateProduct"
+    },
+    "adminCreateVariant": {
+      "msa": "createProductVariant",
+      "operations": ["catalog.createProductVariant"],
+      "roundTwoRequest": "adminCreateVariant"
+    },
+    "adminNewPrice": {
+      "msa": "createProductVariantVersion",
+      "operations": ["catalog.createProductVariantVersion"],
+      "roundTwoRequest": "adminNewPrice"
+    },
+    "adminUpdateProduct": {"msa": "updateProduct", "operations": ["catalog.updateProduct"], "roundTwoRequest": "adminUpdateProduct"},
+    "catalog.createCategory": {"msa": "createCategory", "operations": ["catalog.createCategory"]},
+    "catalog.updateProductVariant": {"msa": "updateProductVariant", "operations": ["catalog.updateProductVariant"]},
+    "createOrder": {"msa": "createOrder", "operations": ["order.createOrder"], "roundTwoRequest": "createOrder"},
+    "createReview": {"msa": "createReview", "operations": ["review.createReview"], "roundTwoRequest": "createReview"},
+    "createShoppingcartItem": {
+      "msa": "createShoppingcartItem",
+      "operations": ["shoppingcart.createShoppingcartItem"],
+      "roundTwoRequest": "createShoppingcartItem"
+    },
+    "discount.createCoupon": {"msa": "createCoupon", "operations": ["discount.createCoupon"]},
+    "discount.createDiscount": {"msa": "createDiscount", "operations": ["discount.createDiscount"]},
+    "discount.registerCoupon": {"msa": "registerCoupon", "operations": ["discount.registerCoupon"]},
+    "inventory.createProductItemBatch": {"msa": "createProductItemBatch", "operations": ["inventory.createProductItemBatch"]},
+    "login": {
+      "msa": null,
+      "operations": [],
+      "note": "Keycloak password grant (Gatling 'Get Access Token'); not a MiSArch operation"
+    },
+    "media.uploadMedia": {
+      "msa": "uploadMedia",
+      "operations": ["media.uploadMedia"],
+      "note": "msaMapping names media.createMedia, which is not an operation id; the mutation is media.uploadMedia"
+    },
+    "notifications": {
+      "msa": "currentUserNotifications",
+      "operations": ["user.currentUser", "notification._entities.User", "notification.User.notifications"],
+      "note": "no round-2 request document; plan by analogy with `address` (root currentUser, User.notifications joined from notification)"
+    },
+    "orderTracking": {
+      "msa": "myOrders",
+      "operations": ["order.order", "order.Order.orderItems", "shipment._entities.Order", "shipment.Order.shipments"],
+      "roundTwoRequest": "orderTracking"
+    },
+    "payment.createCreditCardPaymentInformation": {"msa": "createPaymentInformation", "operations": ["payment.createCreditCardPaymentInformation"]},
+    "paymentInformations": {
+      "msa": "currentUserPaymentInfos",
+      "operations": ["user.currentUser", "payment._entities.User", "payment.User.paymentInformations"],
+      "roundTwoRequest": "paymentInformations"
+    },
+    "placeOrder": {"msa": "placeOrder", "operations": ["order.placeOrder"], "roundTwoRequest": "placeOrder"},
+    "product": {
+      "msa": "product",
+      "operations": [
+        "catalog.product",
+        "catalog.Product.categories",
+        "catalog.Product.defaultVariant",
+        "review._entities.ProductVariant",
+        "review.ProductVariant.averageRating",
+        "catalog.Product.variants"
+      ],
+      "roundTwoRequest": "product"
+    },
+    "products": {"msa": "products", "operations": ["catalog.products"], "roundTwoRequest": "products"},
+    "registration": {
+      "msa": "createUser",
+      "operations": ["user.on:user/user/create"],
+      "note": "Keycloak registration; the user service handles Keycloak's user/user/create event (round 2: eventUserCreate)"
+    },
+    "return.createReturn": {"msa": "createReturn", "operations": ["return.createReturn"]},
+    "shipment.createShipmentMethod": {"msa": "createShipmentMethod", "operations": ["shipment.createShipmentMethod"]},
+    "shipmentMethods": {
+      "msa": "shipmentMethods",
+      "operations": ["shipment.shipmentMethods"],
+      "roundTwoRequest": "shipmentMethods"
+    },
+    "tax.createTaxRate": {"msa": "createTaxRate", "operations": ["tax.createTaxRate"]},
+    "tax.createTaxRateVersion": {"msa": "createTaxRateVersion", "operations": ["tax.createTaxRateVersion"]},
+    "user.updateUser": {"msa": "updateUser", "operations": ["user.updateUser"]},
+    "users": {"msa": "currentUser", "operations": ["user.currentUser"], "roundTwoRequest": "users"},
+    "wishlist.createWishlist": {"msa": "createWishlist", "operations": ["wishlist.createWishlist"]},
+    "wishlistView": {
+      "msa": "viewWishlist",
+      "operations": [
+        "wishlist.wishlist",
+        "wishlist.Wishlist.productVariants",
+        "catalog._entities.ProductVariant",
+        "catalog.ProductVariant.currentVersion",
+        "catalog.ProductVariant.product"
+      ],
+      "roundTwoRequest": "wishlistView"
+    }
+  },
+  "cardinalities": {
+    "about": "Workload cardinalities that the code leaves open (domain/REPORT.md §9: items per order, coupons, payment methods; the data-dependent accesses: inventory's reservation per item, findApplicableDiscounts per item). '@name' in a call's params refers to these; ${x} to a fragment argument. They become input VariableUsages of the EntryLevelSystemCall.",
+    "itemsPerOrder": {
+      "value": "1 (75 %) or 2 (25 %): the session's cart lines (classes buyer: secondItem branch)",
+      "mean": 1.25,
+      "src": "A; round 2: 1"
+    },
+    "quantityPerItem": {"value": "IntPMF[(1;0.8)(2;0.15)(3;0.05)]", "mean": 1.25, "src": "A (round 2 / Gatling: count 1)"},
+    "couponsPerOrder": {"value": "IntPMF[(0;0.9)(1;0.1)]", "src": "A (round 2: none)"},
+    "paymentMethod": {
+      "value": "EnumPMF[(\"INVOICE\";0.445)(\"PREPAYMENT\";0.416)(\"CREDIT_CARD\";0.139)]",
+      "src": "round 2 seed (msa KOTLIN-MODEL.md), domain/REPORT.md §9"
+    },
+    "providerSuccess": {
+      "value": 0.95,
+      "src": "simulation stub default (PAYMENT_SUCCESS_RATE, SHIPMENT_SUCCESS_RATE); a system parameter, not a call parameter"
+    },
+    "productsPage": {"value": "first: 10, totalCount selected", "src": "G (request text)"},
+    "wishlistPage": {"value": "first: 10, totalCount selected", "src": "loadgen.py Q_WISHLIST_VIEW"}
+  },
+  "data": {
+    "about": "Data volumes of the measured system (round 2's seed, misarch-optimization/calibration/scripts/seed.py defaults, results-kotlin/seed/state.json). They set rows per access and table sizes; the timing campaign records them per window (timing/CAMPAIGN.md §3.2) and the derivation uses them for rows of list accesses.",
+    "users": 200,
+    "products": 300,
+    "variantsPerProduct": "1/2/3 with p .5/.3/.2 (mean 1.7)",
+    "categories": 24,
+    "categoriesPerProduct": "1-2",
+    "addressesPerUser": "1 (70 %) or 2 (30 %)",
+    "paymentInformationsPerUser": "2 (prepayment, invoice) + 1 credit card for 40 % (mean 2.4)",
+    "discounts": "8 (4 on categories, 4 on products)",
+    "coupons": 2,
+    "stockItemsPerVariant": 60,
+    "reviews": 600,
+    "wishlists": 80,
+    "taxRates": 3,
+    "shipmentMethods": 3
+  }
+}

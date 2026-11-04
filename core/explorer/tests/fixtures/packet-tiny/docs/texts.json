@@ -1,0 +1,6 @@
+{
+ "fixture.title": "The **bookshop**",
+ "fixture.summary": "{{classes}} classes in {{services}} services{{#note}} ({{note}}){{/note}}{{^note}}, nothing to note{{/note}}.",
+ "fixture.empty": "",
+ "placement.noHop": "both in one shop process: no network"
+}

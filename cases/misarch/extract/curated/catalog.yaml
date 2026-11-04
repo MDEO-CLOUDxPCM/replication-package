@@ -1,0 +1,716 @@
+# catalog (Kotlin original). Curated; schema: build.py docstring. Anchors are relative to
+# services/catalog/src/main/kotlin/org/misarch/catalog/ (migration anchors: relative to services/catalog/).
+service: catalog
+transactional: >-
+  service/*Service.kt @Transactional: every mutation's service method runs in one transaction, the events are
+  published inside it, before commit (docs/specs/catalog.md §8); the event handlers and the queries run without a
+  transaction
+# Spring Data R2DBC saveAll() issues one INSERT per element (perItem). The DB trigger
+# trg_check_category_value_product_category (BEFORE INSERT OR UPDATE ON CategoryCharacteristicValueEntity, V1_1) runs
+# one SELECT joining ProductVariantVersion, ProductVariant, ProductToCategory and CategoryCharacteristic per written
+# value row; it is listed as accesses with `dbTrigger` (sql_schema.py also extracts it: do not count it twice).
+
+tables:
+  CategoryEntity: {kind: class, class: Category}
+  CategoryCharacteristicEntity:
+    kind: class
+    class: CategoryCharacteristic
+    note: discriminator CATEGORICAL | NUMERICAL (two GraphQL types, one class; unit only for NUMERICAL)
+    refs:
+      - {attr: categoryId, to: Category, kind: composition, mult: "1"}
+  ProductEntity:
+    kind: class
+    class: Product
+    refs:
+      - {attr: defaultVariantId, to: ProductVariant, kind: association, mult: "1", note: "NULL only inside createProduct's transaction"}
+  ProductVariantEntity:
+    kind: class
+    class: ProductVariant
+    refs:
+      - {attr: productId, to: Product, kind: composition, mult: "1"}
+      - {attr: currentVersion, to: ProductVariantVersion, kind: association, mult: "1", note: "NULL only inside the creating transaction"}
+  ProductVariantVersionEntity:
+    kind: class
+    class: ProductVariantVersion
+    note: immutable once created (a price/name change is a new version)
+    refs:
+      - {attr: productVariantId, to: ProductVariant, kind: composition, mult: "1"}
+      - {attr: taxRateId, to: TaxRate, kind: association, mult: "1", note: "FK into the TaxRate copy (TaxRateEntity); the id only, no rate is frozen"}
+  ProductToCategoryEntity:
+    kind: join
+    joins: [Product, Category]
+    field: categories
+    inverse: products
+    note: "Product.categories [*] <-> Category.products [*]; PRIMARY KEY (productId, categoryId); FKs to ProductEntity and CategoryEntity"
+  CategoryCharacteristicValueEntity:
+    kind: class
+    class: CategoryCharacteristicValue
+    note: >-
+      discriminator CATEGORICAL (stringValue) | NUMERICAL (doubleValue); UNIQUE (categoryCharacteristicId,
+      productVariantVersionId); the trigger trg_check_category_value_product_category checks that the characteristic's
+      category is linked to the version's product
+    refs:
+      - {attr: productVariantVersionId, to: ProductVariantVersion, kind: composition, mult: "1"}
+      - {attr: categoryCharacteristicId, to: CategoryCharacteristic, kind: association, mult: "1"}
+  ProductVariantVersionToMediaEntity:
+    kind: join
+    joins: [ProductVariantVersion, Media]
+    field: medias
+    note: "PRIMARY KEY (productVariantVersionId, mediaId); mediaId is an FK into the Media copy (MediaEntity)"
+  TaxRateEntity:
+    kind: copy
+    copyOf: {TaxRate: [id]}
+    fedBy: [tax/tax-rate/created]
+    note: existence check of the version creation; FK target of ProductVariantVersionEntity.taxRateId; ProductVariantVersion.taxRate returns the stub
+  MediaEntity:
+    kind: copy
+    copyOf: {Media: [id]}
+    fedBy: [media/media/created]
+    note: existence check of the version creation; FK target of ProductVariantVersionToMediaEntity.mediaId; ProductVariantVersion.medias returns the stubs
+
+operations:
+  # ------------------------------------------------------------------ root queries
+  - id: catalog.categories
+    kind: query
+    trigger: {graphql: Query.categories}
+    entry: graphql/Query.kt#fun categories(
+    feature: F6
+    accesses:
+      - {class: Category, mode: read, op: select, shape: list, rows: "all categories (page: first)", via: CategoryConnection.nodes,
+         table: CategoryEntity, today: local, at: graphql/Query.kt#return CategoryConnection(}
+      - {class: Category, mode: read, op: count, shape: one, when: totalCount selected, via: CategoryConnection.totalCount,
+         table: CategoryEntity, today: local, at: graphql/Query.kt#return CategoryConnection(}
+
+  - id: catalog.category
+    kind: query
+    trigger: {graphql: Query.category}
+    entry: graphql/Query.kt#fun category(
+    feature: F6
+    accesses:
+      - {class: Category, mode: read, op: select, shape: batch, rows: 1, via: CategoryRepository.findAllById, table: CategoryEntity,
+         today: local, at: graphql/Query.kt#CategoryDataLoader::class}
+
+  - id: catalog.categoryCharacteristic
+    kind: query
+    trigger: {graphql: Query.categoryCharacteristic}
+    entry: graphql/Query.kt#fun categoryCharacteristic(
+    feature: F6
+    accesses:
+      - {class: CategoryCharacteristic, mode: read, op: select, shape: batch, rows: 1, via: CategoryCharacteristicRepository.findAllById,
+         table: CategoryCharacteristicEntity, today: local, at: graphql/Query.kt#CategoryCharacteristicDataLoader::class}
+
+  - id: catalog.product
+    kind: query
+    trigger: {graphql: Query.product}
+    entry: graphql/Query.kt#fun product(
+    feature: F6
+    accesses:
+      - {class: Product, mode: read, op: select, shape: batch, rows: 1, via: ProductRepository.findAllById, table: ProductEntity,
+         today: local, at: graphql/Query.kt#ProductDataLoader::class, note: "a non-visible product needs an employee"}
+
+  - id: catalog.products
+    kind: query
+    trigger: {graphql: Query.products}
+    entry: graphql/Query.kt#fun products(
+    feature: F6
+    accesses:
+      - {class: Product, mode: read, op: select, shape: list, rows: "visible products (page: first; employees: all)", via: ProductConnection.nodes,
+         table: ProductEntity, today: local, at: graphql/Query.kt#return ProductConnection(}
+      - {class: Product, mode: read, op: count, shape: one, when: totalCount selected, via: ProductConnection.totalCount,
+         table: ProductEntity, today: local, at: graphql/Query.kt#return ProductConnection(}
+
+  # ------------------------------------------------------------------ mutations: categories
+  - id: catalog.createCategory
+    kind: command
+    trigger: {graphql: Mutation.createCategory}
+    entry: graphql/Mutation.kt#fun createCategory(
+    feature: F4
+    transaction: {at: "service/CategoryService.kt#@Transactional", classes: [Category, CategoryCharacteristic], publishInside: true}
+    accesses:
+      - {class: Category, mode: write, op: insert, shape: one, via: CategoryRepository.save, table: CategoryEntity, today: local,
+         at: service/CategoryService.kt#repository.save(category), note: "inserted before the names are validated (rollback undoes it)"}
+      - {class: CategoryCharacteristic, mode: write, op: insert, shape: perItem, per: input.categoricalCharacteristics,
+         via: CategoryCharacteristicRepository.save, table: CategoryCharacteristicEntity, today: local,
+         at: "service/CategoryCharacteristicService.kt#return repository.save(categoryCharacteristic)@1"}
+      - {class: CategoryCharacteristic, mode: write, op: insert, shape: perItem, per: input.numericalCharacteristics,
+         via: CategoryCharacteristicRepository.save, table: CategoryCharacteristicEntity, today: local,
+         at: "service/CategoryCharacteristicService.kt#return repository.save(categoryCharacteristic)@2"}
+    publishes:
+      - {topic: catalog/category/created, at: service/CategoryService.kt#CatalogEvents.CATEGORY_CREATED, payload: [Category],
+         note: "id, name, description (no characteristics)"}
+
+  - id: catalog.createCategoricalCategoryCharacteristic
+    kind: command
+    trigger: {graphql: Mutation.createCategoricalCategoryCharacteristic}
+    entry: graphql/Mutation.kt#fun createCategoricalCategoryCharacteristic(
+    feature: F4
+    transaction: {at: "service/CategoryCharacteristicService.kt#@Transactional@1", classes: [Category, CategoryCharacteristic], publishInside: false, note: "no event"}
+    accesses:
+      - {class: Category, mode: read, op: exists, shape: one, strong: true, via: CategoryRepository.existsById, table: CategoryEntity,
+         today: local, at: service/CategoryCharacteristicService.kt#categoryRepository.existsById(categoryId)}
+      - {class: CategoryCharacteristic, mode: write, op: insert, shape: one, via: CategoryCharacteristicRepository.save,
+         table: CategoryCharacteristicEntity, today: local, at: "service/CategoryCharacteristicService.kt#return repository.save(categoryCharacteristic)@1"}
+
+  - id: catalog.createNumericalCategoryCharacteristic
+    kind: command
+    trigger: {graphql: Mutation.createNumericalCategoryCharacteristic}
+    entry: graphql/Mutation.kt#fun createNumericalCategoryCharacteristic(
+    feature: F4
+    transaction: {at: "service/CategoryCharacteristicService.kt#@Transactional@2", classes: [Category, CategoryCharacteristic], publishInside: false, note: "no event"}
+    accesses:
+      - {class: Category, mode: read, op: exists, shape: one, strong: true, via: CategoryRepository.existsById, table: CategoryEntity,
+         today: local, at: service/CategoryCharacteristicService.kt#categoryRepository.existsById(categoryId)}
+      - {class: CategoryCharacteristic, mode: write, op: insert, shape: one, via: CategoryCharacteristicRepository.save,
+         table: CategoryCharacteristicEntity, today: local, at: "service/CategoryCharacteristicService.kt#return repository.save(categoryCharacteristic)@2"}
+
+  # ------------------------------------------------------------------ mutations: products
+  - id: catalog.createProduct
+    kind: command
+    trigger: {graphql: Mutation.createProduct}
+    entry: graphql/Mutation.kt#fun createProduct(
+    feature: F5
+    transaction:
+      at: "service/ProductService.kt#@Transactional@1"
+      classes: [Product, Category, ProductVariant, ProductVariantVersion, TaxRate, Media, CategoryCharacteristic, CategoryCharacteristicValue]
+      publishInside: true
+      note: >-
+        product, its category links, the default variant, its initial version, the version's characteristic values and
+        media links in one transaction; the variant row is locked (FOR UPDATE) for the version number
+    accesses:
+      - {class: Product, mode: write, op: insert, shape: one, via: ProductRepository.save, table: ProductEntity, today: local,
+         at: "service/ProductService.kt#val savedProduct = repository.save(product)@1"}
+      - {class: Category, mode: read, op: exists, shape: batch, rows: distinct input.categoryIds, when: "categoryIds not empty", strong: true,
+         via: ProductService.checkCategoriesExist, table: CategoryEntity, today: local,
+         at: "service/ProductService.kt#conditionQueries.existingIds<CategoryEntity>(categoryIds)", note: "one SELECT t.id ... = ANY(ids)"}
+      - {class: Product, assoc: Category, mode: write, op: insert, shape: perItem, per: distinct input.categoryIds,
+         via: ProductToCategoryRepository.saveAll, table: ProductToCategoryEntity, today: local, at: service/ProductService.kt#productToCategoryRepository.saveAll}
+      # createProductVariantInternal (default variant)
+      - {class: ProductVariant, mode: write, op: insert, shape: one, via: ProductVariantRepository.save, table: ProductVariantEntity,
+         today: local, at: "service/ProductVariantService.kt#val savedProductVariant = repository.save(productVariant)@1"}
+      # createProductVariantVersionInternal (initial version)
+      - {class: TaxRate, mode: read, op: exists, shape: one, strong: true, via: TaxRateRepository.existsById, table: TaxRateEntity,
+         today: copy, at: service/ProductVariantVersionService.kt#taxRateRepository.existsById(input.taxRateId)}
+      - {class: Media, mode: read, op: exists, shape: batch, rows: initialVersion.mediaIds, when: "mediaIds not empty", strong: true,
+         via: ProductVariantVersionService.checkMediasExist, table: MediaEntity, today: copy,
+         at: "service/ProductVariantVersionService.kt#conditionQueries.existingIds<MediaEntity>(mediaIds)", note: "one SELECT t.id ... = ANY(ids)"}
+      - {class: ProductVariant, mode: read, op: lock, shape: one, strong: true, via: ProductVariantRepository.lockById, table: ProductVariantEntity,
+         today: local, at: service/ProductVariantVersionService.kt#productVariantRepository.lockById(productVariantId),
+         note: "SELECT ... FOR UPDATE of the variant just inserted"}
+      - {class: ProductVariantVersion, mode: read, op: select, shape: one, strong: true, via: ProductVariantVersionRepository.findMaxVersionByProductVariantId,
+         table: ProductVariantVersionEntity, today: local, at: service/ProductVariantVersionService.kt#repository.findMaxVersionByProductVariantId(productVariantId),
+         note: "MAX(version) aggregate (NULL here: new variant)"}
+      - {class: ProductVariantVersion, mode: write, op: insert, shape: one, via: ProductVariantVersionRepository.save,
+         table: ProductVariantVersionEntity, today: local, at: service/ProductVariantVersionService.kt#repository.save(productVariantVersion)}
+      # validateCharacteristicIdsForUpsert: one SQL join over six tables
+      - {class: ProductVariantVersion, mode: read, op: select, shape: one, when: characteristic values given, strong: true,
+         via: CategoryCharacteristicValueRepository.findValidCategoryCharacteristics, table: ProductVariantVersionEntity, today: local,
+         at: service/CategoryCharacteristicValueService.kt#repository.findValidCategoryCharacteristics(, note: "join statement, see the CategoryCharacteristic access"}
+      - {class: ProductVariant, mode: read, op: select, shape: one, when: characteristic values given, strong: true,
+         via: CategoryCharacteristicValueRepository.findValidCategoryCharacteristics, table: ProductVariantEntity, today: local,
+         at: service/CategoryCharacteristicValueService.kt#repository.findValidCategoryCharacteristics(, note: "join statement"}
+      - {class: Product, mode: read, op: select, shape: one, when: characteristic values given, strong: true,
+         via: CategoryCharacteristicValueRepository.findValidCategoryCharacteristics, table: ProductEntity, today: local,
+         at: service/CategoryCharacteristicValueService.kt#repository.findValidCategoryCharacteristics(, note: "join statement"}
+      - {class: Product, assoc: Category, mode: read, op: select, shape: list, rows: categories of the product, when: characteristic values given,
+         strong: true, via: CategoryCharacteristicValueRepository.findValidCategoryCharacteristics, table: ProductToCategoryEntity, today: local,
+         at: service/CategoryCharacteristicValueService.kt#repository.findValidCategoryCharacteristics(, note: "join statement"}
+      - {class: Category, mode: read, op: select, shape: list, rows: categories of the product, when: characteristic values given, strong: true,
+         via: CategoryCharacteristicValueRepository.findValidCategoryCharacteristics, table: CategoryEntity, today: local,
+         at: service/CategoryCharacteristicValueService.kt#repository.findValidCategoryCharacteristics(, note: "join statement"}
+      - {class: CategoryCharacteristic, mode: read, op: select, shape: list, rows: "given characteristic ids (IN list)", when: characteristic values given,
+         strong: true, via: CategoryCharacteristicValueRepository.findValidCategoryCharacteristics, table: CategoryCharacteristicEntity, today: local,
+         at: service/CategoryCharacteristicValueService.kt#repository.findValidCategoryCharacteristics(,
+         note: "one SELECT DISTINCT joining ProductVariantVersion-ProductVariant-Product-ProductToCategory-Category-CategoryCharacteristic"}
+      - {class: CategoryCharacteristicValue, mode: write, op: upsert, shape: perItem, per: initialVersion.categoricalCharacteristicValues,
+         via: CategoryCharacteristicValueRepository.upsert, table: CategoryCharacteristicValueEntity, today: local,
+         at: "service/CategoryCharacteristicValueService.kt#repository.upsert(@1"}
+      - {class: CategoryCharacteristicValue, mode: write, op: upsert, shape: perItem, per: initialVersion.numericalCharacteristicValues,
+         via: CategoryCharacteristicValueRepository.upsert, table: CategoryCharacteristicValueEntity, today: local,
+         at: "service/CategoryCharacteristicValueService.kt#repository.upsert(@2"}
+      # DB trigger per upserted value row
+      - {class: ProductVariantVersion, mode: read, op: exists, shape: perItem, per: "upserted values (categorical + numerical)", strong: true,
+         dbTrigger: trg_check_category_value_product_category, via: CategoryCharacteristicValueRepository.upsert, table: ProductVariantVersionEntity,
+         today: local, at: "src/main/resources/db/migration/V1_1__create_relations.sql#FROM ProductVariantVersionEntity pvve"}
+      - {class: ProductVariant, mode: read, op: exists, shape: perItem, per: "upserted values (categorical + numerical)", strong: true,
+         dbTrigger: trg_check_category_value_product_category, via: CategoryCharacteristicValueRepository.upsert, table: ProductVariantEntity,
+         today: local, at: "src/main/resources/db/migration/V1_1__create_relations.sql#JOIN ProductVariantEntity pve"}
+      - {class: Product, assoc: Category, mode: read, op: exists, shape: perItem, per: "upserted values (categorical + numerical)", strong: true,
+         dbTrigger: trg_check_category_value_product_category, via: CategoryCharacteristicValueRepository.upsert, table: ProductToCategoryEntity,
+         today: local, at: "src/main/resources/db/migration/V1_1__create_relations.sql#JOIN ProductToCategoryEntity pce"}
+      - {class: CategoryCharacteristic, mode: read, op: exists, shape: perItem, per: "upserted values (categorical + numerical)", strong: true,
+         dbTrigger: trg_check_category_value_product_category, via: CategoryCharacteristicValueRepository.upsert, table: CategoryCharacteristicEntity,
+         today: local, at: "src/main/resources/db/migration/V1_1__create_relations.sql#JOIN CategoryCharacteristicEntity cce"}
+      - {class: ProductVariantVersion, assoc: Media, mode: write, op: insert, shape: perItem, per: distinct initialVersion.mediaIds,
+         via: ProductVariantVersionToMediaRepository.saveAll, table: ProductVariantVersionToMediaEntity, today: local,
+         at: service/ProductVariantVersionService.kt#productVariantVersionToMediaRepository.saveAll}
+      # back in createProductVariantInternal / createProduct
+      - {class: ProductVariant, mode: write, op: update, shape: one, via: ProductVariantRepository.save, table: ProductVariantEntity,
+         today: local, at: service/ProductVariantService.kt#repository.save(savedProductVariant), note: "sets currentVersion"}
+      - {class: Product, mode: write, op: update, shape: one, via: ProductRepository.save, table: ProductEntity, today: local,
+         at: service/ProductService.kt#repository.save(savedProduct), note: "sets defaultVariantId"}
+    publishes:
+      - {topic: catalog/product/created, at: service/ProductService.kt#CatalogEvents.PRODUCT_CREATED, payload: [Product],
+         note: "incl. categoryIds (the Product-Category links from the input)"}
+      - {topic: catalog/product-variant/created, at: service/ProductService.kt#CatalogEvents.PRODUCT_VARIANT_CREATED, payload: [ProductVariant]}
+      - {topic: catalog/product-variant-version/created, at: service/ProductService.kt#CatalogEvents.PRODUCT_VARIANT_VERSION_CREATED,
+         payload: [ProductVariantVersion], note: "incl. taxRateId and mediaIds (from the input)"}
+
+  - id: catalog.createProductVariant
+    kind: command
+    trigger: {graphql: Mutation.createProductVariant}
+    entry: graphql/Mutation.kt#fun createProductVariant(
+    feature: F5
+    transaction:
+      at: "service/ProductVariantService.kt#@Transactional@1"
+      classes: [Product, ProductVariant, ProductVariantVersion, TaxRate, Media, Category, CategoryCharacteristic, CategoryCharacteristicValue]
+      publishInside: true
+      note: variant, its initial version, the version's characteristic values and media links in one transaction; the variant row is locked
+    accesses:
+      - {class: Product, mode: read, op: exists, shape: one, strong: true, via: ProductRepository.existsById, table: ProductEntity,
+         today: local, at: service/ProductVariantService.kt#productRepository.existsById(input.productId)}
+      - {class: ProductVariant, mode: write, op: insert, shape: one, via: ProductVariantRepository.save, table: ProductVariantEntity,
+         today: local, at: "service/ProductVariantService.kt#val savedProductVariant = repository.save(productVariant)@1"}
+      - {class: TaxRate, mode: read, op: exists, shape: one, strong: true, via: TaxRateRepository.existsById, table: TaxRateEntity,
+         today: copy, at: service/ProductVariantVersionService.kt#taxRateRepository.existsById(input.taxRateId)}
+      - {class: Media, mode: read, op: exists, shape: batch, rows: initialVersion.mediaIds, when: "mediaIds not empty", strong: true,
+         via: ProductVariantVersionService.checkMediasExist, table: MediaEntity, today: copy,
+         at: "service/ProductVariantVersionService.kt#conditionQueries.existingIds<MediaEntity>(mediaIds)", note: "one SELECT t.id ... = ANY(ids)"}
+      - {class: ProductVariant, mode: read, op: lock, shape: one, strong: true, via: ProductVariantRepository.lockById, table: ProductVariantEntity,
+         today: local, at: service/ProductVariantVersionService.kt#productVariantRepository.lockById(productVariantId),
+         note: "SELECT ... FOR UPDATE of the variant just inserted"}
+      - {class: ProductVariantVersion, mode: read, op: select, shape: one, strong: true, via: ProductVariantVersionRepository.findMaxVersionByProductVariantId,
+         table: ProductVariantVersionEntity, today: local, at: service/ProductVariantVersionService.kt#repository.findMaxVersionByProductVariantId(productVariantId),
+         note: "MAX(version) aggregate (NULL here: new variant)"}
+      - {class: ProductVariantVersion, mode: write, op: insert, shape: one, via: ProductVariantVersionRepository.save,
+         table: ProductVariantVersionEntity, today: local, at: service/ProductVariantVersionService.kt#repository.save(productVariantVersion)}
+      - {class: ProductVariantVersion, mode: read, op: select, shape: one, when: characteristic values given, strong: true,
+         via: CategoryCharacteristicValueRepository.findValidCategoryCharacteristics, table: ProductVariantVersionEntity, today: local,
+         at: service/CategoryCharacteristicValueService.kt#repository.findValidCategoryCharacteristics(, note: "join statement, see the CategoryCharacteristic access"}
+      - {class: ProductVariant, mode: read, op: select, shape: one, when: characteristic values given, strong: true,
+         via: CategoryCharacteristicValueRepository.findValidCategoryCharacteristics, table: ProductVariantEntity, today: local,
+         at: service/CategoryCharacteristicValueService.kt#repository.findValidCategoryCharacteristics(, note: "join statement"}
+      - {class: Product, mode: read, op: select, shape: one, when: characteristic values given, strong: true,
+         via: CategoryCharacteristicValueRepository.findValidCategoryCharacteristics, table: ProductEntity, today: local,
+         at: service/CategoryCharacteristicValueService.kt#repository.findValidCategoryCharacteristics(, note: "join statement"}
+      - {class: Product, assoc: Category, mode: read, op: select, shape: list, rows: categories of the product, when: characteristic values given,
+         strong: true, via: CategoryCharacteristicValueRepository.findValidCategoryCharacteristics, table: ProductToCategoryEntity, today: local,
+         at: service/CategoryCharacteristicValueService.kt#repository.findValidCategoryCharacteristics(, note: "join statement"}
+      - {class: Category, mode: read, op: select, shape: list, rows: categories of the product, when: characteristic values given, strong: true,
+         via: CategoryCharacteristicValueRepository.findValidCategoryCharacteristics, table: CategoryEntity, today: local,
+         at: service/CategoryCharacteristicValueService.kt#repository.findValidCategoryCharacteristics(, note: "join statement"}
+      - {class: CategoryCharacteristic, mode: read, op: select, shape: list, rows: "given characteristic ids (IN list)", when: characteristic values given,
+         strong: true, via: CategoryCharacteristicValueRepository.findValidCategoryCharacteristics, table: CategoryCharacteristicEntity, today: local,
+         at: service/CategoryCharacteristicValueService.kt#repository.findValidCategoryCharacteristics(,
+         note: "one SELECT DISTINCT joining ProductVariantVersion-ProductVariant-Product-ProductToCategory-Category-CategoryCharacteristic"}
+      - {class: CategoryCharacteristicValue, mode: write, op: upsert, shape: perItem, per: initialVersion.categoricalCharacteristicValues,
+         via: CategoryCharacteristicValueRepository.upsert, table: CategoryCharacteristicValueEntity, today: local,
+         at: "service/CategoryCharacteristicValueService.kt#repository.upsert(@1"}
+      - {class: CategoryCharacteristicValue, mode: write, op: upsert, shape: perItem, per: initialVersion.numericalCharacteristicValues,
+         via: CategoryCharacteristicValueRepository.upsert, table: CategoryCharacteristicValueEntity, today: local,
+         at: "service/CategoryCharacteristicValueService.kt#repository.upsert(@2"}
+      - {class: ProductVariantVersion, mode: read, op: exists, shape: perItem, per: "upserted values (categorical + numerical)", strong: true,
+         dbTrigger: trg_check_category_value_product_category, via: CategoryCharacteristicValueRepository.upsert, table: ProductVariantVersionEntity,
+         today: local, at: "src/main/resources/db/migration/V1_1__create_relations.sql#FROM ProductVariantVersionEntity pvve"}
+      - {class: ProductVariant, mode: read, op: exists, shape: perItem, per: "upserted values (categorical + numerical)", strong: true,
+         dbTrigger: trg_check_category_value_product_category, via: CategoryCharacteristicValueRepository.upsert, table: ProductVariantEntity,
+         today: local, at: "src/main/resources/db/migration/V1_1__create_relations.sql#JOIN ProductVariantEntity pve"}
+      - {class: Product, assoc: Category, mode: read, op: exists, shape: perItem, per: "upserted values (categorical + numerical)", strong: true,
+         dbTrigger: trg_check_category_value_product_category, via: CategoryCharacteristicValueRepository.upsert, table: ProductToCategoryEntity,
+         today: local, at: "src/main/resources/db/migration/V1_1__create_relations.sql#JOIN ProductToCategoryEntity pce"}
+      - {class: CategoryCharacteristic, mode: read, op: exists, shape: perItem, per: "upserted values (categorical + numerical)", strong: true,
+         dbTrigger: trg_check_category_value_product_category, via: CategoryCharacteristicValueRepository.upsert, table: CategoryCharacteristicEntity,
+         today: local, at: "src/main/resources/db/migration/V1_1__create_relations.sql#JOIN CategoryCharacteristicEntity cce"}
+      - {class: ProductVariantVersion, assoc: Media, mode: write, op: insert, shape: perItem, per: distinct initialVersion.mediaIds,
+         via: ProductVariantVersionToMediaRepository.saveAll, table: ProductVariantVersionToMediaEntity, today: local,
+         at: service/ProductVariantVersionService.kt#productVariantVersionToMediaRepository.saveAll}
+      - {class: ProductVariant, mode: write, op: update, shape: one, via: ProductVariantRepository.save, table: ProductVariantEntity,
+         today: local, at: service/ProductVariantService.kt#repository.save(savedProductVariant), note: "sets currentVersion"}
+    publishes:
+      - {topic: catalog/product-variant/created, at: service/ProductVariantService.kt#CatalogEvents.PRODUCT_VARIANT_CREATED, payload: [ProductVariant]}
+      - {topic: catalog/product-variant-version/created, at: service/ProductVariantService.kt#CatalogEvents.PRODUCT_VARIANT_VERSION_CREATED,
+         payload: [ProductVariantVersion], note: "incl. taxRateId and mediaIds (from the input)"}
+
+  - id: catalog.createProductVariantVersion
+    kind: command
+    trigger: {graphql: Mutation.createProductVariantVersion}
+    entry: graphql/Mutation.kt#fun createProductVariantVersion(
+    feature: F5
+    transaction:
+      at: "service/ProductVariantVersionService.kt#@Transactional"
+      classes: [ProductVariant, ProductVariantVersion, TaxRate, Media, Product, Category, CategoryCharacteristic, CategoryCharacteristicValue]
+      publishInside: true
+      note: >-
+        the variant row is locked (SELECT ... FOR UPDATE) before MAX(version)+1 (fix, docs/fixes/catalog.md); version,
+        values, media links and the variant's currentVersion in one transaction
+    accesses:
+      - {class: ProductVariant, mode: read, op: exists, shape: one, strong: true, via: ProductVariantRepository.existsById, table: ProductVariantEntity,
+         today: local, at: service/ProductVariantVersionService.kt#productVariantRepository.existsById(input.productVariantId)}
+      - {class: TaxRate, mode: read, op: exists, shape: one, strong: true, via: TaxRateRepository.existsById, table: TaxRateEntity,
+         today: copy, at: service/ProductVariantVersionService.kt#taxRateRepository.existsById(input.taxRateId)}
+      - {class: Media, mode: read, op: exists, shape: batch, rows: input.mediaIds, when: "mediaIds not empty", strong: true,
+         via: ProductVariantVersionService.checkMediasExist, table: MediaEntity, today: copy,
+         at: "service/ProductVariantVersionService.kt#conditionQueries.existingIds<MediaEntity>(mediaIds)", note: "one SELECT t.id ... = ANY(ids)"}
+      - {class: ProductVariant, mode: read, op: lock, shape: one, strong: true, via: ProductVariantRepository.lockById, table: ProductVariantEntity,
+         today: local, at: service/ProductVariantVersionService.kt#productVariantRepository.lockById(productVariantId)}
+      - {class: ProductVariantVersion, mode: read, op: select, shape: one, strong: true, via: ProductVariantVersionRepository.findMaxVersionByProductVariantId,
+         table: ProductVariantVersionEntity, today: local, at: service/ProductVariantVersionService.kt#repository.findMaxVersionByProductVariantId(productVariantId),
+         note: "MAX(version) aggregate over the variant's versions"}
+      - {class: ProductVariantVersion, mode: write, op: insert, shape: one, via: ProductVariantVersionRepository.save,
+         table: ProductVariantVersionEntity, today: local, at: service/ProductVariantVersionService.kt#repository.save(productVariantVersion)}
+      - {class: ProductVariantVersion, mode: read, op: select, shape: one, when: characteristic values given, strong: true,
+         via: CategoryCharacteristicValueRepository.findValidCategoryCharacteristics, table: ProductVariantVersionEntity, today: local,
+         at: service/CategoryCharacteristicValueService.kt#repository.findValidCategoryCharacteristics(, note: "join statement, see the CategoryCharacteristic access"}
+      - {class: ProductVariant, mode: read, op: select, shape: one, when: characteristic values given, strong: true,
+         via: CategoryCharacteristicValueRepository.findValidCategoryCharacteristics, table: ProductVariantEntity, today: local,
+         at: service/CategoryCharacteristicValueService.kt#repository.findValidCategoryCharacteristics(, note: "join statement"}
+      - {class: Product, mode: read, op: select, shape: one, when: characteristic values given, strong: true,
+         via: CategoryCharacteristicValueRepository.findValidCategoryCharacteristics, table: ProductEntity, today: local,
+         at: service/CategoryCharacteristicValueService.kt#repository.findValidCategoryCharacteristics(, note: "join statement"}
+      - {class: Product, assoc: Category, mode: read, op: select, shape: list, rows: categories of the product, when: characteristic values given,
+         strong: true, via: CategoryCharacteristicValueRepository.findValidCategoryCharacteristics, table: ProductToCategoryEntity, today: local,
+         at: service/CategoryCharacteristicValueService.kt#repository.findValidCategoryCharacteristics(, note: "join statement"}
+      - {class: Category, mode: read, op: select, shape: list, rows: categories of the product, when: characteristic values given, strong: true,
+         via: CategoryCharacteristicValueRepository.findValidCategoryCharacteristics, table: CategoryEntity, today: local,
+         at: service/CategoryCharacteristicValueService.kt#repository.findValidCategoryCharacteristics(, note: "join statement"}
+      - {class: CategoryCharacteristic, mode: read, op: select, shape: list, rows: "given characteristic ids (IN list)", when: characteristic values given,
+         strong: true, via: CategoryCharacteristicValueRepository.findValidCategoryCharacteristics, table: CategoryCharacteristicEntity, today: local,
+         at: service/CategoryCharacteristicValueService.kt#repository.findValidCategoryCharacteristics(,
+         note: "one SELECT DISTINCT joining ProductVariantVersion-ProductVariant-Product-ProductToCategory-Category-CategoryCharacteristic"}
+      - {class: CategoryCharacteristicValue, mode: write, op: upsert, shape: perItem, per: input.categoricalCharacteristicValues,
+         via: CategoryCharacteristicValueRepository.upsert, table: CategoryCharacteristicValueEntity, today: local,
+         at: "service/CategoryCharacteristicValueService.kt#repository.upsert(@1"}
+      - {class: CategoryCharacteristicValue, mode: write, op: upsert, shape: perItem, per: input.numericalCharacteristicValues,
+         via: CategoryCharacteristicValueRepository.upsert, table: CategoryCharacteristicValueEntity, today: local,
+         at: "service/CategoryCharacteristicValueService.kt#repository.upsert(@2"}
+      - {class: ProductVariantVersion, mode: read, op: exists, shape: perItem, per: "upserted values (categorical + numerical)", strong: true,
+         dbTrigger: trg_check_category_value_product_category, via: CategoryCharacteristicValueRepository.upsert, table: ProductVariantVersionEntity,
+         today: local, at: "src/main/resources/db/migration/V1_1__create_relations.sql#FROM ProductVariantVersionEntity pvve"}
+      - {class: ProductVariant, mode: read, op: exists, shape: perItem, per: "upserted values (categorical + numerical)", strong: true,
+         dbTrigger: trg_check_category_value_product_category, via: CategoryCharacteristicValueRepository.upsert, table: ProductVariantEntity,
+         today: local, at: "src/main/resources/db/migration/V1_1__create_relations.sql#JOIN ProductVariantEntity pve"}
+      - {class: Product, assoc: Category, mode: read, op: exists, shape: perItem, per: "upserted values (categorical + numerical)", strong: true,
+         dbTrigger: trg_check_category_value_product_category, via: CategoryCharacteristicValueRepository.upsert, table: ProductToCategoryEntity,
+         today: local, at: "src/main/resources/db/migration/V1_1__create_relations.sql#JOIN ProductToCategoryEntity pce"}
+      - {class: CategoryCharacteristic, mode: read, op: exists, shape: perItem, per: "upserted values (categorical + numerical)", strong: true,
+         dbTrigger: trg_check_category_value_product_category, via: CategoryCharacteristicValueRepository.upsert, table: CategoryCharacteristicEntity,
+         today: local, at: "src/main/resources/db/migration/V1_1__create_relations.sql#JOIN CategoryCharacteristicEntity cce"}
+      - {class: ProductVariantVersion, assoc: Media, mode: write, op: insert, shape: perItem, per: distinct input.mediaIds,
+         via: ProductVariantVersionToMediaRepository.saveAll, table: ProductVariantVersionToMediaEntity, today: local,
+         at: service/ProductVariantVersionService.kt#productVariantVersionToMediaRepository.saveAll}
+      - {class: ProductVariant, mode: read, op: select, shape: one, strong: true, via: ProductVariantRepository.findById, table: ProductVariantEntity,
+         today: local, at: service/ProductVariantVersionService.kt#productVariantRepository.findByIdOrThrow(input.productVariantId)}
+      - {class: ProductVariant, mode: write, op: update, shape: one, via: ProductVariantRepository.save, table: ProductVariantEntity,
+         today: local, at: service/ProductVariantVersionService.kt#productVariantRepository.save(productVariant), note: "sets currentVersion"}
+    publishes:
+      - {topic: catalog/product-variant-version/created, at: service/ProductVariantVersionService.kt#CatalogEvents.PRODUCT_VARIANT_VERSION_CREATED,
+         payload: [ProductVariantVersion], note: "incl. taxRateId and mediaIds (from the input)"}
+
+  - id: catalog.updateProduct
+    kind: command
+    trigger: {graphql: Mutation.updateProduct}
+    entry: graphql/Mutation.kt#fun updateProduct(
+    feature: F5
+    transaction: {at: "service/ProductService.kt#@Transactional@2", classes: [Product, ProductVariant, Category], publishInside: true,
+                  note: "Category only through the Product-Category links read for the event"}
+    accesses:
+      - {class: Product, mode: read, op: select, shape: one, strong: true, via: ProductRepository.findById, table: ProductEntity, today: local,
+         at: service/ProductService.kt#repository.findByIdOrThrow(input.id)}
+      - {class: ProductVariant, mode: read, op: select, shape: optional, when: input.defaultVariantId given, strong: true,
+         via: ProductVariantRepository.findById, table: ProductVariantEntity, today: local,
+         at: service/ProductService.kt#productVariantRepository.findByIdOrThrow(input.defaultVariantId), note: "the variant must belong to the product"}
+      - {class: Product, mode: write, op: update, shape: one, via: ProductRepository.save, table: ProductEntity, today: local,
+         at: "service/ProductService.kt#val savedProduct = repository.save(product)@2"}
+      - {class: Product, assoc: Category, mode: read, op: select, shape: list, rows: categories of the product, via: ProductToCategoryRepository.findByKeyProductId,
+         table: ProductToCategoryEntity, today: local, at: service/ProductService.kt#productToCategoryRepository.findByKeyProductId, note: "for the event payload"}
+    publishes:
+      - {topic: catalog/product/updated, at: service/ProductService.kt#CatalogEvents.PRODUCT_UPDATED, payload: [Product],
+         note: "incl. categoryIds; no service subscribes to it"}
+
+  - id: catalog.updateProductVariant
+    kind: command
+    trigger: {graphql: Mutation.updateProductVariant}
+    entry: graphql/Mutation.kt#fun updateProductVariant(
+    feature: F5
+    transaction: {at: "service/ProductVariantService.kt#@Transactional@2", classes: [ProductVariant], publishInside: true}
+    accesses:
+      - {class: ProductVariant, mode: read, op: select, shape: one, strong: true, via: ProductVariantRepository.findById, table: ProductVariantEntity,
+         today: local, at: service/ProductVariantService.kt#repository.findByIdOrThrow(input.id)}
+      - {class: ProductVariant, mode: write, op: update, shape: one, via: ProductVariantRepository.save, table: ProductVariantEntity, today: local,
+         at: "service/ProductVariantService.kt#val savedProductVariant = repository.save(productVariant)@2", note: "isPubliclyVisible"}
+    publishes:
+      - {topic: catalog/product-variant/updated, at: service/ProductVariantService.kt#CatalogEvents.PRODUCT_VARIANT_UPDATED, payload: [ProductVariant],
+         note: "id and isPubliclyVisible"}
+
+  # ------------------------------------------------------------------ entity resolvers and fields
+  - id: catalog._entities.CategoricalCategoryCharacteristic
+    kind: query
+    trigger: {graphql: _entities(CategoricalCategoryCharacteristic)}
+    entry: graphql/federation/CategoricalCategoryCharacteristicResolver.kt#class CategoricalCategoryCharacteristicResolver
+    feature: F6
+    accesses:
+      - {class: CategoryCharacteristic, mode: read, op: select, shape: batch, rows: 1, via: CategoryCharacteristicRepository.findAllById,
+         table: CategoryCharacteristicEntity, today: local, at: graphql/federation/CategoricalCategoryCharacteristicResolver.kt#CategoricalCategoryCharacteristicDataLoader::class,
+         note: "rows of the other discriminator are dropped in memory"}
+
+  - id: catalog._entities.NumericalCategoryCharacteristic
+    kind: query
+    trigger: {graphql: _entities(NumericalCategoryCharacteristic)}
+    entry: graphql/federation/NumericalCategoryCharacteristicResolver.kt#class NumericalCategoryCharacteristicResolver
+    feature: F6
+    accesses:
+      - {class: CategoryCharacteristic, mode: read, op: select, shape: batch, rows: 1, via: CategoryCharacteristicRepository.findAllById,
+         table: CategoryCharacteristicEntity, today: local, at: graphql/federation/NumericalCategoryCharacteristicResolver.kt#NumericalCategoryCharacteristicDataLoader::class,
+         note: "rows of the other discriminator are dropped in memory"}
+
+  - id: catalog.CategoricalCategoryCharacteristic.category
+    kind: query
+    trigger: {graphql: CategoricalCategoryCharacteristic.category}
+    entry: graphql/model/CategoryCharacteristic.kt#fun category(
+    feature: F6
+    accesses:
+      - {class: Category, mode: read, op: select, shape: batch, rows: 1, via: CategoryRepository.findAllById, table: CategoryEntity,
+         today: local, at: graphql/model/CategoryCharacteristic.kt#CategoryDataLoader::class}
+    note: inherited from the abstract CategoryCharacteristic model (same code as NumericalCategoryCharacteristic.category)
+
+  - id: catalog.NumericalCategoryCharacteristic.category
+    kind: query
+    trigger: {graphql: NumericalCategoryCharacteristic.category}
+    entry: graphql/model/CategoryCharacteristic.kt#fun category(
+    feature: F6
+    accesses:
+      - {class: Category, mode: read, op: select, shape: batch, rows: 1, via: CategoryRepository.findAllById, table: CategoryEntity,
+         today: local, at: graphql/model/CategoryCharacteristic.kt#CategoryDataLoader::class}
+    note: inherited from the abstract CategoryCharacteristic model
+
+  - id: catalog.CategoricalCategoryCharacteristic.values
+    kind: query
+    trigger: {graphql: CategoricalCategoryCharacteristic.values}
+    entry: graphql/model/CategoricalCategoryCharacteristic.kt#fun values(
+    feature: F6
+    accesses:
+      - {class: CategoryCharacteristicValue, mode: read, op: select, shape: list, rows: "distinct string values of the characteristic (page: first)",
+         via: CategoricalCategoryCharacteristicValueConnection.query, table: CategoryCharacteristicValueEntity, today: local,
+         at: graphql/model/CategoricalCategoryCharacteristic.kt#return CategoricalCategoryCharacteristicValueConnection(,
+         note: "SELECT DISTINCT stringValue over all versions' values of the characteristic"}
+      - {class: CategoryCharacteristicValue, mode: read, op: count, shape: one, when: totalCount selected,
+         via: CategoricalCategoryCharacteristicValueConnection.query, table: CategoryCharacteristicValueEntity, today: local,
+         at: graphql/model/CategoricalCategoryCharacteristic.kt#return CategoricalCategoryCharacteristicValueConnection(}
+      - {class: CategoryCharacteristicValue, mode: read, op: exists, shape: one, when: hasNextPage selected,
+         via: CategoricalCategoryCharacteristicValueConnection.query, table: CategoryCharacteristicValueEntity, today: local,
+         at: graphql/model/CategoricalCategoryCharacteristic.kt#return CategoricalCategoryCharacteristicValueConnection(}
+
+  - id: catalog.CategoricalCategoryCharacteristicValue.characteristic
+    kind: query
+    trigger: {graphql: CategoricalCategoryCharacteristicValue.characteristic}
+    entry: graphql/model/CategoryCharacteristicValue.kt#fun characteristic(
+    feature: F6
+    accesses:
+      - {class: CategoryCharacteristic, mode: read, op: select, shape: batch, rows: 1, via: CategoryCharacteristicRepository.findAllById,
+         table: CategoryCharacteristicEntity, today: local, at: graphql/model/CategoryCharacteristicValue.kt#CategoryCharacteristicDataLoader::class}
+    note: inherited from the abstract CategoryCharacteristicValue model
+
+  - id: catalog.NumericalCategoryCharacteristicValue.characteristic
+    kind: query
+    trigger: {graphql: NumericalCategoryCharacteristicValue.characteristic}
+    entry: graphql/model/CategoryCharacteristicValue.kt#fun characteristic(
+    feature: F6
+    accesses:
+      - {class: CategoryCharacteristic, mode: read, op: select, shape: batch, rows: 1, via: CategoryCharacteristicRepository.findAllById,
+         table: CategoryCharacteristicEntity, today: local, at: graphql/model/CategoryCharacteristicValue.kt#CategoryCharacteristicDataLoader::class}
+    note: inherited from the abstract CategoryCharacteristicValue model
+
+  - id: catalog._entities.Category
+    kind: query
+    trigger: {graphql: _entities(Category)}
+    entry: graphql/federation/CategoryResolver.kt#class CategoryResolver
+    feature: F6
+    accesses:
+      - {class: Category, mode: read, op: select, shape: batch, rows: 1, via: CategoryRepository.findAllById, table: CategoryEntity,
+         today: local, at: graphql/federation/CategoryResolver.kt#CategoryDataLoader::class}
+
+  - id: catalog.Category.characteristics
+    kind: query
+    trigger: {graphql: Category.characteristics}
+    entry: graphql/model/Category.kt#fun characteristics(
+    feature: F6
+    accesses:
+      - {class: CategoryCharacteristic, mode: read, op: select, shape: list, rows: "characteristics of the category (page: first)",
+         via: CategoryCharacteristicConnection.nodes, table: CategoryCharacteristicEntity, today: local, at: graphql/model/Category.kt#return CategoryCharacteristicConnection(}
+      - {class: CategoryCharacteristic, mode: read, op: count, shape: one, when: totalCount selected, via: CategoryCharacteristicConnection.totalCount,
+         table: CategoryCharacteristicEntity, today: local, at: graphql/model/Category.kt#return CategoryCharacteristicConnection(}
+
+  - id: catalog.Category.products
+    kind: query
+    trigger: {graphql: Category.products}
+    entry: graphql/model/Category.kt#fun products(
+    feature: F6
+    accesses:
+      - {class: Product, mode: read, op: select, shape: list, rows: "visible products of the category (page: first)", via: ProductConnection.nodes,
+         table: ProductEntity, today: local, at: graphql/model/Category.kt#return ProductConnection(}
+      - {class: Product, assoc: Category, mode: read, op: select, shape: list, rows: "links of the category (page: first)", via: ProductConnection.nodes,
+         table: ProductToCategoryEntity, today: local, at: graphql/model/Category.kt#INNER JOIN ProductToCategoryEntity,
+         note: "same statement: ProductEntity INNER JOIN ProductToCategoryEntity"}
+      - {class: Product, mode: read, op: count, shape: one, when: totalCount selected, via: ProductConnection.totalCount,
+         table: ProductEntity, today: local, at: graphql/model/Category.kt#return ProductConnection(}
+      - {class: Product, assoc: Category, mode: read, op: count, shape: one, when: totalCount selected, via: ProductConnection.totalCount,
+         table: ProductToCategoryEntity, today: local, at: graphql/model/Category.kt#INNER JOIN ProductToCategoryEntity, note: "same statement (join)"}
+
+  - id: catalog._entities.Product
+    kind: query
+    trigger: {graphql: _entities(Product)}
+    entry: graphql/federation/ProductResolver.kt#class ProductResolver
+    feature: F6
+    accesses:
+      - {class: Product, mode: read, op: select, shape: batch, rows: 1, via: ProductRepository.findAllById, table: ProductEntity,
+         today: local, at: graphql/federation/ProductResolver.kt#ProductDataLoader::class}
+
+  - id: catalog.Product.categories
+    kind: query
+    trigger: {graphql: Product.categories}
+    entry: graphql/model/Product.kt#fun categories(
+    feature: F6
+    accesses:
+      - {class: Category, mode: read, op: select, shape: list, rows: "categories of the product (page: first)", via: CategoryConnection.nodes,
+         table: CategoryEntity, today: local, at: graphql/model/Product.kt#return CategoryConnection(}
+      - {class: Product, assoc: Category, mode: read, op: select, shape: list, rows: "links of the product (page: first)", via: CategoryConnection.nodes,
+         table: ProductToCategoryEntity, today: local, at: graphql/model/Product.kt#INNER JOIN ProductToCategoryEntity,
+         note: "same statement: CategoryEntity INNER JOIN ProductToCategoryEntity"}
+      - {class: Category, mode: read, op: count, shape: one, when: totalCount selected, via: CategoryConnection.totalCount,
+         table: CategoryEntity, today: local, at: graphql/model/Product.kt#return CategoryConnection(}
+      - {class: Product, assoc: Category, mode: read, op: count, shape: one, when: totalCount selected, via: CategoryConnection.totalCount,
+         table: ProductToCategoryEntity, today: local, at: graphql/model/Product.kt#INNER JOIN ProductToCategoryEntity, note: "same statement (join)"}
+
+  - id: catalog.Product.defaultVariant
+    kind: query
+    trigger: {graphql: Product.defaultVariant}
+    entry: graphql/model/Product.kt#fun defaultVariant(
+    feature: F6
+    accesses:
+      - {class: ProductVariant, mode: read, op: select, shape: batch, rows: 1, via: ProductVariantRepository.findAllById, table: ProductVariantEntity,
+         today: local, at: graphql/model/Product.kt#ProductVariantDataLoader::class}
+
+  - id: catalog.Product.variants
+    kind: query
+    trigger: {graphql: Product.variants}
+    entry: graphql/model/Product.kt#fun variants(
+    feature: F6
+    accesses:
+      - {class: ProductVariant, mode: read, op: select, shape: list, rows: "visible variants of the product (page: first)", via: ProductVariantConnection.nodes,
+         table: ProductVariantEntity, today: local, at: graphql/model/Product.kt#return ProductVariantConnection(}
+      - {class: ProductVariant, mode: read, op: count, shape: one, when: totalCount selected, via: ProductVariantConnection.totalCount,
+         table: ProductVariantEntity, today: local, at: graphql/model/Product.kt#return ProductVariantConnection(}
+
+  - id: catalog._entities.ProductVariant
+    kind: query
+    trigger: {graphql: _entities(ProductVariant)}
+    entry: graphql/federation/ProductVariantResolver.kt#class ProductVariantResolver
+    feature: F6
+    accesses:
+      - {class: ProductVariant, mode: read, op: select, shape: batch, rows: 1, via: ProductVariantRepository.findAllById, table: ProductVariantEntity,
+         today: local, at: graphql/federation/ProductVariantResolver.kt#ProductVariantDataLoader::class}
+
+  - id: catalog.ProductVariant.currentVersion
+    kind: query
+    trigger: {graphql: ProductVariant.currentVersion}
+    entry: graphql/model/ProductVariant.kt#fun currentVersion(
+    feature: F6
+    accesses:
+      - {class: ProductVariantVersion, mode: read, op: select, shape: batch, rows: 1, via: ProductVariantVersionRepository.findAllById,
+         table: ProductVariantVersionEntity, today: local, at: graphql/model/ProductVariant.kt#ProductVariantVersionDataLoader::class}
+
+  - id: catalog.ProductVariant.product
+    kind: query
+    trigger: {graphql: ProductVariant.product}
+    entry: graphql/model/ProductVariant.kt#fun product(
+    feature: F6
+    accesses:
+      - {class: Product, mode: read, op: select, shape: batch, rows: 1, via: ProductRepository.findAllById, table: ProductEntity,
+         today: local, at: graphql/model/ProductVariant.kt#ProductDataLoader::class}
+
+  - id: catalog.ProductVariant.versions
+    kind: query
+    trigger: {graphql: ProductVariant.versions}
+    entry: graphql/model/ProductVariant.kt#fun versions(
+    feature: F6
+    accesses:
+      - {class: ProductVariantVersion, mode: read, op: select, shape: list, rows: "versions of the variant (page: first)",
+         via: ProductVariantVersionConnection.nodes, table: ProductVariantVersionEntity, today: local, at: graphql/model/ProductVariant.kt#return ProductVariantVersionConnection(}
+      - {class: ProductVariantVersion, mode: read, op: count, shape: one, when: totalCount selected, via: ProductVariantVersionConnection.totalCount,
+         table: ProductVariantVersionEntity, today: local, at: graphql/model/ProductVariant.kt#return ProductVariantVersionConnection(}
+
+  - id: catalog._entities.ProductVariantVersion
+    kind: query
+    trigger: {graphql: _entities(ProductVariantVersion)}
+    entry: graphql/federation/ProductVariantVersionResolver.kt#class ProductVariantVersionResolver
+    feature: F6
+    accesses:
+      - {class: ProductVariantVersion, mode: read, op: select, shape: batch, rows: 1, via: ProductVariantVersionRepository.findAllById,
+         table: ProductVariantVersionEntity, today: local, at: graphql/federation/ProductVariantVersionResolver.kt#ProductVariantVersionDataLoader::class}
+
+  - id: catalog.ProductVariantVersion.characteristicValues
+    kind: query
+    trigger: {graphql: ProductVariantVersion.characteristicValues}
+    entry: graphql/model/ProductVariantVersion.kt#fun characteristicValues(
+    feature: F6
+    accesses:
+      - {class: CategoryCharacteristicValue, mode: read, op: select, shape: list, rows: "values of the version (page: first)",
+         via: CategoryCharacteristicValueConnection.nodes, table: CategoryCharacteristicValueEntity, today: local,
+         at: graphql/model/ProductVariantVersion.kt#return CategoryCharacteristicValueConnection(}
+      - {class: CategoryCharacteristicValue, mode: read, op: count, shape: one, when: totalCount selected, via: CategoryCharacteristicValueConnection.totalCount,
+         table: CategoryCharacteristicValueEntity, today: local, at: graphql/model/ProductVariantVersion.kt#return CategoryCharacteristicValueConnection(}
+
+  - id: catalog.ProductVariantVersion.medias
+    kind: query
+    trigger: {graphql: ProductVariantVersion.medias}
+    entry: graphql/model/ProductVariantVersion.kt#fun medias(
+    feature: F6
+    accesses:
+      - {class: Media, mode: read, op: select, shape: list, rows: "medias of the version (page: first)", via: MediaConnection.nodes,
+         table: MediaEntity, today: copy, at: graphql/model/ProductVariantVersion.kt#return MediaConnection(, note: "returns Media stubs (id) from the copy"}
+      - {class: ProductVariantVersion, assoc: Media, mode: read, op: select, shape: list, rows: "links of the version (page: first)", via: MediaConnection.nodes,
+         table: ProductVariantVersionToMediaEntity, today: local, at: graphql/model/ProductVariantVersion.kt#INNER JOIN ProductVariantVersionToMediaEntity,
+         note: "same statement: MediaEntity INNER JOIN ProductVariantVersionToMediaEntity"}
+      - {class: Media, mode: read, op: count, shape: one, when: totalCount selected, via: MediaConnection.totalCount,
+         table: MediaEntity, today: copy, at: graphql/model/ProductVariantVersion.kt#return MediaConnection(}
+      - {class: ProductVariantVersion, assoc: Media, mode: read, op: count, shape: one, when: totalCount selected, via: MediaConnection.totalCount,
+         table: ProductVariantVersionToMediaEntity, today: local, at: graphql/model/ProductVariantVersion.kt#INNER JOIN ProductVariantVersionToMediaEntity,
+         note: "same statement (join)"}
+
+  - id: catalog.ProductVariantVersion.productVariant
+    kind: query
+    trigger: {graphql: ProductVariantVersion.productVariant}
+    entry: graphql/model/ProductVariantVersion.kt#fun productVariant(
+    feature: F6
+    accesses:
+      - {class: ProductVariant, mode: read, op: select, shape: batch, rows: 1, via: ProductVariantRepository.findAllById, table: ProductVariantEntity,
+         today: local, at: graphql/model/ProductVariantVersion.kt#ProductVariantDataLoader::class}
+
+  - id: catalog.ProductVariantVersion.taxRate
+    kind: query
+    trigger: {graphql: ProductVariantVersion.taxRate}
+    entry: graphql/model/ProductVariantVersion.kt#fun taxRate(
+    feature: F6
+    accesses:
+      - {class: TaxRate, mode: read, op: select, shape: batch, rows: 1, via: TaxRateRepository.findAllById, table: TaxRateEntity, today: copy,
+         at: graphql/model/ProductVariantVersion.kt#TaxRateDataLoader::class, note: "returns the TaxRate stub (id) from the copy; the rate itself comes from tax via the gateway"}
+
+  # ------------------------------------------------------------------ copy maintenance
+  - id: catalog.on:tax/tax-rate/created
+    kind: reaction
+    mechanism: copy
+    trigger: {topic: tax/tax-rate/created}
+    entry: event/EventController.kt#fun onTaxRateCreated(
+    feature: F8
+    accesses:
+      - {class: TaxRate, mode: write, op: upsert, shape: one, via: TaxRateRepository.createTaxRate, table: TaxRateEntity, today: copy,
+         at: service/TaxRateService.kt#repository.createTaxRate, note: "INSERT ... ON CONFLICT (id) DO NOTHING"}
+
+  - id: catalog.on:media/media/created
+    kind: reaction
+    mechanism: copy
+    trigger: {topic: media/media/created}
+    entry: event/EventController.kt#fun onMediaCreated(
+    feature: F7
+    accesses:
+      - {class: Media, mode: write, op: upsert, shape: one, via: MediaRepository.createMedia, table: MediaEntity, today: copy,
+         at: service/MediaService.kt#repository.createMedia, note: "INSERT ... ON CONFLICT (id) DO NOTHING"}

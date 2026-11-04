@@ -1,0 +1,135 @@
+# address (Kotlin original). Curated; schema: build.py docstring. Anchors are relative to
+# services/address/src/main/kotlin/org/misarch/address/.
+service: address
+transactional: >-
+  service/*Service.kt @Transactional: every mutation's service method runs in one transaction, the event is
+  published inside it (a failed publish rolls the mutation back)
+
+tables:
+  UserEntity:
+    kind: copy
+    copyOf: {User: [id]}
+    fedBy: [user/user/created]
+    note: existence check of createUserAddress
+  AddressEntity:
+    kind: class
+    classes: [UserAddress, VendorAddress]
+    discriminator: userId IS NULL -> VendorAddress
+    evidenceDiscriminator: persistence/repository/AddressRepository.kt#WHERE userId IS NULL
+    refs:
+      - {attr: userId, to: User, kind: association, mult: "1", of: UserAddress}
+
+operations:
+  - id: address.address
+    kind: query
+    trigger: {graphql: Query.address}
+    entry: graphql/Query.kt#fun address(
+    feature: F3
+    accesses:
+      - {class: UserAddress, alt: VendorAddress, mode: read, op: select, shape: batch, rows: 1, via: AddressRepository.findAllById,
+         table: AddressEntity, today: local, at: graphql/Query.kt#AddressDataLoader::class, note: "DataLoader; either type"}
+
+  - id: address.vendorAddress
+    kind: query
+    trigger: {graphql: Query.vendorAddress}
+    entry: graphql/Query.kt#fun vendorAddress(
+    feature: F3
+    accesses:
+      - {class: VendorAddress, mode: read, op: select, shape: one, via: AddressRepository.findCurrentVendorAddress,
+         table: AddressEntity, today: local, at: graphql/Query.kt#findCurrentVendorAddress}
+
+  - id: address.createUserAddress
+    kind: command
+    trigger: {graphql: Mutation.createUserAddress}
+    entry: graphql/Mutation.kt#fun createUserAddress(
+    feature: F3
+    transaction: {at: "service/UserAddressService.kt#@Transactional@1", classes: [User, UserAddress], publishInside: true}
+    accesses:
+      - {class: User, mode: read, op: exists, shape: one, strong: true, via: UserRepository.existsById, table: UserEntity,
+         today: copy, at: service/UserAddressService.kt#userRepository.existsById, note: "the user must exist"}
+      - {class: UserAddress, mode: write, op: insert, shape: one, via: AddressRepository.save, table: AddressEntity, today: local,
+         at: service/UserAddressService.kt#repository.save(userAddress)}
+    publishes:
+      - {topic: address/user-address/created, at: service/UserAddressService.kt#USER_ADDRESS_CREATED, payload: [UserAddress]}
+
+  - id: address.createVendorAddress
+    kind: command
+    trigger: {graphql: Mutation.createVendorAddress}
+    entry: graphql/Mutation.kt#fun createVendorAddress(
+    feature: F3
+    transaction: {at: "service/VendorAddressService.kt#@Transactional", classes: [VendorAddress], publishInside: true}
+    accesses:
+      - {class: VendorAddress, mode: write, op: insert, shape: one, via: AddressRepository.save, table: AddressEntity, today: local,
+         at: service/VendorAddressService.kt#repository.save}
+    publishes:
+      - {topic: address/vendor-address/created, at: service/VendorAddressService.kt#VENDOR_ADDRESS_CREATED, payload: [VendorAddress]}
+
+  - id: address.archiveUserAddress
+    kind: command
+    trigger: {graphql: Mutation.archiveUserAddress}
+    entry: graphql/Mutation.kt#fun archiveUserAddress(
+    feature: F3
+    transaction: {at: "service/UserAddressService.kt#@Transactional@2", classes: [UserAddress], publishInside: true}
+    accesses:
+      - {class: UserAddress, mode: read, op: select, shape: one, strong: true, via: AddressRepository.findById, table: AddressEntity,
+         today: local, at: service/UserAddressService.kt#repository.findById, note: "ownership check"}
+      - {class: UserAddress, mode: write, op: update, shape: one, via: AddressRepository.save, table: AddressEntity, today: local,
+         at: "service/UserAddressService.kt#repository.save(userAddress)@2"}
+    publishes:
+      - {topic: address/user-address/archived, at: service/UserAddressService.kt#USER_ADDRESS_ARCHIVED, payload: [UserAddress]}
+
+  - id: address._entities.User
+    kind: query
+    trigger: {graphql: _entities(User)}
+    entry: graphql/federation/UserResolver.kt#class UserResolver
+    feature: F3
+    trivial: true
+    note: builds the User stub from the representation, no database access
+
+  - id: address.User.addresses
+    kind: query
+    trigger: {graphql: User.addresses}
+    entry: graphql/model/User.kt#fun addresses(
+    feature: F3
+    accesses:
+      - {class: UserAddress, mode: read, op: select, shape: list, rows: "addresses of the user (page: first)", via: UserAddressConnection.nodes,
+         table: AddressEntity, today: local, at: graphql/model/User.kt#UserAddressConnection(}
+      - {class: UserAddress, mode: read, op: count, shape: one, when: totalCount selected, via: UserAddressConnection.totalCount,
+         table: AddressEntity, today: local, at: graphql/model/User.kt#UserAddressConnection(}
+
+  - id: address._entities.UserAddress
+    kind: query
+    trigger: {graphql: _entities(UserAddress)}
+    entry: graphql/federation/UserAddressResolver.kt#class UserAddressResolver
+    feature: F3
+    accesses:
+      - {class: UserAddress, mode: read, op: select, shape: batch, rows: 1, via: AddressRepository.findAllById, table: AddressEntity,
+         today: local, at: graphql/federation/UserAddressResolver.kt#AddressDataLoader::class}
+
+  - id: address._entities.VendorAddress
+    kind: query
+    trigger: {graphql: _entities(VendorAddress)}
+    entry: graphql/federation/VendorAddressResolver.kt#class VendorAddressResolver
+    feature: F3
+    accesses:
+      - {class: VendorAddress, mode: read, op: select, shape: batch, rows: 1, via: AddressRepository.findAllById, table: AddressEntity,
+         today: local, at: graphql/federation/VendorAddressResolver.kt#AddressDataLoader::class}
+
+  - id: address.UserAddress.user
+    kind: query
+    trigger: {graphql: UserAddress.user}
+    entry: graphql/model/UserAddress.kt#fun user(
+    feature: F3
+    accesses:
+      - {class: User, mode: read, op: select, shape: batch, rows: 1, via: UserRepository.findAllById, table: UserEntity, today: copy,
+         at: graphql/model/UserAddress.kt#UserDataLoader::class, note: "returns the User stub (id) from the copy"}
+
+  - id: address.on:user/user/created
+    kind: reaction
+    mechanism: copy
+    trigger: {topic: user/user/created}
+    entry: event/EventController.kt#fun onUserCreated(
+    feature: F1
+    accesses:
+      - {class: User, mode: write, op: upsert, shape: one, via: UserRepository.createUser, table: UserEntity, today: copy,
+         at: service/UserService.kt#repository.createUser}

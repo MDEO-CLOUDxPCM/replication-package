@@ -1,0 +1,16 @@
+[
+ {
+  "file": "server/simulator.ts",
+  "rule": "case-path",
+  "match": "palladio-sim-service",
+  "count": 1,
+  "why": "the family's simulator: the Palladio Simulation plugin's detail (family palladio-architecture)"
+ },
+ {
+  "file": "web/src/model/verify/highlight.ts",
+  "rule": "case-name",
+  "match": "kotlin",
+  "count": 4,
+  "why": "the Kotlin syntax grammar of the source viewer (a language, not the case)"
+ }
+]

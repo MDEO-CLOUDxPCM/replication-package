@@ -1,0 +1,10 @@
+{
+  "$comment": "Sources the explorer backend reads. Paths are relative to core/explorer/. A sources.local.json (gitignored) replaces this file when present. `packets`: the data packets (contract/packet.ts, docs/packet-format.md), each a bundle with a packet.json; build/explorer-sim is the MiSArch packet (pnpm packet:misarch writes its manifest, docs and Verify files, pnpm export:run its runs). `sources`: further bundles ({id, kind: \"bundle\", path}). Which packet may run which of its commands is set in server.local.json (gitignored), never by a packet.",
+  "packets": [
+    {
+      "id": "exports",
+      "path": "../../build/explorer-sim"
+    }
+  ],
+  "sources": []
+}

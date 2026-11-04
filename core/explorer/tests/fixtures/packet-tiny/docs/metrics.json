@@ -1,0 +1,64 @@
+[
+ {
+  "key": "cost",
+  "title": "Shop cost",
+  "code": "O1",
+  "kind": "objective",
+  "direction": "minimised",
+  "summary": "Cores the shop needs: replicas, databases and the `gateway`.",
+  "unit": "cores",
+  "inputs": [
+   "the design's services and mechanisms"
+  ],
+  "cite": [
+   "dummy/model.ts evaluate"
+  ],
+  "origin": "made up for the test fixture"
+ },
+ {
+  "key": "failure",
+  "title": "Failures",
+  "code": "O2",
+  "kind": "objective",
+  "direction": "minimised",
+  "summary": "Failed requests per million: services and databases on the path share their fate.",
+  "unit": "ppm",
+  "inputs": [
+   "the design's services and mechanisms"
+  ],
+  "cite": [
+   "dummy/model.ts evaluate"
+  ],
+  "origin": "made up for the test fixture"
+ },
+ {
+  "key": "inconsistency",
+  "title": "Inconsistency",
+  "code": "O3",
+  "kind": "objective",
+  "direction": "minimised",
+  "summary": "Stale reads and remote writes per request.",
+  "inputs": [
+   "the design's services and mechanisms"
+  ],
+  "cite": [
+   "dummy/model.ts evaluate"
+  ],
+  "origin": "made up for the test fixture"
+ },
+ {
+  "key": "latencyBudget",
+  "title": "Latency budget",
+  "code": "C1",
+  "kind": "constraint",
+  "direction": "a violation (0 = met)",
+  "summary": "How far the no-load times exceed their budgets.",
+  "inputs": [
+   "the design's services and mechanisms"
+  ],
+  "cite": [
+   "dummy/model.ts evaluate"
+  ],
+  "origin": "made up for the test fixture"
+ }
+]
